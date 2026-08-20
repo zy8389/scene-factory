@@ -192,6 +192,40 @@ python -m scene_factory asset collision `
 collision；`CollisionProcessor` 只检查和登记已有 collision 文件，报告中的
 `generated` 永远为 `false`。状态依次为 `raw`、`normalized`、`validated`、`ready`。
 
+### P0-3 Simulation-ready Asset Example
+
+仓库不包含虚构的高保真模型或碰撞网格。把真实文件放入以下结构后，使用 Isaac Sim
+Python 执行资产级验收：
+
+```text
+data/assets/
+├── source/mug_original.usd
+├── usd/mug_001.usd
+├── collision/mug_001_collision.usd
+├── metadata/mug_001.json
+└── qa_reports/mug_001.json
+```
+
+```text
+Asset Source -> USD Normalize -> Collision -> PhysX Metadata -> Isaac Sim -> Registry ready
+```
+
+`tools/validate_mug_asset.py` 会加载标准化 USD，引用已有 authored collision，创建
+约 1 m 的单资产跌落场景，并检查 stage、刚体、碰撞、落地、不穿透和稳定停止：
+
+```powershell
+$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
+& $IsaacPython tools\validate_mug_asset.py data\assets\usd\mug_001.usd `
+  --collision data\assets\collision\mug_001_collision.usd `
+  --asset-id mug_001 `
+  --mass-kg 0.3 `
+  --report data\assets\qa_reports\mug_001.json
+```
+
+报告通过后，可按 `raw -> normalized -> validated -> ready` 顺序用
+`AssetRegistry.promote_to_validated()` 和 `promote_to_ready()` 更新 Registry。
+缺少真实 USD 或 authored collision 时，脚本只写出结构化失败报告，不会生成替代资产。
+
 ## 添加生活事件
 
 复制 `recipes/` 中的 JSON，修改：

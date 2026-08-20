@@ -17,7 +17,7 @@ Windows 上 Isaac Sim/OpenUSD 对中文路径兼容性不稳定，因此 USD 和
 ## 资产状态
 
 ```text
-本地 USD → inspect → wrap → quarantine → PhysX 跌落测试 → validated → 正式资产库
+本地 USD → inspect → wrap → normalized → authored collision → PhysX 跌落测试 → validated → ready
 ```
 
 - `quarantine`：可以检查，但不会被场景生成器选中。
@@ -71,6 +71,35 @@ v2 记录的核心字段如下。`bbox_m` 对真实 USD 可以省略，Validator
 `collision_path`，并在加载前检查本地文件是否存在；proxy/primitive 资产没有
 USD 路径时仍可正常工作。
 
+## P0-3 Isaac Sim PhysX 资产验收
+
+真实 `mug_001` 文件应按下列结构放置，仓库不会替代缺失文件：
+
+```text
+data/assets/
+├── source/mug_original.usd
+├── usd/mug_001.usd
+├── collision/mug_001_collision.usd
+├── metadata/mug_001.json
+└── qa_reports/mug_001.json
+```
+
+在 Isaac Sim Python 环境中运行：
+
+```powershell
+& $IsaacPython tools\validate_mug_asset.py data\assets\usd\mug_001.usd `
+  --collision data\assets\collision\mug_001_collision.usd `
+  --asset-id mug_001 --mass-kg 0.3 `
+  --report data\assets\qa_reports\mug_001.json
+```
+
+脚本会加载 USD、初始化 PhysX、确认刚体和 authored collision，并从约 1 m 高度
+释放资产，检查碰撞、地面穿透和稳定停止。报告必须同时包含
+`"usd_load": "passed"`、`"collision": "passed"` 和 `"physics": "passed"`。
+普通 Python 或缺少真实资产时会返回结构化失败/不可用报告，不会创建假的 USD 或
+collision。通过后用 `AssetRegistry.promote_to_validated()` 再调用
+`AssetRegistry.promote_to_ready()` 写回 `registry.jsonl`。
+
 ## P0-2 真实 USD 单资产闭环
 
 当前仓库只提供 `mug_001` 的 metadata 模板，不包含虚构的高保真模型或假的
@@ -95,6 +124,13 @@ source USD -> AssetNormalizer -> normalized USD
 支持 `not_provided`、`pending`、`provided`、`authored`、`validated`、`rejected`
 状态；它不会复制、重建或生成 collision。`collision_enabled=true` 时必须提供
 `collision_path`。
+
+P0-3 的资产级 Isaac Sim 验收入口是 `tools/validate_mug_asset.py`。它要求真实的
+标准化 USD 和 authored collision，引用二者构造约 1 m 的跌落场景，并输出
+`usd_load`、`collision`、`physics` 三个状态，以及跌落、地面穿透和稳定停止检查。
+缺少任一输入时只输出失败报告，绝不生成假的模型或碰撞体。验证通过后，使用
+`AssetRegistry.promote_to_validated()` 和 `promote_to_ready()` 显式推进 Registry
+状态，不允许跳过物理验收直接进入 `ready`。
 
 Registry v2 现在支持以下 PhysX 元数据：
 

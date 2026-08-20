@@ -4,9 +4,10 @@ param(
     [string]$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe",
     [string]$Output = "F:\scene_factory_runtime\asset_acceptance",
     [double]$MassKg = 1.0,
-    [double]$DropHeightM = 0.12,
+    [double]$DropHeightM = 1.0,
     [int]$Steps = 180,
-    [string]$Record
+    [string]$Record,
+    [string]$CollisionUsd
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,18 +42,25 @@ try {
         --report $InspectionReport
     if ($LASTEXITCODE -ne 0) { throw "Asset inspection failed: $LASTEXITCODE" }
 
-    & $IsaacPython "$PSScriptRoot\prepare_asset.py" drop-scene `
-        $AssetUsd `
-        --output $DropScene `
-        --report $DropSceneReport `
-        --mass-kg $MassKg `
-        --height $DropHeightM
+    $DropSceneArgs = @(
+        "$PSScriptRoot\prepare_asset.py", "drop-scene", $AssetUsd,
+        "--output", $DropScene, "--report", $DropSceneReport,
+        "--mass-kg", $MassKg, "--height", $DropHeightM
+    )
+    if ($CollisionUsd) {
+        $DropSceneArgs += @("--collision", [System.IO.Path]::GetFullPath($CollisionUsd))
+    }
+    & $IsaacPython @DropSceneArgs
     if ($LASTEXITCODE -ne 0) { throw "Drop-test scene generation failed: $LASTEXITCODE" }
 
-    & $IsaacPython "$PSScriptRoot\validate_isaac_runtime.py" `
-        $DropScene `
-        --steps $Steps `
-        --report $RuntimeReport
+    $RuntimeArgs = @(
+        "$PSScriptRoot\validate_isaac_runtime.py", $DropScene,
+        "--steps", $Steps, "--report", $RuntimeReport
+    )
+    if ($CollisionUsd) {
+        $RuntimeArgs += "--collision-required"
+    }
+    & $IsaacPython @RuntimeArgs
     if ($LASTEXITCODE -ne 0) { throw "PhysX runtime validation failed: $LASTEXITCODE" }
 
     if ($Record) {

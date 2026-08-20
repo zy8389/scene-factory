@@ -57,7 +57,12 @@ def _parser() -> argparse.ArgumentParser:
     drop.add_argument("--output", type=Path, required=True)
     drop.add_argument("--report", type=Path, required=True)
     drop.add_argument("--mass-kg", type=float, required=True)
-    drop.add_argument("--height", type=float, default=0.12)
+    drop.add_argument("--height", type=float, default=1.0)
+    drop.add_argument(
+        "--collision",
+        type=Path,
+        help="Optional authored collision USD; it is referenced, never generated",
+    )
 
     promote = commands.add_parser(
         "promote", help="Promote a quarantine record after a passing PhysX report"
@@ -108,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.output,
                 mass_kg=args.mass_kg,
                 drop_height_m=args.height,
+                collision_usd=args.collision,
             )
             write_json_report(args.report, result)
         else:

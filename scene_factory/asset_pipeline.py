@@ -257,12 +257,18 @@ def build_drop_test_scene(
     output: str | Path,
     *,
     mass_kg: float,
-    drop_height_m: float = 0.12,
+    drop_height_m: float = 1.0,
+    collision_usd: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Build a small PhysX scene consumed by validate_isaac_runtime.py."""
-    Gf, _, Usd, UsdGeom, UsdPhysics, _ = _pxr_modules()
+    """Build a single-asset PhysX drop scene without synthesizing collision."""
+    Gf, Sdf, Usd, UsdGeom, UsdPhysics, _ = _pxr_modules()
     asset_path = _local_usd_path(asset_usd, must_exist=True)
     output_path = _local_usd_path(output, must_exist=False)
+    collision_path = (
+        _local_usd_path(collision_usd, must_exist=True)
+        if collision_usd is not None
+        else None
+    )
     if mass_kg <= 0 or drop_height_m < 0:
         raise ValueError("mass_kg must be positive and drop_height_m non-negative")
     asset_report = inspect_usd(asset_path)
@@ -288,11 +294,24 @@ def build_drop_test_scene(
 
     instance = UsdGeom.Xform.Define(stage, "/World/TestAsset")
     instance.GetPrim().GetReferences().AddReference(asset_path.as_posix())
+    instance.GetPrim().CreateAttribute(
+        "sceneFactory:assetHeightM", Sdf.ValueTypeNames.Double
+    ).Set(float(bbox_z))
+    instance.GetPrim().CreateAttribute(
+        "sceneFactory:dropHeightM", Sdf.ValueTypeNames.Double
+    ).Set(float(drop_height_m))
     UsdGeom.Xformable(instance).AddTranslateOp().Set(
         Gf.Vec3d(0.0, 0.0, bbox_z / 2.0 + drop_height_m)
     )
     UsdPhysics.RigidBodyAPI.Apply(instance.GetPrim())
     UsdPhysics.MassAPI.Apply(instance.GetPrim()).CreateMassAttr().Set(float(mass_kg))
+
+    if collision_path is not None:
+        collision = UsdGeom.Xform.Define(stage, "/World/TestAsset/AuthoredCollision")
+        collision.GetPrim().GetReferences().AddReference(collision_path.as_posix())
+        collision.GetPrim().CreateAttribute(
+            "sceneFactory:collisionSource", Sdf.ValueTypeNames.String
+        ).Set(collision_path.as_posix())
 
     stage.SetDefaultPrim(world.GetPrim())
     stage.GetRootLayer().Save()
@@ -303,6 +322,9 @@ def build_drop_test_scene(
         "mass_kg": float(mass_kg),
         "drop_height_m": float(drop_height_m),
         "initial_center_z_m": bbox_z / 2.0 + drop_height_m,
+        "asset_height_m": bbox_z,
+        "collision_usd": str(collision_path) if collision_path else None,
+        "collision_generated": False,
     }
 
 

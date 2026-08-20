@@ -28,6 +28,14 @@ _COLLISION_STATUSES = {
     "validated",
     "rejected",
 }
+_STATUS_TRANSITIONS = {
+    "raw": {"normalized", "rejected"},
+    "normalized": {"validated", "rejected"},
+    "quarantine": {"validated", "rejected"},
+    "validated": {"ready", "rejected"},
+    "ready": {"ready", "rejected"},
+    "rejected": {"raw", "normalized"},
+}
 
 
 class RegistryValidationReport(dict[str, Any]):
@@ -485,6 +493,93 @@ class AssetRegistry:
         if persist_path is not None:
             self.save(persist_path)
         return replacement
+
+    def transition_status(
+        self,
+        asset_id: str,
+        status: str,
+        *,
+        persist_path: str | Path | None = None,
+    ) -> AssetMetadata:
+        """Apply an explicit Registry lifecycle transition."""
+        if status not in _VALID_STATUSES:
+            raise ValueError(f"unsupported asset status: {status}")
+        current = self.metadata(asset_id).status
+        if status not in _STATUS_TRANSITIONS.get(current, set()):
+            raise ValueError(f"invalid asset status transition: {current} -> {status}")
+        return self.update(asset_id, {"status": status}, persist_path=persist_path)
+
+    @staticmethod
+    def _read_report(report: str | Path | dict[str, Any]) -> dict[str, Any]:
+        if isinstance(report, dict):
+            return report
+        path = Path(report).expanduser().resolve()
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"could not read QA report: {path}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError(f"QA report must be a JSON object: {path}")
+        return payload
+
+    def promote_to_validated(
+        self,
+        asset_id: str,
+        normalize_report: str | Path | dict[str, Any],
+        *,
+        collision_report: str | Path | dict[str, Any] | None = None,
+        persist_path: str | Path | None = None,
+    ) -> AssetMetadata:
+        """Promote a normalized asset after non-physics QA has passed."""
+        current = self.metadata(asset_id).status
+        if current not in {"normalized", "quarantine"}:
+            raise ValueError(f"asset must be normalized before validated: {current}")
+        normalized = self._read_report(normalize_report)
+        if normalized.get("asset_id") not in {None, asset_id}:
+            raise ValueError("normalize report asset_id does not match registry asset")
+        if not normalized.get("valid"):
+            raise ValueError("normalize report did not pass")
+        updates: dict[str, Any] = {"status": "validated"}
+        if isinstance(normalize_report, (str, Path)):
+            updates["qa_report"] = str(Path(normalize_report).expanduser().resolve())
+        if collision_report is not None:
+            collision = self._read_report(collision_report)
+            if not collision.get("valid") or collision.get("generated"):
+                raise ValueError("collision report did not pass authored-collision checks")
+            updates.update(
+                {
+                    "collision_path": collision.get("collision_path"),
+                    "collision_status": collision.get("collision_status", "validated"),
+                    "collision_enabled": bool(collision.get("collision_enabled", True)),
+                }
+            )
+        return self.update(asset_id, updates, persist_path=persist_path)
+
+    def promote_to_ready(
+        self,
+        asset_id: str,
+        qa_report: str | Path | dict[str, Any],
+        *,
+        persist_path: str | Path | None = None,
+    ) -> AssetMetadata:
+        """Promote a validated asset only after the Isaac/PhysX QA passes."""
+        report = self._read_report(qa_report)
+        if report.get("asset_id") not in {None, asset_id}:
+            raise ValueError("QA report asset_id does not match registry asset")
+        if not report.get("valid"):
+            raise ValueError("QA report did not pass")
+        required_stages = ("usd_load", "collision", "physics")
+        if any(report.get(stage) != "passed" for stage in required_stages):
+            raise ValueError("QA report must pass usd_load, collision, and physics")
+        current = self.metadata(asset_id)
+        if current.status != "validated":
+            raise ValueError(f"asset must be validated before ready: {current.status}")
+        if current.collision_enabled and not current.collision_path:
+            raise ValueError("ready asset with collision_enabled requires collision_path")
+        updates: dict[str, Any] = {"status": "ready"}
+        if isinstance(qa_report, (str, Path)):
+            updates["qa_report"] = str(Path(qa_report).expanduser().resolve())
+        return self.update(asset_id, updates, persist_path=persist_path)
 
     def save(self, path: str | Path | None = None) -> Path:
         target = Path(path or self.registry_path or "registry.jsonl").expanduser().resolve()
