@@ -5,7 +5,7 @@
   "source": "pending_real_usd_import",
   "license": null,
   "hash": null,
-  "usd_path": "../usd/mug_001.usda",
+  "usd_path": "../usd/mug_001.usd",
   "collision_path": null,
   "collision_status": "not_provided",
   "mass": 0.3,
