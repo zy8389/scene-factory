@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scene-factory"
+version = "0.1.0"
+description = "Natural-language-driven, reproducible household scene generation for robot simulators"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+gym = ["gymnasium>=1.0"]
+
+[project.scripts]
+scene-factory = "scene_factory.cli:main"
+scene-factory-web = "scene_factory.webapp:main"
+
+[tool.setuptools]
+packages = ["scene_factory", "scene_factory.exporters"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

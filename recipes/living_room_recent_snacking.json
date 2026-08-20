@@ -1,0 +1,74 @@
+{
+  "name": "living_room_recent_snacking",
+  "room_type": "living_room",
+  "room_dimensions_m": [5.2, 4.0, 2.8],
+  "event": "recent_snacking",
+  "description": "刚在客厅吃完零食，杯子和包装尚未收拾，遥控器留在沙发上。",
+  "keywords": ["客厅", "零食", "沙发", "茶几", "snack", "living room", "sofa"],
+  "objects": [
+    {
+      "object_id": "sofa_1",
+      "category": "sofa",
+      "dynamic": false,
+      "fixed_pose": {"position": [-1.35, 1.25, 0.45], "yaw_deg": 0}
+    },
+    {
+      "object_id": "coffee_table_1",
+      "category": "coffee_table",
+      "dynamic": false,
+      "fixed_pose": {"position": [-0.85, 0.10, 0.21], "yaw_deg": -4}
+    },
+    {
+      "object_id": "side_cabinet_1",
+      "category": "side_cabinet",
+      "dynamic": false,
+      "fixed_pose": {"position": [1.65, 1.55, 0.39], "yaw_deg": 0}
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "support": "coffee_table_1:top",
+      "yaw_range_deg": [-25, 25]
+    },
+    {
+      "object_id": "snack_bag_1",
+      "category": "snack_bag",
+      "support": "coffee_table_1:top",
+      "yaw_range_deg": [-65, 65],
+      "relations": [
+        {"kind": "near", "target": "mug_1", "min_distance_m": 0.16, "max_distance_m": 0.33}
+      ]
+    },
+    {
+      "object_id": "tissue_1",
+      "category": "tissue",
+      "support": "coffee_table_1:top",
+      "edge_bias": true,
+      "yaw_range_deg": [-80, 80],
+      "relations": [
+        {"kind": "near", "target": "snack_bag_1", "min_distance_m": 0.12, "max_distance_m": 0.38}
+      ]
+    },
+    {
+      "object_id": "cushion_1",
+      "category": "cushion",
+      "support": "sofa_1:seat",
+      "yaw_range_deg": [-20, 20]
+    },
+    {
+      "object_id": "remote_1",
+      "category": "remote_control",
+      "support": "sofa_1:seat",
+      "yaw_range_deg": [-40, 40],
+      "relations": [
+        {"kind": "near", "target": "cushion_1", "min_distance_m": 0.20, "max_distance_m": 0.38}
+      ]
+    }
+  ],
+  "task": {
+    "instruction": "把茶几上的杯子拿起来。",
+    "target_object": "mug_1",
+    "success": {"predicate": "lifted", "min_height_delta_m": 0.10}
+  }
+}
+

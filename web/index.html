@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>SceneFactory · 自然语言场景工厂</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-grid"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="SceneFactory 首页">
+        <span class="brand-mark">SF</span>
+        <span>
+          <strong>SceneFactory</strong>
+          <small>LANGUAGE → SIM</small>
+        </span>
+      </a>
+      <div id="worker-state" class="worker-state"><span></span><b>Local worker ready</b></div>
+    </header>
+
+    <main class="workspace">
+      <section class="hero-copy">
+        <p class="eyebrow">HOUSEHOLD SCENE COMPILER</p>
+        <h1>写一句生活痕迹，<br /><em>生成一个可复现世界。</em></h1>
+        <p>用自然语言描述你想要的家庭场景。系统会匹配事件配方、解算布局、检查几何，并立即给出可视化结果。</p>
+      </section>
+
+      <section class="control-card" aria-labelledby="request-title">
+        <div class="section-heading">
+          <span>01</span>
+          <div><p>SCENE REQUEST</p><h2 id="request-title">描述你的场景</h2></div>
+        </div>
+
+        <div id="llm-connect" class="llm-connect">
+          <div class="llm-status-row">
+            <i id="llm-status-dot" class="llm-status-dot"></i>
+            <div>
+              <small>LANGUAGE PARSER</small>
+              <strong id="llm-status-label">正在读取配置…</strong>
+              <p id="llm-status-detail">—</p>
+            </div>
+            <button id="llm-test" type="button" disabled>测试连接</button>
+          </div>
+          <details>
+            <summary>LLM 接口在哪里？</summary>
+            <p>接口地址和模型写在 <code id="llm-config-path">config/llm.json</code>。</p>
+            <p>密钥只放环境变量 <code id="llm-key-env">SCENE_FACTORY_LLM_API_KEY</code>，配置后重启本页面服务。</p>
+            <p id="llm-test-result" class="llm-test-result"></p>
+          </details>
+        </div>
+
+        <form id="scene-form">
+          <label for="prompt">自然语言需求</label>
+          <textarea id="prompt" data-testid="prompt" rows="5" maxlength="1000">刚做完饭，厨房台面上留着砧板、刀和蔬菜袋，锅盖随手放在岛台边上。</textarea>
+
+          <div class="prompt-chips" aria-label="快速示例">
+            <button type="button" data-prompt="刚做完饭，厨房台面上留着砧板、刀和蔬菜袋，锅盖随手放在岛台边上。">刚做完饭</button>
+            <button type="button" data-prompt="刚在客厅吃完零食，杯子和包装散在茶几上，遥控器留在沙发上。">客厅零食</button>
+            <button type="button" data-prompt="刚回到家，背包和鞋留在入口附近，钥匙放在换鞋凳上。">刚回到家</button>
+          </div>
+
+          <div class="controls-row">
+            <label class="field"><span>Seed</span><input id="seed" type="number" min="0" max="2147483647" value="42" /></label>
+            <label class="field"><span>生成变体</span><input id="count" type="number" min="1" max="12" value="1" /></label>
+            <label class="switch-field"><input id="export-usd" type="checkbox" checked /><span class="switch"></span><span>同时导出 USD</span></label>
+          </div>
+
+          <button id="generate" data-testid="generate" class="generate-button" type="submit">
+            <span>生成仿真场景</span><b>↗</b>
+          </button>
+          <p id="form-message" class="form-message" role="status"></p>
+        </form>
+      </section>
+
+      <section class="result-card" id="result-card" aria-labelledby="result-title">
+        <div class="section-heading result-heading">
+          <span>02</span>
+          <div><p>COMPILED SCENE</p><h2 id="result-title">布局预览</h2></div>
+          <div id="validation-badge" class="validation-badge idle">等待生成</div>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <div class="orbit"><i></i><i></i><span>+</span></div>
+          <h3>场景还没有编译</h3>
+          <p>在左侧写下需求，第一个预览会出现在这里。</p>
+        </div>
+
+        <div id="result-content" class="result-content" hidden>
+          <div class="preview-frame"><img id="preview" alt="场景俯视布局" /></div>
+          <div class="scene-summary">
+            <div><small>MATCHED RECIPE</small><strong id="matched-recipe">—</strong></div>
+            <div><small>SCENE ID</small><strong id="scene-id">—</strong></div>
+            <div><small>OBJECTS</small><strong id="object-count">—</strong></div>
+            <div><small>ROOM</small><strong id="room-size">—</strong></div>
+            <div><small>PARSER</small><strong id="parser-name">—</strong></div>
+          </div>
+          <div id="file-links" class="file-links"></div>
+          <form id="revision-form" class="revision-form" hidden>
+            <div class="revision-heading">
+              <div><small>ITERATIVE EDIT</small><strong>继续修改当前场景</strong></div>
+              <span id="revision-source">—</span>
+            </div>
+            <label for="revision-instruction">只写需要改变的部分，未提到的物体会保留</label>
+            <textarea id="revision-instruction" rows="3" maxlength="1000" placeholder="例如：删掉一个杯子，把背包移到沙发旁边，再在茶几上加一张纸巾。"></textarea>
+            <div class="revision-chips" aria-label="修改示例">
+              <button type="button" data-revision="删掉一个杯子，其他物体保持不变。">删掉一个杯子</button>
+              <button type="button" data-revision="把背包移到沙发旁边，其他物体保持不变。">移动背包</button>
+              <button type="button" data-revision="在茶几上再加一张纸巾，摆放得随意一些。">增加纸巾</button>
+            </div>
+            <button id="revise" class="revise-button" type="submit"><span>应用修改并生成新版本</span><b>↻</b></button>
+            <p id="revision-message" class="revision-message" role="status"></p>
+          </form>
+        </div>
+      </section>
+
+      <section id="variants-section" class="variants-section" hidden>
+        <div class="section-heading"><span>03</span><div><p>SEED VARIANTS</p><h2>同一需求，多种摆法</h2></div></div>
+        <div id="variant-grid" class="variant-grid"></div>
+      </section>
+
+      <section id="inspector" class="inspector" hidden>
+        <div class="section-heading"><span>04</span><div><p>SCENE INSPECTOR</p><h2>物体与位姿</h2></div></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>物体</th><th>类别</th><th>支撑面</th><th>XYZ / m</th><th>偏航角</th></tr></thead><tbody id="object-table"></tbody></table>
+        </div>
+      </section>
+
+      <aside class="scope-note">
+        <strong>NOW / NEXT</strong>
+        <p>现在支持“首次描述 → 生成 → 继续修改”的多轮场景编辑；每次修改会保存为新版本。当前仍使用占位几何，后续可按需接入本地资产。</p>
+      </aside>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

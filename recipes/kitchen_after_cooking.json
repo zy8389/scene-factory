@@ -1,0 +1,65 @@
+{
+  "name": "kitchen_after_cooking",
+  "room_type": "kitchen",
+  "room_dimensions_m": [5.4, 4.2, 2.8],
+  "event": "after_cooking",
+  "description": "刚做完饭，砧板、刀和蔬菜袋还在台面上，锅盖偏放在岛台。",
+  "keywords": ["厨房", "做饭", "砧板", "锅", "蔬菜", "cooking", "kitchen"],
+  "objects": [
+    {
+      "object_id": "counter_1",
+      "category": "kitchen_counter",
+      "dynamic": false,
+      "fixed_pose": {"position": [0.0, 1.65, 0.45], "yaw_deg": 0}
+    },
+    {
+      "object_id": "island_1",
+      "category": "kitchen_island",
+      "dynamic": false,
+      "fixed_pose": {"position": [0.0, -0.25, 0.46], "yaw_deg": 2}
+    },
+    {
+      "object_id": "cutting_board_1",
+      "category": "cutting_board",
+      "support": "counter_1:top",
+      "dynamic": false,
+      "yaw_range_deg": [-12, 12]
+    },
+    {
+      "object_id": "knife_1",
+      "category": "kitchen_knife",
+      "support": "cutting_board_1:top",
+      "yaw_range_deg": [-15, 15]
+    },
+    {
+      "object_id": "vegetable_bag_1",
+      "category": "vegetable_bag",
+      "support": "counter_1:top",
+      "yaw_range_deg": [-50, 50],
+      "relations": [
+        {"kind": "near", "target": "cutting_board_1", "min_distance_m": 0.28, "max_distance_m": 0.55}
+      ]
+    },
+    {
+      "object_id": "pot_1",
+      "category": "pot",
+      "support": "island_1:top",
+      "yaw_range_deg": [-20, 20]
+    },
+    {
+      "object_id": "pot_lid_1",
+      "category": "pot_lid",
+      "support": "island_1:top",
+      "yaw_range_deg": [-45, 45],
+      "relations": [
+        {"kind": "near", "target": "pot_1", "min_distance_m": 0.30, "max_distance_m": 0.55}
+      ]
+    }
+  ],
+  "task": {
+    "instruction": "把锅盖放到锅上。",
+    "target_object": "pot_lid_1",
+    "success": {"predicate": "on", "subject": "pot_lid_1", "target": "pot_1"}
+  }
+}
+
