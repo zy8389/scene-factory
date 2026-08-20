@@ -65,11 +65,52 @@ v2 记录的核心字段如下。`bbox_m` 对真实 USD 可以省略，Validator
 `SceneIntent`、Recipe、LayoutSolver、Web UI 和 USD exporter 不需要改 API。
 `AssetRegistry.list()` 返回所有记录，`get()` 继续返回可用于布局的记录，
 `metadata(asset_id)` 可读取完整 v2 元数据，`validate()` 只做不依赖 Isaac Sim
-的 schema/物理元数据检查。只有 `validated` 资产进入随机候选池。
+的 schema、路径和物理元数据检查。只有 `validated`/`ready` 资产进入随机候选池。
 
 `AssetLoader` 负责根据 registry 文件位置解析相对 `usd_path` 和
 `collision_path`，并在加载前检查本地文件是否存在；proxy/primitive 资产没有
 USD 路径时仍可正常工作。
+
+## P0-2 真实 USD 单资产闭环
+
+当前仓库只提供 `mug_001` 的 metadata 模板，不包含虚构的高保真模型或假的
+collision。模板位于 `data/assets/metadata/mug_001.template.json`，状态是 `raw`。
+将真实文件放入目录后，使用以下流程：
+
+```text
+source USD -> AssetNormalizer -> normalized USD
+                                      ↓
+                         authored collision (optional)
+                                      ↓
+                         PhysX metadata + QA report
+                                      ↓
+                              registry status ready
+```
+
+`AssetNormalizer` 的 `normalize()` 会把输入标准化为 Z-up、米制 wrapper，并固定
+使用 `collision_mode="none"`，因此不会创建 proxy collision。没有 `pxr`、源文件
+不存在或 USD 无法打开时，只返回失败报告，不会留下输出文件。
+
+`CollisionProcessor` 的 `process()` 只接受 `collision_path` 并检查它是否存在，
+支持 `not_provided`、`pending`、`provided`、`authored`、`validated`、`rejected`
+状态；它不会复制、重建或生成 collision。`collision_enabled=true` 时必须提供
+`collision_path`。
+
+Registry v2 现在支持以下 PhysX 元数据：
+
+```json
+{
+  "mass": 0.3,
+  "static_friction": 0.5,
+  "dynamic_friction": 0.4,
+  "rigid_body": true,
+  "collision_enabled": false,
+  "collision_status": "not_provided"
+}
+```
+
+真实资产状态为 `raw -> normalized -> validated -> ready`；旧的 `quarantine` 和
+`validated` 记录仍兼容，只有 `validated`/`ready` 资产会进入场景候选池。
 
 ## Asset QA CLI
 

@@ -11,7 +11,23 @@ from typing import Any, Iterable
 from .models import AssetRecord, SupportSurface
 
 
-_VALID_STATUSES = {"quarantine", "validated", "rejected"}
+_VALID_STATUSES = {
+    "raw",
+    "normalized",
+    "quarantine",  # legacy alias for normalized/imported assets
+    "validated",
+    "ready",
+    "rejected",
+}
+_ACTIVE_STATUSES = {"validated", "ready"}
+_COLLISION_STATUSES = {
+    "not_provided",
+    "pending",
+    "authored",
+    "provided",
+    "validated",
+    "rejected",
+}
 
 
 class RegistryValidationReport(dict[str, Any]):
@@ -33,16 +49,23 @@ class AssetMetadata:
     asset_hash: str | None = None
     usd_path: str | None = None
     collision_path: str | None = None
+    collision_status: str = "not_provided"
     mass: float | None = None
     friction: float | None = None
+    static_friction: float | None = None
+    dynamic_friction: float | None = None
+    rigid_body: bool = True
+    collision_enabled: bool = True
     support_surface: tuple[SupportSurface, ...] = ()
     grasp_region: Any = None
     status: str = "quarantine"
     bbox_m: tuple[float, float, float] | None = None
     primitive: str | None = None
+    color: tuple[float, float, float] | None = None
     source_type: str = "primitive"
     collision_mode: str = "primitive"
     qa_report_path: str | None = None
+    qa_report: str | None = None
     tags: tuple[str, ...] = ()
     _record: AssetRecord | None = None
 
@@ -62,10 +85,24 @@ class AssetMetadata:
         mass = None if mass_raw is None else float(mass_raw)
         friction_raw = raw.get("friction")
         friction = None if friction_raw is None else float(friction_raw)
+        static_friction_raw = raw.get("static_friction", friction_raw)
+        dynamic_friction_raw = raw.get("dynamic_friction", friction_raw)
+        static_friction = (
+            None if static_friction_raw is None else float(static_friction_raw)
+        )
+        dynamic_friction = (
+            None if dynamic_friction_raw is None else float(dynamic_friction_raw)
+        )
         if mass is not None and not math.isfinite(mass):
             raise ValueError("asset mass must be finite")
         if friction is not None and not math.isfinite(friction):
             raise ValueError("asset friction must be finite")
+        for value, label in (
+            (static_friction, "static_friction"),
+            (dynamic_friction, "dynamic_friction"),
+        ):
+            if value is not None and not math.isfinite(value):
+                raise ValueError(f"asset {label} must be finite")
         bbox = record.bbox_m if "bbox_m" in raw else None
         surfaces = record.metadata_support_surface or record.support_surfaces
         return cls(
@@ -77,16 +114,28 @@ class AssetMetadata:
             asset_hash=raw.get("hash", raw.get("asset_hash")),
             usd_path=raw.get("usd_path") or raw.get("source_path"),
             collision_path=raw.get("collision_path"),
+            collision_status=str(
+                raw.get(
+                    "collision_status",
+                    "provided" if raw.get("collision_path") else "not_provided",
+                )
+            ),
             mass=mass,
             friction=friction,
+            static_friction=static_friction,
+            dynamic_friction=dynamic_friction,
+            rigid_body=bool(raw.get("rigid_body", True)),
+            collision_enabled=bool(raw.get("collision_enabled", True)),
             support_surface=tuple(surfaces),
             grasp_region=raw.get("grasp_region"),
             status=status,
             bbox_m=bbox,
             primitive=record.primitive,
+            color=record.color,
             source_type=record.source_type,
             collision_mode=record.collision_mode,
-            qa_report_path=record.qa_report_path,
+            qa_report_path=raw.get("qa_report", raw.get("qa_report_path")),
+            qa_report=raw.get("qa_report", raw.get("qa_report_path")),
             tags=record.tags,
             _record=record,
         )
@@ -97,24 +146,40 @@ class AssetMetadata:
             asset_id=record.asset_id,
             name=record.name or record.asset_id,
             category=record.category,
+            source=record.source,
             license=record.license,
             asset_hash=record.asset_hash,
             usd_path=record.usd_path or record.source_path,
             collision_path=record.collision_path,
+            collision_status=record.collision_status,
             mass=record.metadata_mass if record.metadata_mass is not None else record.mass_kg,
             friction=(
                 record.metadata_friction
                 if record.metadata_friction is not None
                 else record.friction
             ),
+            static_friction=(
+                record.static_friction
+                if record.static_friction is not None
+                else record.friction
+            ),
+            dynamic_friction=(
+                record.dynamic_friction
+                if record.dynamic_friction is not None
+                else record.friction
+            ),
+            rigid_body=record.rigid_body,
+            collision_enabled=record.collision_enabled,
             support_surface=record.metadata_support_surface or record.support_surfaces,
             grasp_region=record.grasp_region,
             status=record.status,
             bbox_m=record.bbox_m,
             primitive=record.primitive,
+            color=record.color,
             source_type=record.source_type,
             collision_mode=record.collision_mode,
             qa_report_path=record.qa_report_path,
+            qa_report=record.qa_report,
             tags=record.tags,
             _record=record,
         )
@@ -127,6 +192,7 @@ class AssetMetadata:
             category=self.category,
             bbox_m=self.bbox_m or (1.0, 1.0, 1.0),
             primitive=self.primitive or "cube",
+            color=self.color or (0.6, 0.6, 0.6),
             mass_kg=self.mass if self.mass is not None else 1.0,
             friction=self.friction if self.friction is not None else 0.5,
             support_surfaces=self.support_surface,
@@ -141,10 +207,16 @@ class AssetMetadata:
             asset_hash=self.asset_hash,
             usd_path=self.usd_path,
             collision_path=self.collision_path,
+            collision_status=self.collision_status,
             grasp_region=self.grasp_region,
             source=self.source,
             metadata_mass=self.mass,
             metadata_friction=self.friction,
+            static_friction=self.static_friction,
+            dynamic_friction=self.dynamic_friction,
+            rigid_body=self.rigid_body,
+            collision_enabled=self.collision_enabled,
+            qa_report=self.qa_report or self.qa_report_path,
             metadata_support_surface=self.support_surface,
             metadata_present=True,
         )
@@ -159,11 +231,22 @@ class AssetMetadata:
             "hash": self.asset_hash,
             "usd_path": self.usd_path,
             "collision_path": self.collision_path,
+            "collision_status": self.collision_status,
             "mass": self.mass,
             "friction": self.friction,
+            "static_friction": self.static_friction,
+            "dynamic_friction": self.dynamic_friction,
+            "rigid_body": self.rigid_body,
+            "collision_enabled": self.collision_enabled,
             "support_surface": [asdict(item) for item in self.support_surface],
             "grasp_region": self.grasp_region,
             "status": self.status,
+            "qa_report": self.qa_report or self.qa_report_path,
+            "primitive": self.primitive,
+            "color": list(self.color) if self.color is not None else None,
+            "source_type": self.source_type,
+            "collision_mode": self.collision_mode,
+            "tags": list(self.tags),
         }
         if self.bbox_m is not None:
             payload["bbox_m"] = list(self.bbox_m)
@@ -183,6 +266,7 @@ class AssetRegistry:
         self._metadata: dict[str, AssetMetadata] = {}
         self._by_category: dict[str, list[AssetRecord]] = defaultdict(list)
         self.base_dir = Path(base_dir or ".").expanduser().resolve()
+        self.registry_path: Path | None = None
         metadata_by_id = {item.asset_id: item for item in (metadata or ())}
         for asset in assets:
             if asset.asset_id in self._by_id:
@@ -191,7 +275,7 @@ class AssetRegistry:
             self._metadata[asset.asset_id] = metadata_by_id.get(
                 asset.asset_id, AssetMetadata.from_record(asset)
             )
-            if asset.status == "validated":
+            if asset.status in _ACTIVE_STATUSES:
                 self._by_category[asset.category].append(asset)
 
     @classmethod
@@ -213,7 +297,9 @@ class AssetRegistry:
                     raise ValueError(
                         f"invalid registry record at line {line_number}: {exc}"
                     ) from exc
-        return cls(records, base_dir=registry_path.parent, metadata=metadata)
+        registry = cls(records, base_dir=registry_path.parent, metadata=metadata)
+        registry.registry_path = registry_path
+        return registry
 
     def get(self, asset_id: str) -> AssetRecord:
         try:
@@ -253,8 +339,10 @@ class AssetRegistry:
             raise ValueError(
                 f"asset {asset.asset_id} has category {asset.category}, expected {category}"
             )
-        if asset.status != "validated":
-            raise ValueError(f"asset {asset.asset_id} has status {asset.status}, not validated")
+        if asset.status not in _ACTIVE_STATUSES:
+            raise ValueError(
+                f"asset {asset.asset_id} has status {asset.status}, not ready for scenes"
+            )
         return asset
 
     def categories(self) -> list[str]:
@@ -316,6 +404,26 @@ class AssetRegistry:
                         "message": "friction must be non-negative",
                     }
                 )
+            for value, label in (
+                (metadata.static_friction, "static_friction"),
+                (metadata.dynamic_friction, "dynamic_friction"),
+            ):
+                if value is not None and (not math.isfinite(value) or value < 0):
+                    issues.append(
+                        {
+                            "asset_id": asset.asset_id,
+                            "code": f"invalid_{label}",
+                            "message": f"{label} must be finite and non-negative",
+                        }
+                    )
+            if metadata.collision_status not in _COLLISION_STATUSES:
+                issues.append(
+                    {
+                        "asset_id": asset.asset_id,
+                        "code": "invalid_collision_status",
+                        "message": metadata.collision_status,
+                    }
+                )
             if metadata.bbox_m is None and not metadata.usd_path:
                 issues.append(
                     {
@@ -348,8 +456,57 @@ class AssetRegistry:
             "validated_count": sum(
                 asset.status == "validated" for asset in self._by_id.values()
             ),
+            "ready_count": sum(
+                asset.status in _ACTIVE_STATUSES for asset in self._by_id.values()
+            ),
             "issues": issues,
         })
+
+    def update(
+        self,
+        asset_id: str,
+        updates: dict[str, Any] | None = None,
+        *,
+        persist_path: str | Path | None = None,
+        **changes: Any,
+    ) -> AssetMetadata:
+        """Update one record and optionally persist the JSONL registry.
+
+        This is intentionally metadata-only: it never copies or synthesizes a
+        USD/collision file.  A caller must provide paths to existing assets.
+        """
+        raw = self.metadata(asset_id).to_dict()
+        raw.update(updates or {})
+        raw.update(changes)
+        replacement = AssetMetadata.from_dict(raw)
+        self._by_id[asset_id] = replacement.to_record()
+        self._metadata[asset_id] = replacement
+        self._rebuild_categories()
+        if persist_path is not None:
+            self.save(persist_path)
+        return replacement
+
+    def save(self, path: str | Path | None = None) -> Path:
+        target = Path(path or self.registry_path or "registry.jsonl").expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("w", encoding="utf-8", newline="\n") as handle:
+            for asset_id in self._by_id:
+                handle.write(
+                    json.dumps(
+                        self._metadata[asset_id].to_dict(),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "\n"
+                )
+        self.registry_path = target
+        return target
+
+    def _rebuild_categories(self) -> None:
+        self._by_category = defaultdict(list)
+        for asset in self._by_id.values():
+            if asset.status in _ACTIVE_STATUSES:
+                self._by_category[asset.category].append(asset)
 
     def __len__(self) -> int:
         return len(self._by_id)

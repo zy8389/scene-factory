@@ -37,6 +37,11 @@ def _metadata_checks(
     checks: dict[str, Any] = {
         "mass": metadata.mass,
         "friction": metadata.friction,
+        "static_friction": metadata.static_friction,
+        "dynamic_friction": metadata.dynamic_friction,
+        "rigid_body": metadata.rigid_body,
+        "collision_enabled": metadata.collision_enabled,
+        "collision_status": metadata.collision_status,
         "support_surface_count": len(metadata.support_surface),
     }
     if (
@@ -51,6 +56,25 @@ def _metadata_checks(
         or metadata.friction < 0
     ):
         _issue(issues, "invalid_friction", "friction must be a finite non-negative number")
+    for value, label in (
+        (metadata.static_friction, "static_friction"),
+        (metadata.dynamic_friction, "dynamic_friction"),
+    ):
+        if value is None or not math.isfinite(value) or value < 0:
+            _issue(issues, f"invalid_{label}", f"{label} must be finite and non-negative")
+    if metadata.collision_status not in {
+        "not_provided",
+        "pending",
+        "authored",
+        "provided",
+        "validated",
+        "rejected",
+    }:
+        _issue(
+            issues,
+            "invalid_collision_status",
+            f"unsupported collision status: {metadata.collision_status}",
+        )
     for surface in metadata.support_surface:
         if any(value <= 0 for value in surface.size):
             _issue(

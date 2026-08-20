@@ -151,6 +151,47 @@ python -m scene_factory asset inspect `
 真实 USD 的 Z-up、米制、mesh、碰撞体和 stage 结构检查需要 Isaac Sim 提供的
 `pxr`。普通 Python 会输出结构化的 unavailable QA 报告，不会影响 proxy 场景生成。
 
+### P0-2 Real USD Asset Integration
+
+真实资产接入目录已经建立，但仓库当前没有伪造的高保真 `mug_001` 模型：
+
+```text
+data/assets/
+├── source/       原始 USD（只读输入）
+├── usd/          Z-up、米制、标准化 USD
+├── collision/    外部 authored collision（可选，不自动生成）
+├── metadata/     PhysX 元数据模板
+└── qa_reports/   标准化与碰撞 QA 报告
+```
+
+`data/assets/metadata/mug_001.template.json` 是待接入模板，状态为 `raw`，不会被
+场景生成器选中。真实闭环为：
+
+```text
+Asset Source -> USD Normalize -> Collision -> PhysX Metadata -> Registry -> Isaac Sim
+```
+
+可以先在普通 Python 环境验证导入边界：
+
+```powershell
+python -m scene_factory asset normalize `
+  data/assets/source/mug_001.usda `
+  --output data/assets/usd/mug_001.usda `
+  --asset-id mug_001 `
+  --category mug `
+  --report data/assets/qa_reports/mug_001_normalize.json
+
+python -m scene_factory asset collision `
+  --collision-path data/assets/collision/mug_001.usda `
+  --status provided `
+  --enabled `
+  --report data/assets/qa_reports/mug_001_collision.json
+```
+
+`AssetNormalizer` 在 Isaac Sim/`pxr` 环境中调用现有 USD wrapper，强制不创建
+collision；`CollisionProcessor` 只检查和登记已有 collision 文件，报告中的
+`generated` 永远为 `false`。状态依次为 `raw`、`normalized`、`validated`、`ready`。
+
 ## 添加生活事件
 
 复制 `recipes/` 中的 JSON，修改：

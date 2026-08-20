@@ -90,10 +90,16 @@ class AssetRecord:
     asset_hash: str | None = None
     usd_path: str | None = None
     collision_path: str | None = None
+    collision_status: str = "not_provided"
     grasp_region: Any = None
     source: str | None = None
     metadata_mass: float | None = None
     metadata_friction: float | None = None
+    static_friction: float | None = None
+    dynamic_friction: float | None = None
+    rigid_body: bool = True
+    collision_enabled: bool = True
+    qa_report: str | None = None
     metadata_support_surface: tuple[SupportSurface, ...] = ()
     metadata_present: bool = False
 
@@ -147,7 +153,7 @@ class AssetRecord:
             source_path=source_path,
             source_type=str(raw.get("source_type", "local_usd" if source_path else "primitive")),
             collision_mode=collision_mode,
-            qa_report_path=raw.get("qa_report_path"),
+            qa_report_path=raw.get("qa_report", raw.get("qa_report_path")),
             license=raw.get("license"),
             status=str(raw.get("status", "validated")),
             tags=tuple(str(tag) for tag in raw.get("tags", [])),
@@ -155,6 +161,12 @@ class AssetRecord:
             asset_hash=raw.get("hash", raw.get("asset_hash")),
             usd_path=raw.get("usd_path") or source_path,
             collision_path=raw.get("collision_path"),
+            collision_status=str(
+                raw.get(
+                    "collision_status",
+                    "provided" if raw.get("collision_path") else "not_provided",
+                )
+            ),
             grasp_region=raw.get("grasp_region"),
             source=raw.get("source"),
             metadata_mass=(
@@ -162,6 +174,19 @@ class AssetRecord:
                 (float(raw["mass_kg"]) if "mass_kg" in raw else None)
             ),
             metadata_friction=(float(raw["friction"]) if "friction" in raw else None),
+            static_friction=(
+                float(raw["static_friction"])
+                if "static_friction" in raw
+                else (float(raw["friction"]) if "friction" in raw else None)
+            ),
+            dynamic_friction=(
+                float(raw["dynamic_friction"])
+                if "dynamic_friction" in raw
+                else (float(raw["friction"]) if "friction" in raw else None)
+            ),
+            rigid_body=bool(raw.get("rigid_body", True)),
+            collision_enabled=bool(raw.get("collision_enabled", True)),
+            qa_report=raw.get("qa_report", raw.get("qa_report_path")),
             metadata_support_surface=tuple(
                 SupportSurface.from_dict(item)
                 for item in _support_surface_items(raw)

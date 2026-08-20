@@ -312,6 +312,11 @@ def build_asset_record(
     source_path: str | Path,
     mass_kg: float,
     friction: float,
+    static_friction: float | None = None,
+    dynamic_friction: float | None = None,
+    rigid_body: bool = True,
+    collision_enabled: bool | None = None,
+    collision_status: str | None = None,
     support_top: bool = False,
     source_type: str = "local_usd",
     license_name: str | None = None,
@@ -326,9 +331,21 @@ def build_asset_record(
         "source_path": str(Path(source_path).expanduser().resolve()),
         "source_type": source_type,
         "collision_mode": str(wrapper_report["collision_mode"]),
+        "collision_status": collision_status
+        or ("authored" if wrapper_report["collision_mode"] == "authored" else "not_provided"),
         "mass_kg": float(mass_kg),
+        "mass": float(mass_kg),
         "friction": float(friction),
+        "static_friction": float(static_friction if static_friction is not None else friction),
+        "dynamic_friction": float(dynamic_friction if dynamic_friction is not None else friction),
+        "rigid_body": bool(rigid_body),
+        "collision_enabled": bool(
+            collision_enabled
+            if collision_enabled is not None
+            else wrapper_report["collision_mode"] != "none"
+        ),
         "qa_report_path": None,
+        "qa_report": None,
         "license": license_name,
         "status": "quarantine",
         "tags": ["imported"],
@@ -364,3 +381,271 @@ def promote_asset_record(
 
 def write_json_report(path: str | Path, payload: dict[str, Any]) -> Path:
     return _json_write(path, payload)
+
+
+class AssetNormalizer:
+    """Normalize one real USD without inventing geometry or collision data.
+
+    The actual OpenUSD rewrite is delegated to :func:`wrap_usd`.  This facade
+    adds a stable P0-2 report contract and turns missing files/``pxr`` into
+    reports that can be stored alongside the future asset metadata template.
+    """
+
+    def inspect(
+        self,
+        source: str | Path,
+        *,
+        report_path: str | Path | None = None,
+    ) -> dict[str, Any]:
+        source_path = Path(source).expanduser().resolve()
+        report: dict[str, Any] = {
+            "asset_id": source_path.stem,
+            "source_path": str(source_path),
+            "operation": "inspect",
+            "available": False,
+            "valid": False,
+            "issues": [],
+        }
+        if not source_path.is_file():
+            report["issues"].append(
+                {"code": "missing_source_usd", "message": f"USD file does not exist: {source_path}"}
+            )
+            return self._write(report, report_path)
+        try:
+            inspection = inspect_usd(source_path)
+        except AssetPipelineUnavailable as exc:
+            report["issues"].append(
+                {"code": "usd_inspection_unavailable", "message": str(exc)}
+            )
+            report["error"] = str(exc)
+            return self._write(report, report_path)
+        except (OSError, RuntimeError, ValueError) as exc:
+            report["issues"].append(
+                {"code": "invalid_usd", "message": str(exc)}
+            )
+            report["error"] = str(exc)
+            return self._write(report, report_path)
+
+        report.update(
+            {
+                "available": True,
+                "valid": bool(inspection.get("valid")),
+                "stage": {
+                    "up_axis": inspection.get("up_axis"),
+                    "meters_per_unit": inspection.get("meters_per_unit"),
+                    "has_default_prim": inspection.get("has_default_prim"),
+                    "selected_root_path": inspection.get("selected_root_path"),
+                },
+                "mesh_hierarchy": {
+                    "counts": inspection.get("counts", {}),
+                    "used_layers": inspection.get("used_layers", []),
+                },
+                "material_references": {
+                    "material_prims": inspection.get("counts", {}).get("material_prims", 0),
+                },
+                "bbox_m": inspection.get("bbox_m"),
+                "warnings": inspection.get("warnings", []),
+                "inspection": inspection,
+            }
+        )
+        return self._write(report, report_path)
+
+    def inspect_usd(
+        self,
+        source: str | Path,
+        *,
+        report_path: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Alias used by integrations that name the input format explicitly."""
+        return self.inspect(source, report_path=report_path)
+
+    def normalize(
+        self,
+        source: str | Path,
+        output: str | Path,
+        *,
+        asset_id: str,
+        category: str,
+        target_bbox_m: tuple[float, float, float] | None = None,
+        scale_mode: str = "uniform",
+        report_path: str | Path | None = None,
+    ) -> dict[str, Any]:
+        source_path = Path(source).expanduser().resolve()
+        output_path = Path(output).expanduser().resolve()
+        report: dict[str, Any] = {
+            "asset_id": asset_id,
+            "category": category,
+            "operation": "normalize",
+            "source_path": str(source_path),
+            "normalized_path": str(output_path),
+            "collision_path": None,
+            "collision_status": "not_provided",
+            "status": "raw",
+            "available": False,
+            "valid": False,
+            "issues": [],
+        }
+        if not source_path.is_file():
+            report["issues"].append(
+                {"code": "missing_source_usd", "message": f"USD file does not exist: {source_path}"}
+            )
+            return self._write(report, report_path)
+        try:
+            wrapped = wrap_usd(
+                source_path,
+                output_path,
+                asset_id=asset_id,
+                category=category,
+                target_bbox_m=target_bbox_m,
+                scale_mode=scale_mode,
+                # P0-2 explicitly forbids synthesizing a collision mesh.
+                collision_mode="none",
+            )
+        except AssetPipelineUnavailable as exc:
+            report["issues"].append(
+                {"code": "usd_normalization_unavailable", "message": str(exc)}
+            )
+            report["error"] = str(exc)
+            return self._write(report, report_path)
+        except (OSError, RuntimeError, ValueError) as exc:
+            report["issues"].append(
+                {"code": "normalization_failed", "message": str(exc)}
+            )
+            report["error"] = str(exc)
+            return self._write(report, report_path)
+
+        report.update(
+            {
+                "available": True,
+                "valid": bool(wrapped.get("valid")),
+                "status": "normalized" if wrapped.get("valid") else "raw",
+                "normalized": wrapped,
+                "bbox_m": wrapped.get("wrapped_bbox_m", wrapped.get("bbox_m")),
+                "stage": {
+                    "up_axis": wrapped.get("up_axis"),
+                    "meters_per_unit": wrapped.get("meters_per_unit"),
+                },
+                "mesh_hierarchy": {
+                    "counts": wrapped.get("counts", {}),
+                    "used_layers": wrapped.get("used_layers", []),
+                },
+                "material_references": {
+                    "material_prims": wrapped.get("counts", {}).get("material_prims", 0),
+                },
+            }
+        )
+        return self._write(report, report_path)
+
+    def normalize_usd(
+        self,
+        source: str | Path,
+        output: str | Path,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Compatibility alias for the public normalization operation."""
+        return self.normalize(source, output, **kwargs)
+
+    @staticmethod
+    def metadata_template(
+        *,
+        asset_id: str,
+        name: str,
+        category: str,
+        usd_path: str,
+        mass: float,
+        static_friction: float,
+        dynamic_friction: float,
+        collision_path: str | None = None,
+        source: str | None = None,
+        license_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Return a non-registered metadata template for a future real asset."""
+        return {
+            "asset_id": asset_id,
+            "name": name,
+            "category": category,
+            "source": source,
+            "license": license_name,
+            "usd_path": usd_path,
+            "collision_path": collision_path,
+            "collision_status": "provided" if collision_path else "not_provided",
+            "mass": float(mass),
+            "friction": float(dynamic_friction),
+            "static_friction": float(static_friction),
+            "dynamic_friction": float(dynamic_friction),
+            "rigid_body": True,
+            "collision_enabled": bool(collision_path),
+            "status": "raw",
+            "qa_report": None,
+        }
+
+    @staticmethod
+    def _write(report: dict[str, Any], report_path: str | Path | None) -> dict[str, Any]:
+        if report_path is not None:
+            report["report_path"] = str(write_json_report(report_path, report))
+        return report
+
+
+class CollisionProcessor:
+    """Validate or attach an authored collision file without generating one."""
+
+    _VALID_STATUSES = {
+        "not_provided",
+        "pending",
+        "authored",
+        "provided",
+        "validated",
+        "rejected",
+    }
+
+    def process(
+        self,
+        collision_path: str | Path | None,
+        *,
+        collision_status: str | None = None,
+        collision_enabled: bool | None = None,
+        report_path: str | Path | None = None,
+    ) -> dict[str, Any]:
+        path = Path(collision_path).expanduser().resolve() if collision_path else None
+        status = collision_status or ("provided" if path else "not_provided")
+        report: dict[str, Any] = {
+            "operation": "collision_process",
+            "collision_path": str(path) if path else None,
+            "collision_status": status,
+            "collision_enabled": bool(collision_enabled if collision_enabled is not None else path),
+            "available": True,
+            "valid": True,
+            "issues": [],
+            "generated": False,
+        }
+        if status not in self._VALID_STATUSES:
+            report["valid"] = False
+            report["issues"].append(
+                {"code": "invalid_collision_status", "message": status}
+            )
+        if path is None:
+            if report["collision_enabled"] or status in {"provided", "authored", "validated"}:
+                report["valid"] = False
+                report["issues"].append(
+                    {"code": "missing_collision_path", "message": "collision_enabled requires collision_path"}
+                )
+        elif not path.is_file():
+            report["valid"] = False
+            report["issues"].append(
+                {"code": "missing_collision_file", "message": f"collision file does not exist: {path}"}
+            )
+        return self._write(report, report_path)
+
+    def process_collision(
+        self,
+        collision_path: str | Path | None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Compatibility alias for callers using the pipeline noun."""
+        return self.process(collision_path, **kwargs)
+
+    @staticmethod
+    def _write(report: dict[str, Any], report_path: str | Path | None) -> dict[str, Any]:
+        if report_path is not None:
+            report["report_path"] = str(write_json_report(report_path, report))
+        return report

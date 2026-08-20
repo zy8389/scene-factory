@@ -100,6 +100,34 @@ class AssetRegistryV2Tests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 AssetLoader(registry).load("missing")
 
+    def test_registry_update_and_save_preserve_v2_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "mug.usda").write_text("#usda 1.0\n", encoding="utf-8")
+            registry_path = self._write_registry(
+                root,
+                {
+                    "asset_id": "mug",
+                    "category": "mug",
+                    "bbox_m": [0.1, 0.1, 0.12],
+                    "usd_path": "mug.usda",
+                    "mass": 0.3,
+                    "static_friction": 0.5,
+                    "dynamic_friction": 0.4,
+                    "friction": 0.4,
+                    "collision_enabled": False,
+                    "status": "normalized",
+                },
+            )
+            registry = AssetRegistry.load(registry_path)
+            registry.update("mug", {"status": "ready", "qa_report": "qa/mug.json"})
+            saved = root / "saved.jsonl"
+            registry.save(saved)
+            reloaded = AssetRegistry.load(saved)
+            self.assertEqual(reloaded.get("mug").status, "ready")
+            self.assertEqual(reloaded.metadata("mug").qa_report, "qa/mug.json")
+            self.assertFalse(reloaded.get("mug").collision_enabled)
+
 
 if __name__ == "__main__":
     unittest.main()

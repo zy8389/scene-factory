@@ -1,0 +1,20 @@
+{
+  "asset_id": "mug_001",
+  "name": "Mug 001",
+  "category": "mug",
+  "source": "pending_real_usd_import",
+  "license": null,
+  "hash": null,
+  "usd_path": "../usd/mug_001.usda",
+  "collision_path": null,
+  "collision_status": "not_provided",
+  "mass": 0.3,
+  "friction": 0.4,
+  "static_friction": 0.5,
+  "dynamic_friction": 0.4,
+  "rigid_body": true,
+  "collision_enabled": false,
+  "status": "raw",
+  "qa_report": null,
+  "notes": "Template only. Add a real normalized USD and authored collision before registry promotion."
+}

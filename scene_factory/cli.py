@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from .asset_pipeline import AssetNormalizer, CollisionProcessor
 from .asset_validator import validate_asset, validate_usd
 from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
@@ -54,6 +55,25 @@ def _parser() -> argparse.ArgumentParser:
     inspect_source.add_argument("--asset-id", help="Registry asset ID to inspect")
     inspect_source.add_argument("--usd", type=Path, help="Inspect a standalone local USD")
     inspect.add_argument("--report", type=Path, help="Write the JSON QA report")
+
+    normalize = asset_commands.add_parser(
+        "normalize", help="Normalize one real USD without creating collision geometry"
+    )
+    normalize.add_argument("source", type=Path)
+    normalize.add_argument("--output", type=Path, required=True)
+    normalize.add_argument("--asset-id", required=True)
+    normalize.add_argument("--category", required=True)
+    normalize.add_argument("--target-bbox", type=float, nargs=3, metavar=("X", "Y", "Z"))
+    normalize.add_argument("--scale-mode", choices=("uniform", "exact"), default="uniform")
+    normalize.add_argument("--report", type=Path)
+
+    collision = asset_commands.add_parser(
+        "collision", help="Validate an authored collision file without generating one"
+    )
+    collision.add_argument("--collision-path", type=Path)
+    collision.add_argument("--status")
+    collision.add_argument("--enabled", action="store_true")
+    collision.add_argument("--report", type=Path)
     return parser
 
 
@@ -61,6 +81,29 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         if args.command == "asset":
+            if args.asset_command == "normalize":
+                report = AssetNormalizer().normalize(
+                    args.source,
+                    args.output,
+                    asset_id=args.asset_id,
+                    category=args.category,
+                    target_bbox_m=tuple(args.target_bbox) if args.target_bbox else None,
+                    scale_mode=args.scale_mode,
+                    report_path=args.report,
+                )
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+                return 0 if report["valid"] else 2
+
+            if args.asset_command == "collision":
+                report = CollisionProcessor().process(
+                    args.collision_path,
+                    collision_status=args.status,
+                    collision_enabled=args.enabled,
+                    report_path=args.report,
+                )
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+                return 0 if report["valid"] else 2
+
             report_path = args.report
             if args.asset_id:
                 registry_path = args.asset_registry or args.registry

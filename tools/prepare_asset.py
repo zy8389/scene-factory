@@ -5,6 +5,10 @@ import json
 import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from scene_factory.asset_pipeline import (
     AssetPipelineUnavailable,
     build_asset_record,
@@ -40,6 +44,10 @@ def _parser() -> argparse.ArgumentParser:
     wrap.add_argument("--record", type=Path)
     wrap.add_argument("--mass-kg", type=float, default=1.0)
     wrap.add_argument("--friction", type=float, default=0.5)
+    wrap.add_argument("--static-friction", type=float)
+    wrap.add_argument("--dynamic-friction", type=float)
+    wrap.add_argument("--rigid-body", action=argparse.BooleanOptionalAction, default=True)
+    wrap.add_argument("--collision-enabled", action=argparse.BooleanOptionalAction)
     wrap.add_argument("--support-top", action="store_true")
     wrap.add_argument("--source-type", default="local_usd")
     wrap.add_argument("--license")
@@ -84,6 +92,10 @@ def main(argv: list[str] | None = None) -> int:
                     source_path=args.output,
                     mass_kg=args.mass_kg,
                     friction=args.friction,
+                    static_friction=args.static_friction,
+                    dynamic_friction=args.dynamic_friction,
+                    rigid_body=args.rigid_body,
+                    collision_enabled=args.collision_enabled,
                     support_top=args.support_top,
                     source_type=args.source_type,
                     license_name=args.license,
