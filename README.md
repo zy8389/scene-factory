@@ -127,6 +127,30 @@ close()
 资产只有 `status=validated` 时才会被随机选中。混元生成的资产建议先标记为
 `quarantine`，完成单位、网格、碰撞体、质量和跌落测试后再改为 `validated`。
 
+### P0 Asset Pipeline
+
+资产登记同时兼容旧 proxy 记录和 Registry v2。v2 记录可以增加 `name`、`hash`、
+`usd_path`、`collision_path`、`mass`、`friction`、`support_surface` 和
+`grasp_region`；旧字段 `source_path`、`mass_kg`、`support_surfaces` 仍然有效。
+`AssetRegistry` 负责读取和筛选状态，`AssetLoader` 负责解析相对 USD/碰撞路径，
+`scene_factory.asset_validator` 负责元数据与 USD QA。状态流转为：
+
+```text
+incoming USD -> inspect -> wrap -> quarantine -> PhysX acceptance -> validated
+```
+
+在不使用 Isaac Sim 的开发机上可以先运行：
+
+```powershell
+python -m scene_factory asset inspect `
+  --registry data/assets/registry.jsonl `
+  --asset-id mug_blue `
+  --report outputs/asset_qa/mug_blue.json
+```
+
+真实 USD 的 Z-up、米制、mesh、碰撞体和 stage 结构检查需要 Isaac Sim 提供的
+`pxr`。普通 Python 会输出结构化的 unavailable QA 报告，不会影响 proxy 场景生成。
+
 ## 添加生活事件
 
 复制 `recipes/` 中的 JSON，修改：

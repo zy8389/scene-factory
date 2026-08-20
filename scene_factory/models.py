@@ -20,6 +20,25 @@ def _tuple3(value: Any, field_name: str) -> Vec3:
     return (float(value[0]), float(value[1]), float(value[2]))
 
 
+def _support_surface_items(raw: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normalize legacy plural and Registry v2 singular support fields."""
+    value = raw.get("support_surfaces", raw.get("support_surface", []))
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        # Accept both one surface object and a name -> surface mapping.
+        if {"name", "center", "size"}.issubset(value):
+            return [value]
+        return [
+            {"name": name, **surface}
+            for name, surface in value.items()
+            if isinstance(surface, dict)
+        ]
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    raise ValueError("asset.support_surface(s) must be an object or array")
+
+
 @dataclass(frozen=True)
 class Pose:
     position: Vec3
@@ -65,28 +84,65 @@ class AssetRecord:
     license: str | None = None
     status: str = "validated"
     tags: tuple[str, ...] = ()
+    # Registry v2 metadata.  The legacy fields above remain the canonical
+    # representation used by layout/export code.
+    name: str | None = None
+    asset_hash: str | None = None
+    usd_path: str | None = None
+    collision_path: str | None = None
+    grasp_region: Any = None
+    source: str | None = None
+    metadata_mass: float | None = None
+    metadata_friction: float | None = None
+    metadata_support_surface: tuple[SupportSurface, ...] = ()
+    metadata_present: bool = False
+
+    @property
+    def mass(self) -> float:
+        """Registry v2 alias for the legacy ``mass_kg`` field."""
+        return self.mass_kg
+
+    @property
+    def hash(self) -> str | None:
+        return self.asset_hash
+
+    @property
+    def support_surface(self) -> tuple[SupportSurface, ...]:
+        return self.support_surfaces
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "AssetRecord":
-        bbox = _tuple3(raw["bbox_m"], "asset.bbox_m")
+        if not isinstance(raw, dict):
+            raise TypeError("asset record must be a JSON object")
+        asset_id = str(raw.get("asset_id", "")).strip()
+        category = str(raw.get("category", "")).strip()
+        if not asset_id:
+            raise ValueError("asset.asset_id is required")
+        if not category:
+            raise ValueError(f"asset {asset_id} requires a category")
+        # v2 records use ``usd_path``/``collision_path`` and may omit a
+        # precomputed bbox because it can be derived from USD.  Keep a
+        # conservative placeholder for old layout callers; registry.validate
+        # reports the missing bbox before such an asset can be promoted.
+        bbox = _tuple3(raw.get("bbox_m", (1.0, 1.0, 1.0)), "asset.bbox_m")
         if any(size <= 0 for size in bbox):
-            raise ValueError(f"asset {raw.get('asset_id')} has a non-positive bbox")
-        source_path = raw.get("source_path")
+            raise ValueError(f"asset {asset_id} has a non-positive bbox")
+        source_path = raw.get("source_path") or raw.get("usd_path")
         collision_mode = str(
             raw.get("collision_mode", "authored" if source_path else "primitive")
         )
         if collision_mode not in {"primitive", "authored", "proxy_box", "none"}:
             raise ValueError(f"unsupported collision_mode: {collision_mode}")
         return cls(
-            asset_id=str(raw["asset_id"]),
-            category=str(raw["category"]),
+            asset_id=asset_id,
+            category=category,
             bbox_m=bbox,
             primitive=str(raw.get("primitive", "cube")),
             color=_tuple3(raw.get("color", (0.6, 0.6, 0.6)), "asset.color"),
-            mass_kg=float(raw.get("mass_kg", 1.0)),
+            mass_kg=float(raw.get("mass_kg", raw.get("mass", 1.0))),
             friction=float(raw.get("friction", 0.5)),
             support_surfaces=tuple(
-                SupportSurface.from_dict(item) for item in raw.get("support_surfaces", [])
+                SupportSurface.from_dict(item) for item in _support_surface_items(raw)
             ),
             source_path=source_path,
             source_type=str(raw.get("source_type", "local_usd" if source_path else "primitive")),
@@ -95,6 +151,28 @@ class AssetRecord:
             license=raw.get("license"),
             status=str(raw.get("status", "validated")),
             tags=tuple(str(tag) for tag in raw.get("tags", [])),
+            name=str(raw.get("name", raw["asset_id"])),
+            asset_hash=raw.get("hash", raw.get("asset_hash")),
+            usd_path=raw.get("usd_path") or source_path,
+            collision_path=raw.get("collision_path"),
+            grasp_region=raw.get("grasp_region"),
+            source=raw.get("source"),
+            metadata_mass=(
+                float(raw["mass"]) if "mass" in raw else
+                (float(raw["mass_kg"]) if "mass_kg" in raw else None)
+            ),
+            metadata_friction=(float(raw["friction"]) if "friction" in raw else None),
+            metadata_support_surface=tuple(
+                SupportSurface.from_dict(item)
+                for item in _support_surface_items(raw)
+            ),
+            metadata_present=any(
+                field in raw
+                for field in (
+                    "name", "hash", "asset_hash", "usd_path", "collision_path",
+                    "mass", "support_surface", "grasp_region", "source",
+                )
+            ),
         )
 
 

@@ -24,6 +24,77 @@ Windows 上 Isaac Sim/OpenUSD 对中文路径兼容性不稳定，因此 USD 和
 - `validated`：OpenUSD 结构与 PhysX 测试通过，可以加入 `data/assets/registry.jsonl`。
 - `rejected`：尺寸、几何或物理测试存在问题，暂不使用。
 
+## Registry v2
+
+正式 registry 仍然是 JSONL，一行对应一个资产。项目同时接受历史的扁平
+`AssetRecord`（例如 `bbox_m`、`source_path`、`mass_kg`）和 v2 字段：
+
+```text
+data/assets/
+├── registry.jsonl       资产元数据索引
+├── source/              原始资产（不由仓库自动下载）
+├── usd/                 经过标准化的可引用 USD
+├── collision/           独立碰撞网格（可选）
+├── metadata/            扩展元数据（可选）
+└── qa_reports/          Asset Validator 输出（可选）
+```
+
+v2 记录的核心字段如下。`bbox_m` 对真实 USD 可以省略，Validator 会在 USD
+检查后给出尺寸结果；如果资产要参与现有布局生成，建议显式填写它。
+
+```json
+{
+  "asset_id": "mug_blue",
+  "name": "Blue ceramic mug",
+  "category": "mug",
+  "source": "internal_capture",
+  "license": "internal",
+  "hash": "sha256:...",
+  "usd_path": "usd/mug_blue.usda",
+  "collision_path": "collision/mug_blue.usda",
+  "bbox_m": [0.09, 0.09, 0.11],
+  "mass": 0.32,
+  "friction": 0.48,
+  "support_surface": [],
+  "grasp_region": {"type": "center", "radius_m": 0.025},
+  "status": "quarantine"
+}
+```
+
+`AssetRegistry.load()` 会将 v2 字段归一化为兼容的 `AssetRecord`，因此
+`SceneIntent`、Recipe、LayoutSolver、Web UI 和 USD exporter 不需要改 API。
+`AssetRegistry.list()` 返回所有记录，`get()` 继续返回可用于布局的记录，
+`metadata(asset_id)` 可读取完整 v2 元数据，`validate()` 只做不依赖 Isaac Sim
+的 schema/物理元数据检查。只有 `validated` 资产进入随机候选池。
+
+`AssetLoader` 负责根据 registry 文件位置解析相对 `usd_path` 和
+`collision_path`，并在加载前检查本地文件是否存在；proxy/primitive 资产没有
+USD 路径时仍可正常工作。
+
+## Asset QA CLI
+
+普通 Python 可以先检查 registry 元数据和文件路径：
+
+```powershell
+python -m scene_factory asset inspect `
+  --registry data/assets/registry.jsonl `
+  --asset-id mug_blue `
+  --report outputs/asset_qa/mug_blue.json
+```
+
+也可以直接检查一个 USD：
+
+```powershell
+python -m scene_factory asset inspect `
+  --usd F:\scene_factory_assets\wrapped\my_mug.usda `
+  --report F:\scene_factory_assets\reports\my_mug_qa.json
+```
+
+报告包含 `valid`、`issues`、路径、元数据检查和 USD 检查结果。USD 检查会验证
+Z-up、米制、default Prim、mesh 数量、碰撞体和 stage 结构。没有 Isaac Sim 的
+`pxr` 时不会让 CLI import 失败，而是写出 `usd_inspection_unavailable` 的报告；
+使用 Isaac Sim Python 重新运行即可完成真实几何 QA。
+
 ## 1. 检查原始 USD
 
 在项目根目录执行：

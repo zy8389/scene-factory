@@ -4,26 +4,43 @@
   "title": "SceneFactory asset record",
   "type": "object",
   "additionalProperties": false,
-  "required": ["asset_id", "category", "bbox_m", "mass_kg", "friction", "status"],
+  "required": ["asset_id", "category", "status"],
+  "anyOf": [
+    {"required": ["bbox_m", "mass_kg", "friction"]},
+    {"required": ["usd_path", "mass", "friction"]}
+  ],
   "properties": {
     "asset_id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
     "category": {"type": "string", "minLength": 1},
+    "source": {"type": ["string", "null"]},
+    "license": {"type": ["string", "null"]},
+    "hash": {"type": ["string", "null"]},
     "bbox_m": {"$ref": "#/$defs/vec3Positive"},
     "primitive": {"enum": ["cube", "cylinder", "sphere"]},
     "color": {"$ref": "#/$defs/color"},
     "mass_kg": {"type": "number", "exclusiveMinimum": 0},
+    "mass": {"type": "number", "exclusiveMinimum": 0},
     "friction": {"type": "number", "minimum": 0},
     "support_surfaces": {
       "type": "array",
       "items": {"$ref": "#/$defs/supportSurface"}
     },
     "source_path": {"type": ["string", "null"]},
+    "usd_path": {"type": ["string", "null"]},
+    "collision_path": {"type": ["string", "null"]},
     "source_type": {"enum": ["primitive", "local_usd", "generated_usd"]},
     "collision_mode": {"enum": ["primitive", "authored", "proxy_box", "none"]},
     "qa_report_path": {"type": ["string", "null"]},
-    "license": {"type": ["string", "null"]},
     "status": {"enum": ["quarantine", "validated", "rejected"]},
-    "tags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+    "tags": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "grasp_region": {},
+    "support_surface": {
+      "oneOf": [
+        {"$ref": "#/$defs/supportSurface"},
+        {"type": "array", "items": {"$ref": "#/$defs/supportSurface"}}
+      ]
+    }
   },
   "$defs": {
     "vec2Positive": {
