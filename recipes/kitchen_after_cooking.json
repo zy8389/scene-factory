@@ -54,6 +54,14 @@
       "relations": [
         {"kind": "near", "target": "pot_1", "min_distance_m": 0.30, "max_distance_m": 0.55}
       ]
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "asset_id": "mug_001",
+      "support": "island_1:top",
+      "yaw_range_deg": [-35, 35],
+      "fallback_policy": "proxy"
     }
   ],
   "task": {
@@ -62,4 +70,3 @@
     "success": {"predicate": "on", "subject": "pot_lid_1", "target": "pot_1"}
   }
 }
-

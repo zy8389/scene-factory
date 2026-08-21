@@ -28,6 +28,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--mass-kg", type=float, default=0.3)
     parser.add_argument("--drop-height-m", type=float, default=1.0)
     parser.add_argument("--steps", type=int, default=360)
+    parser.add_argument("--source-manifest", type=Path)
     parser.add_argument(
         "--work-dir",
         type=Path,
@@ -67,6 +68,7 @@ def _blocked_report(
         "usd": str(usd_path),
         "collision_usd": str(collision_path) if collision_path else None,
         "usd_load": "unavailable" if unavailable else "failed",
+        "mesh_check": "not_run",
         "collision": "unavailable" if unavailable else "failed",
         "physics": "unavailable",
         "valid": False,
@@ -165,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
         str(args.drop_height_m),
         "--collision",
         str(collision_path),
+        "--require-mesh",
     ]
     prepare_code, prepare_stdout, prepare_stderr = _run(prepare_command)
     if prepare_code != 0:
@@ -193,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         "--asset-id",
         args.asset_id,
         "--collision-required",
+        "--mesh-required",
     ]
     runtime_code, runtime_stdout, runtime_stderr = _run(runtime_command)
     if runtime_report_path.is_file():
@@ -205,8 +209,14 @@ def main(argv: list[str] | None = None) -> int:
 
     checks = runtime_report.get("checks", {})
     usd_load = "passed" if checks.get("stage_opened") else "failed"
+    mesh_check = (
+        "passed"
+        if runtime_report.get("mesh_check") == "passed" or checks.get("asset_mesh_found")
+        else "failed"
+    )
     collision = "passed" if runtime_report.get("collision") == "passed" else "failed"
     physics = "passed" if runtime_report.get("physics") == "passed" else "failed"
+    source_valid = True
     report = {
         "validator": "SceneFactory/Isaac Sim PhysX asset validation",
         "asset_id": args.asset_id,
@@ -215,13 +225,41 @@ def main(argv: list[str] | None = None) -> int:
         "drop_height_m": args.drop_height_m,
         "mass_kg": args.mass_kg,
         "usd_load": usd_load,
+        "mesh_check": mesh_check,
         "collision": collision,
         "physics": physics,
-        "valid": runtime_code == 0 and usd_load == collision == physics == "passed",
+        "valid": runtime_code == 0 and usd_load == mesh_check == collision == physics == "passed",
         "collision_generated": False,
         "collision_report": collision_report,
         "runtime_report": runtime_report,
     }
+    if args.source_manifest:
+        source_manifest = args.source_manifest.expanduser().resolve()
+        if source_manifest.is_file():
+            try:
+                report["source"] = json.loads(source_manifest.read_text(encoding="utf-8"))
+                source_valid = bool(
+                    isinstance(report["source"], dict)
+                    and report["source"].get("status") in {"imported", "passed"}
+                    and report["source"].get("archive_sha256")
+                    and report["source"].get("source_geometry")
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                report["source"] = {"status": "invalid", "error": str(exc)}
+                source_valid = False
+        else:
+            report["source"] = {"status": "missing", "path": str(source_manifest)}
+            source_valid = False
+    else:
+        report["source"] = {"status": "not_provided"}
+    report["valid"] = bool(report["valid"] and source_valid)
+    if not source_valid:
+        report.setdefault("issues", []).append(
+            {
+                "code": "invalid_source_manifest",
+                "message": "real YCB source manifest is missing or incomplete",
+            }
+        )
     _write_report(report_path, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["valid"] else 2

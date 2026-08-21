@@ -353,6 +353,40 @@ class AssetRegistry:
             )
         return asset
 
+    def resolve_with_fallback(
+        self,
+        category: str,
+        asset_id: str | None,
+        rng: random.Random,
+        *,
+        fallback_policy: str = "error",
+    ) -> tuple[AssetRecord, str | None]:
+        """Resolve an asset and optionally fall back to an active proxy.
+
+        The fallback reason is returned to the scene graph so a proxy cannot be
+        mistaken for the requested real asset in exported data.
+        """
+        if fallback_policy not in {"error", "proxy"}:
+            raise ValueError(f"unsupported fallback policy: {fallback_policy}")
+        try:
+            return self.resolve(category, asset_id, rng), None
+        except (KeyError, ValueError) as exc:
+            if fallback_policy != "proxy" or not asset_id:
+                raise
+            candidates = tuple(
+                asset
+                for asset in self.candidates(category)
+                if asset.source_type in {"primitive", "proxy"}
+            )
+            if not candidates:
+                raise
+            fallback = candidates[rng.randrange(len(candidates))]
+            return (
+                fallback,
+                f"requested asset {asset_id!r} unavailable ({exc}); "
+                f"using proxy {fallback.asset_id!r}",
+            )
+
     def categories(self) -> list[str]:
         return sorted(self._by_category)
 
@@ -571,6 +605,8 @@ class AssetRegistry:
         required_stages = ("usd_load", "collision", "physics")
         if any(report.get(stage) != "passed" for stage in required_stages):
             raise ValueError("QA report must pass usd_load, collision, and physics")
+        if "mesh_check" in report and report.get("mesh_check") != "passed":
+            raise ValueError("QA report must pass mesh_check when it is present")
         current = self.metadata(asset_id)
         if current.status != "validated":
             raise ValueError(f"asset must be validated before ready: {current.status}")

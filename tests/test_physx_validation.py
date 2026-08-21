@@ -29,6 +29,7 @@ class PhysxValidationTests(unittest.TestCase):
                             {
                                 "valid": True,
                                 "checks": {"stage_opened": True},
+                                "mesh_check": "passed",
                                 "collision": "passed",
                                 "physics": "passed",
                             }

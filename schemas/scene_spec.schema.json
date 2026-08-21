@@ -80,6 +80,7 @@
         "object_id": {"type": "string", "minLength": 1},
         "category": {"type": "string", "minLength": 1},
         "asset_id": {"type": "string"},
+        "fallback_policy": {"enum": ["error", "proxy"]},
         "support": {"type": "string"},
         "dynamic": {"type": "boolean"},
         "fixed_pose": {"$ref": "#/$defs/pose"},
@@ -97,4 +98,3 @@
     }
   }
 }
-

@@ -38,9 +38,16 @@ class LayoutSolver:
         placed_by_id: dict[str, PlacedObject] = {}
 
         for request in requests:
-            asset = self.registry.resolve(request.category, request.asset_id, rng)
+            asset, fallback_reason = self.registry.resolve_with_fallback(
+                request.category,
+                request.asset_id,
+                rng,
+                fallback_policy=request.fallback_policy,
+            )
             if request.fixed_pose is not None:
-                candidate = self._make_placed(request, asset, request.fixed_pose)
+                candidate = self._make_placed(
+                    request, asset, request.fixed_pose, fallback_reason=fallback_reason
+                )
                 if self._collides(candidate, placed, request.support):
                     raise LayoutError(f"fixed object {request.object_id} collides with existing geometry")
             else:
@@ -51,6 +58,7 @@ class LayoutSolver:
                     placed=placed,
                     placed_by_id=placed_by_id,
                     rng=rng,
+                    fallback_reason=fallback_reason,
                 )
             placed.append(candidate)
             placed_by_id[candidate.object_id] = candidate
@@ -108,6 +116,7 @@ class LayoutSolver:
         placed: list[PlacedObject],
         placed_by_id: dict[str, PlacedObject],
         rng: random.Random,
+        fallback_reason: str | None = None,
     ) -> PlacedObject:
         support_object, surface, surface_center, support_yaw = self._resolve_support(
             request.support or "floor", room_dimensions, placed_by_id
@@ -146,7 +155,12 @@ class LayoutSolver:
                 if not (xmin <= x <= xmax and ymin <= y <= ymax):
                     continue
 
-            candidate = self._make_placed(request, asset, Pose((x, y, z), yaw))
+            candidate = self._make_placed(
+                request,
+                asset,
+                Pose((x, y, z), yaw),
+                fallback_reason=fallback_reason,
+            )
             support_id = support_object.object_id if support_object else None
             if self._collides(candidate, placed, support_id):
                 continue
@@ -223,7 +237,12 @@ class LayoutSolver:
         return support_object, surface, center, support_object.pose.yaw_deg
 
     def _make_placed(
-        self, request: ObjectRequest, asset: AssetRecord, pose: Pose
+        self,
+        request: ObjectRequest,
+        asset: AssetRecord,
+        pose: Pose,
+        *,
+        fallback_reason: str | None = None,
     ) -> PlacedObject:
         return PlacedObject(
             object_id=request.object_id,
@@ -234,6 +253,7 @@ class LayoutSolver:
             dynamic=request.dynamic,
             support=request.support,
             relations=request.relations,
+            fallback_reason=fallback_reason,
         )
 
     def _collides(

@@ -63,6 +63,11 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="Optional authored collision USD; it is referenced, never generated",
     )
+    drop.add_argument(
+        "--require-mesh",
+        action="store_true",
+        help="Require a real UsdGeom.Mesh in the referenced visual asset",
+    )
 
     promote = commands.add_parser(
         "promote", help="Promote a quarantine record after a passing PhysX report"
@@ -114,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
                 mass_kg=args.mass_kg,
                 drop_height_m=args.height,
                 collision_usd=args.collision,
+                require_mesh=args.require_mesh,
             )
             write_json_report(args.report, result)
         else:
