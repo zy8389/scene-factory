@@ -55,6 +55,9 @@ async def _convert(source: Path, output: Path) -> tuple[bool, str | None]:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    # SimulationApp forwards unknown argv entries to Kit. Keep converter CLI
+    # arguments out of Kit so the conversion task receives the intended paths.
+    sys.argv = [sys.argv[0]]
     source = args.source.expanduser().resolve()
     output = args.output.expanduser().resolve()
     report_path = args.report.expanduser().resolve() if args.report else None
@@ -132,10 +135,12 @@ def main(argv: list[str] | None = None) -> int:
             {"code": "isaac_converter_unavailable", "message": f"{type(exc).__name__}: {exc}"}
         )
     finally:
+        # Isaac Sim may terminate the Kit process during fast shutdown. Persist
+        # the report before closing so a successful conversion remains auditable.
+        _write_report(report_path, report)
         if app is not None:
             app.close(exit_code=0 if report["result"] == "passed" else 1)
 
-    _write_report(report_path, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["result"] == "passed" else 2
 

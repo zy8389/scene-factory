@@ -1,0 +1,63 @@
+{
+  "asset_id": "mug_001",
+  "source": {
+    "name": "YCB 025_mug",
+    "dataset": "ai-habitat/ycb",
+    "revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+    "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/025_mug/google_16k/textured.glb?download=true",
+    "license": "CC BY 4.0",
+    "sha256": "01953e16a8039c14d9009084f7d17ec4660b97992735d357d4b46bb469717fe7",
+    "collision_sha256": "8ed1745c47c2e44a8b4f8132b16ccb62a8fcbef31574444d4e71e3c6f9f36c10",
+    "manifest": "source/ycb_025_mug/SOURCE.json"
+  },
+  "geometry": {
+    "usd_load": "passed",
+    "mesh_check": "passed",
+    "up_axis": "Z",
+    "meters_per_unit": 1.0,
+    "bounding_box_m": {
+      "width": 0.1169409975,
+      "depth": 0.0813540004,
+      "height": 0.0930790026
+    },
+    "usd_path": "usd/mug_001.usd",
+    "converted_source_usd": "usd/source_mug_clean.usd",
+    "material_sanitization": "passed"
+  },
+  "collision": {
+    "level": "L1",
+    "strategy": "authored_convex_decomposition_mesh",
+    "result": "passed",
+    "collision_path": "collision/mug_001_collision.usd",
+    "mesh_count": 30,
+    "approximation": "convexHull",
+    "limitations": [
+      "cup interior may not be represented",
+      "suitable for grasp/drop testing",
+      "not validated for containment tasks"
+    ]
+  },
+  "physics": {
+    "rigid_body": "passed",
+    "mass": 0.3,
+    "mass_source": "project_default",
+    "static_friction": 0.5,
+    "dynamic_friction": 0.4,
+    "friction_source": "project_default"
+  },
+  "physx": {
+    "environment_available": true,
+    "version": "6.0.1.0",
+    "drop_test": "passed",
+    "drop_height_m": 1.0,
+    "steps": 360,
+    "completed_steps": 362,
+    "final_position_m": [-0.0432278141, 0.0043240134, 0.0529990271],
+    "final_velocity": "not_reported_by_validator",
+    "no_floor_penetration": true,
+    "stable": true,
+    "runtime_report": "generated with tools/validate_mug_asset.py"
+  },
+  "result": "passed",
+  "valid": true
+}

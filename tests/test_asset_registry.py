@@ -56,7 +56,7 @@ class AssetRegistryV2Tests(unittest.TestCase):
 
     def test_legacy_proxy_records_remain_compatible(self) -> None:
         registry = AssetRegistry.load(Path("data/assets/registry.jsonl"))
-        self.assertEqual(len(registry), 20)
+        self.assertEqual(len(registry), 21)
         self.assertEqual(registry.get("mug_blue").source_type, "primitive")
         self.assertEqual(registry.resolve_collision_path(registry.get("mug_blue")), None)
         self.assertEqual(registry.validate()["issues"], [])

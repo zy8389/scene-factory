@@ -17,7 +17,13 @@ class MugAssetReferenceTests(unittest.TestCase):
             usd.write_text("#usda 1.0\n", encoding="utf-8")
             registry_path = root / "registry.jsonl"
             records = json.loads(
-                "[" + ",".join(Path("data/assets/registry.jsonl").read_text().splitlines()) + "]"
+                "["
+                + ",".join(
+                    line
+                    for line in Path("data/assets/registry.jsonl").read_text().splitlines()
+                    if json.loads(line)["asset_id"] != "mug_001"
+                )
+                + "]"
             )
             records.append(
                 {

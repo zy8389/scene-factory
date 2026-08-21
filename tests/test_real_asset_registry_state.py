@@ -7,10 +7,13 @@ from scene_factory.registry import AssetRegistry
 
 
 class RealAssetRegistryStateTests(unittest.TestCase):
-    def test_ycb_mug_is_not_claimed_ready_without_real_source(self) -> None:
+    def test_ycb_mug_is_ready_only_after_real_source_and_qa(self) -> None:
         registry = AssetRegistry.load(Path("data/assets/registry.jsonl"))
-        with self.assertRaises(KeyError):
-            registry.get("mug_001")
+        mug = registry.get("mug_001")
+        self.assertEqual(mug.status, "ready")
+        self.assertEqual(mug.source_type, "local_usd")
+        self.assertEqual(registry.metadata("mug_001").collision_status, "validated")
+        self.assertTrue(registry.validate()["valid"])
         self.assertEqual(registry.metadata("mug_blue").status, "validated")
 
     def test_raw_asset_cannot_skip_to_ready(self) -> None:

@@ -153,19 +153,20 @@ python -m scene_factory asset inspect `
 
 ### P0-2 Real USD Asset Integration
 
-真实资产接入目录已经建立，但仓库当前没有伪造的高保真 `mug_001` 模型：
+真实 YCB 资产已经接入；仓库提交的是可追溯的原始 GLB、标准化 USD、L1 authored
+collision、元数据和真实 Isaac Sim QA，不使用程序化 mug 冒充真实资产：
 
 ```text
 data/assets/
-├── source/       原始 USD（只读输入）
+├── source/       YCB 原始 GLB 与 SOURCE.json（只读输入）
 ├── usd/          Z-up、米制、标准化 USD
 ├── collision/    外部 authored collision（可选，不自动生成）
-├── metadata/     PhysX 元数据模板
-└── qa_reports/   标准化与碰撞 QA 报告
+├── metadata/     mug_001.json 与模板
+└── qa_reports/   标准化与 PhysX QA 报告
 ```
 
-`data/assets/metadata/mug_001.template.json` 是待接入模板，状态为 `raw`，不会被
-场景生成器选中。真实闭环为：
+`data/assets/metadata/mug_001.json` 是已经通过真实 QA 的记录，模板仍保留在
+`mug_001.template.json` 供后续资产使用。真实闭环为：
 
 ```text
 Asset Source -> USD Normalize -> Collision -> PhysX Metadata -> Registry -> Isaac Sim
@@ -192,14 +193,14 @@ python -m scene_factory asset collision `
 collision；`CollisionProcessor` 只检查和登记已有 collision 文件，报告中的
 `generated` 永远为 `false`。状态依次为 `raw`、`normalized`、`validated`、`ready`。
 
-### P0-3 Simulation-ready Asset Example
+### P0-3 Simulation-ready Asset
 
-仓库不包含虚构的高保真模型或碰撞网格。把真实文件放入以下结构后，使用 Isaac Sim
-Python 执行资产级验收：
+仓库已包含本次真实 YCB 资产的以下结构；新资产应按相同布局接入：
 
 ```text
 data/assets/
-├── source/mug_original.usd
+├── source/ycb_025_mug/SOURCE.json
+├── source/ycb_025_mug/textured.glb
 ├── usd/mug_001.usd
 ├── collision/mug_001_collision.usd
 ├── metadata/mug_001.json
@@ -213,10 +214,14 @@ Asset Source -> USD Normalize -> Collision -> PhysX Metadata -> Isaac Sim -> Reg
 `tools/validate_mug_asset.py` 会加载标准化 USD，引用已有 authored collision，创建
 约 1 m 的单资产跌落场景，并检查 stage、刚体、碰撞、落地、不穿透和稳定停止：
 
+Windows 下不要把仓库中的中文路径直接传给 Isaac Sim/OpenUSD。先把待验收的 USD
+和 collision 放进纯 ASCII 的 staging 目录；报告仍可写回仓库：
+
 ```powershell
 $IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
-& $IsaacPython tools\validate_mug_asset.py data\assets\usd\mug_001.usd `
-  --collision data\assets\collision\mug_001_collision.usd `
+$Package = "F:\scene_factory_runtime\p0_3b_ycb_mug\package"
+& $IsaacPython tools\validate_mug_asset.py "$Package\mug_001.usd" `
+  --collision "$Package\mug_001_collision.usd" `
   --asset-id mug_001 `
   --mass-kg 0.3 `
   --source-manifest data\assets\source\ycb_025_mug\SOURCE.json `
@@ -227,42 +232,90 @@ $IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
 `AssetRegistry.promote_to_validated()` 和 `promote_to_ready()` 更新 Registry。
 缺少真实 USD 或 authored collision 时，脚本只写出结构化失败报告，不会生成替代资产。
 
-### P0-3A Real Asset Vertical Slice: YCB 025_mug
+### P0-3B Real Asset Vertical Slice: YCB 025_mug
 
-当前仓库不包含 YCB 原始文件。真实资源接入必须从官方归档开始，导入器会记录来源、
-许可证提示、归档 hash 和每个源文件 hash：
-
-```powershell
-python tools\import_ycb_025_mug.py `
-  --report outputs\asset_qa\ycb_025_mug_import.json
-```
-
-也可以先下载归档后离线导入：
+本次使用固定 revision 的 AI Habitat YCB 镜像，许可证为 CC BY 4.0。下载工具会记录
+每个源文件的 URL、大小和 SHA-256，并拒绝 HTML、Git LFS 指针和空文件：
 
 ```powershell
-python tools\import_ycb_025_mug.py `
-  --archive F:\scene_factory_assets\025_mug.tgz `
-  --report outputs\asset_qa\ycb_025_mug_import.json
+python tools\fetch_ycb_asset.py `
+  --asset 025_mug `
+  --output data\assets\source\ycb_025_mug
 ```
 
-成功导入后，使用 Isaac Sim 的 converter 将真实 OBJ/PLY/DAE/GLB 转换为
-`data/assets/usd/mug_001.usd`：
+固定来源：
+
+```powershell
+https://huggingface.co/datasets/ai-habitat/ycb
+revision: 29be64fdd95b4881f244152ad653058e0a48c28f
+visual sha256: 01953e16a8039c14d9009084f7d17ec4660b97992735d357d4b46bb469717fe7
+collision sha256: 8ed1745c47c2e44a8b4f8132b16ccb62a8fcbef31574444d4e71e3c6f9f36c10
+```
+
+使用 Isaac Sim 6.0.1 converter、现有 normalize wrapper 和 authored collision
+authoring 工具生成 USD：
 
 ```powershell
 $IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
+$Runtime = "F:\scene_factory_runtime\p0_3b_ycb_mug"
+$Package = "$Runtime\package"
+New-Item -ItemType Directory -Force "$Package\collision" | Out-Null
+Copy-Item data\assets\source\ycb_025_mug\textured.glb "$Package\textured.glb"
+Copy-Item data\assets\source\ycb_025_mug\collision\025_cv_decomp.glb "$Package\collision\025_cv_decomp.glb"
+
 & $IsaacPython tools\convert_ycb_mug.py `
-  data\assets\source\ycb_025_mug\025_mug\google_16k\textured.obj `
-  --output F:\scene_factory_runtime\mug_001_imported.usd `
-  --report F:\scene_factory_runtime\mug_001_convert.json
+  "$Package\textured.glb" `
+  --output "$Package\mug_001_imported.usd" `
+  --report "$Runtime\mug_001_convert.json"
+
+& $IsaacPython tools\convert_ycb_mug.py `
+  "$Package\collision\025_cv_decomp.glb" `
+  --output "$Package\collision\collision_source.usd" `
+  --report "$Runtime\collision_convert.json"
+
+& $IsaacPython tools\sanitize_usd_materials.py `
+  "$Package\mug_001_imported.usd" `
+  --output "$Package\mug_001_clean.usd" `
+  --report "$Runtime\mug_001_materials.json"
+
+& $IsaacPython tools\prepare_asset.py wrap `
+  "$Package\mug_001_clean.usd" `
+  --output "$Package\mug_001.usd" `
+  --report "$Runtime\mug_001_wrapper.json" `
+  --asset-id mug_001 --category mug --collision none `
+  --mass-kg 0.3 --static-friction 0.5 --dynamic-friction 0.4 `
+  --source-type local_usd --license "CC BY 4.0"
+
+& $IsaacPython tools\author_collision_usd.py `
+  "$Package\collision\collision_source.usd" `
+  --output "$Package\mug_001_collision.usd" `
+  --asset-id mug_001 `
+  --report "$Runtime\mug_001_collision_authoring.json"
+
+Copy-Item "$Package\mug_001.usd" data\assets\usd\mug_001.usd -Force
+Copy-Item "$Package\mug_001_clean.usd" data\assets\usd\source_mug_clean.usd -Force
+Copy-Item "$Package\mug_001_collision.usd" data\assets\collision\mug_001_collision.usd -Force
 ```
 
-将转换结果复制/登记为 `data/assets/usd/mug_001.usd` 后，再执行 normalize、authored collision 和
-`tools\validate_mug_asset.py`。本任务当前环境无法访问 YCB 归档，因此导入命令会
-返回 `BLOCKED`，不会创建替代几何，也不会把 `mug_001` 晋级为 `validated` 或 `ready`。
+然后运行真实 Isaac Sim/PhysX 验收：
 
-`kitchen_after_cooking` 已声明真实 `mug_001` 请求；在真实资产未 ready 时，场景会
-明确记录 `fallback_reason` 并使用现有 mug proxy。真实资产 ready 后，同一配方会引用
-`mug_001` 的 USD，而不是静默退回 proxy。
+```powershell
+$Package = "F:\scene_factory_runtime\p0_3b_ycb_mug\package"
+& $IsaacPython tools\validate_mug_asset.py "$Package\mug_001.usd" `
+  --collision "$Package\mug_001_collision.usd" `
+  --asset-id mug_001 --mass-kg 0.3 --drop-height-m 1.0 --steps 360 `
+  --source-manifest data\assets\source\ycb_025_mug\SOURCE.json `
+  --report data\assets\qa_reports\mug_001.json
+```
+
+本次实际结果为 Isaac Sim 6.0.1 可用，1 m drop、360 steps 通过，最终位置约
+`[-0.0432, 0.0043, 0.0530] m`，无地面穿透且稳定停止；因此 `mug_001` 已登记为
+`ready`。碰撞 authoring 使用 `MeshCollisionAPI` 的 `convexHull` 近似，并显式修正
+Y-up 到 Z-up。杯腔 containment 仍不在 L1 验收范围内。
+
+`kitchen_after_cooking` 已声明真实 `mug_001` 请求；当前 registry 会直接引用
+`data/assets/usd/mug_001.usd`，`fallback_reason` 为 `null`。当测试使用不含
+`mug_001` 的临时 registry 时，原有 mug proxy fallback 仍会记录明确原因。
 
 ## 添加生活事件
 

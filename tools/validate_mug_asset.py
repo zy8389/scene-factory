@@ -69,6 +69,8 @@ def _blocked_report(
         "collision_usd": str(collision_path) if collision_path else None,
         "usd_load": "unavailable" if unavailable else "failed",
         "mesh_check": "not_run",
+        "mass_check": "not_run",
+        "friction_check": "not_run",
         "collision": "unavailable" if unavailable else "failed",
         "physics": "unavailable",
         "valid": False,
@@ -197,6 +199,8 @@ def main(argv: list[str] | None = None) -> int:
         args.asset_id,
         "--collision-required",
         "--mesh-required",
+        "--mass-required",
+        "--physics-material-required",
     ]
     runtime_code, runtime_stdout, runtime_stderr = _run(runtime_command)
     if runtime_report_path.is_file():
@@ -216,6 +220,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     collision = "passed" if runtime_report.get("collision") == "passed" else "failed"
     physics = "passed" if runtime_report.get("physics") == "passed" else "failed"
+    mass_check = (
+        "passed"
+        if runtime_report.get("mass_check") == "passed" or checks.get("mass_found")
+        else "failed"
+    )
+    friction_check = (
+        "passed"
+        if runtime_report.get("friction_check") == "passed"
+        or checks.get("physics_material_found")
+        else "failed"
+    )
     source_valid = True
     report = {
         "validator": "SceneFactory/Isaac Sim PhysX asset validation",
@@ -226,9 +241,12 @@ def main(argv: list[str] | None = None) -> int:
         "mass_kg": args.mass_kg,
         "usd_load": usd_load,
         "mesh_check": mesh_check,
+        "mass_check": mass_check,
+        "friction_check": friction_check,
         "collision": collision,
         "physics": physics,
-        "valid": runtime_code == 0 and usd_load == mesh_check == collision == physics == "passed",
+        "valid": runtime_code == 0
+        and usd_load == mesh_check == mass_check == friction_check == collision == physics == "passed",
         "collision_generated": False,
         "collision_report": collision_report,
         "runtime_report": runtime_report,
@@ -241,7 +259,10 @@ def main(argv: list[str] | None = None) -> int:
                 source_valid = bool(
                     isinstance(report["source"], dict)
                     and report["source"].get("status") in {"imported", "passed"}
-                    and report["source"].get("archive_sha256")
+                    and (
+                        report["source"].get("archive_sha256")
+                        or report["source"].get("sha256")
+                    )
                     and report["source"].get("source_geometry")
                 )
             except (OSError, json.JSONDecodeError) as exc:

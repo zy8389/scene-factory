@@ -33,6 +33,15 @@ def _local_usd_path(value: str | Path, *, must_exist: bool) -> Path:
     return path
 
 
+def _relative_reference(source: Path, output: Path) -> str:
+    """Return a portable USD reference from an output layer to a source layer."""
+    try:
+        return Path(os.path.relpath(source, output.parent)).as_posix()
+    except ValueError:
+        # Different Windows drives cannot use a relative reference.
+        return source.as_posix()
+
+
 def _json_write(path: str | Path, payload: dict[str, Any]) -> Path:
     output = Path(path).expanduser().resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -206,8 +215,9 @@ def wrap_usd(
     root = UsdGeom.Xform.Define(stage, "/Asset")
     root.GetPrim().CreateAttribute("sceneFactory:assetId", Sdf.ValueTypeNames.String).Set(asset_id)
     root.GetPrim().CreateAttribute("sceneFactory:category", Sdf.ValueTypeNames.String).Set(category)
+    source_reference = _relative_reference(source_path, output_path)
     root.GetPrim().CreateAttribute("sceneFactory:source", Sdf.ValueTypeNames.String).Set(
-        source_path.as_posix()
+        source_reference
     )
 
     visual = UsdGeom.Xform.Define(stage, "/Asset/Visual")
@@ -219,10 +229,10 @@ def wrap_usd(
         UsdGeom.Xformable(source_root).AddRotateXOp().Set(90.0)
     references = source_root.GetPrim().GetReferences()
     if source_report["has_default_prim"]:
-        references.AddReference(source_path.as_posix())
+        references.AddReference(source_reference)
     else:
         references.AddReference(
-            Sdf.Reference(source_path.as_posix(), source_report["selected_root_path"])
+            Sdf.Reference(source_reference, source_report["selected_root_path"])
         )
 
     if collision_mode == "proxy_box":

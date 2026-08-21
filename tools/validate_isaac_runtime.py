@@ -26,6 +26,16 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Require at least one UsdGeom.Mesh beneath /World/TestAsset",
     )
+    parser.add_argument(
+        "--mass-required",
+        action="store_true",
+        help="Require a finite positive physics mass beneath /World/TestAsset",
+    )
+    parser.add_argument(
+        "--physics-material-required",
+        action="store_true",
+        help="Require static and dynamic friction on a bound PhysicsMaterial",
+    )
     return parser.parse_args()
 
 
@@ -114,6 +124,8 @@ def main() -> int:
         asset_prim = stage.GetPrimAtPath("/World/TestAsset")
         asset_collision_prims = []
         asset_mesh_prims = []
+        asset_mass_values = []
+        asset_material_prims = []
         if asset_prim.IsValid():
             asset_collision_prims = [
                 prim
@@ -123,6 +135,13 @@ def main() -> int:
             asset_mesh_prims = [
                 prim for prim in Usd.PrimRange(asset_prim) if prim.IsA(UsdGeom.Mesh)
             ]
+            for prim in Usd.PrimRange(asset_prim):
+                if prim.HasAPI(UsdPhysics.MassAPI):
+                    mass_attr = prim.GetAttribute("physics:mass")
+                    if mass_attr.IsValid() and mass_attr.Get() is not None:
+                        asset_mass_values.append(float(mass_attr.Get()))
+                if prim.HasAPI(UsdPhysics.MaterialAPI):
+                    asset_material_prims.append(prim)
         asset_height_attr = (
             asset_prim.GetAttribute("sceneFactory:assetHeightM")
             if asset_prim.IsValid()
@@ -210,12 +229,33 @@ def main() -> int:
                 stable_stop = False
         collision_passed = bool(asset_collision_prims) if args.collision_required else True
         mesh_passed = bool(asset_mesh_prims) if args.mesh_required else True
+        mass_passed = (
+            bool(asset_mass_values) and all(value > 0.0 for value in asset_mass_values)
+            if args.mass_required
+            else True
+        )
+        friction_passed = True
+        if args.physics_material_required:
+            friction_passed = False
+            for prim in asset_material_prims:
+                static = prim.GetAttribute("physics:staticFriction").Get()
+                dynamic = prim.GetAttribute("physics:dynamicFriction").Get()
+                if (
+                    static is not None
+                    and dynamic is not None
+                    and float(static) >= 0.0
+                    and float(dynamic) >= 0.0
+                ):
+                    friction_passed = True
+                    break
         checks = {
             "stage_opened": True,
             "physics_scene_exists": stage.GetPrimAtPath("/World/PhysicsScene").IsValid(),
             "rigid_bodies_found": bool(rigid_prims),
             "asset_collision_found": collision_passed,
             "asset_mesh_found": mesh_passed,
+            "mass_found": mass_passed,
+            "physics_material_found": friction_passed,
             "requested_steps_completed": completed_steps >= args.steps,
             "final_positions_finite": finite_positions,
             "rigid_bodies_physically_bounded": physically_bounded,
@@ -242,6 +282,8 @@ def main() -> int:
                     str(prim.GetPath()) for prim in asset_collision_prims
                 ],
                 "mesh_prims_under_asset": [str(prim.GetPath()) for prim in asset_mesh_prims],
+                "mass_values_kg": asset_mass_values,
+                "physics_material_prims": [str(prim.GetPath()) for prim in asset_material_prims],
                 "drop_test": {
                     "enabled": drop_test_enabled,
                     "drop_height_m": drop_height_m,
@@ -253,6 +295,8 @@ def main() -> int:
                 "checks": checks,
                 "usd_load": "passed",
                 "mesh_check": "passed" if mesh_passed else "failed",
+                "mass_check": "passed" if mass_passed else "failed",
+                "friction_check": "passed" if friction_passed else "failed",
                 "collision": "passed" if collision_passed else "failed",
                 "physics": "passed" if all(checks.values()) else "failed",
                 "valid": all(checks.values()),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -48,13 +49,13 @@ class IsaacUsdExporter:
 
         for item in scene.objects:
             asset = self.registry.get(item.asset_id)
-            self._add_object(stage, item, asset, Gf, UsdGeom, UsdPhysics)
+            self._add_object(stage, item, asset, output_path, Gf, UsdGeom, UsdPhysics)
 
         stage.SetDefaultPrim(stage.GetPrimAtPath("/World"))
         stage.GetRootLayer().Save()
         return output_path
 
-    def _add_object(self, stage, item, asset, Gf, UsdGeom, UsdPhysics) -> None:
+    def _add_object(self, stage, item, asset, output_path, Gf, UsdGeom, UsdPhysics) -> None:
         prim_path = f"/World/Objects/{self._safe_name(item.object_id)}"
         if asset.source_path:
             source_reference = self.registry.resolve_source_path(asset)
@@ -65,7 +66,9 @@ class IsaacUsdExporter:
                     f"USD source for asset {asset.asset_id} does not exist: {source_reference}"
                 )
             xform = UsdGeom.Xform.Define(stage, prim_path)
-            xform.GetPrim().GetReferences().AddReference(source_reference.replace("\\", "/"))
+            xform.GetPrim().GetReferences().AddReference(
+                self._relative_reference(source_reference, output_path)
+            )
             self._set_pose(UsdGeom.Xformable(xform), item, Gf, scale=None)
             physics_prim = xform.GetPrim()
         else:
@@ -80,6 +83,15 @@ class IsaacUsdExporter:
         physics_prim.CreateAttribute("sceneFactory:category", self._string_type()).Set(
             item.category
         )
+        collision_reference = self.registry.resolve_collision_path(asset)
+        if collision_reference is not None:
+            collision_xform = UsdGeom.Xform.Define(stage, f"{prim_path}/AuthoredCollision")
+            collision_xform.GetPrim().GetReferences().AddReference(
+                self._relative_reference(collision_reference, output_path)
+            )
+            collision_xform.GetPrim().CreateAttribute(
+                "sceneFactory:collisionSource", self._string_type()
+            ).Set(self._relative_reference(collision_reference, output_path))
         if item.fallback_reason:
             physics_prim.CreateAttribute(
                 "sceneFactory:fallbackReason", self._string_type()
@@ -120,6 +132,16 @@ class IsaacUsdExporter:
     def _safe_name(value: str) -> str:
         result = re.sub(r"[^A-Za-z0-9_]", "_", value)
         return result if result and not result[0].isdigit() else f"obj_{result}"
+
+    @staticmethod
+    def _relative_reference(reference: str, output_path: Path) -> str:
+        if "://" in reference:
+            return reference
+        try:
+            relative = Path(reference).resolve().relative_to(output_path.parent.resolve())
+            return relative.as_posix()
+        except ValueError:
+            return Path(os.path.relpath(reference, output_path.parent)).as_posix()
 
     @staticmethod
     def _string_type():

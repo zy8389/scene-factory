@@ -73,11 +73,13 @@ USD 路径时仍可正常工作。
 
 ## P0-3 Isaac Sim PhysX 资产验收
 
-真实 `mug_001` 文件应按下列结构放置，仓库不会替代缺失文件：
+真实 `mug_001` 已按下列结构接入仓库：
 
 ```text
 data/assets/
-├── source/mug_original.usd
+├── source/ycb_025_mug/SOURCE.json
+├── source/ycb_025_mug/textured.glb
+├── source/ycb_025_mug/collision/025_cv_decomp.glb
 ├── usd/mug_001.usd
 ├── collision/mug_001_collision.usd
 ├── metadata/mug_001.json
@@ -87,8 +89,9 @@ data/assets/
 在 Isaac Sim Python 环境中运行：
 
 ```powershell
-& $IsaacPython tools\validate_mug_asset.py data\assets\usd\mug_001.usd `
-  --collision data\assets\collision\mug_001_collision.usd `
+$Package = "F:\scene_factory_runtime\p0_3b_ycb_mug\package"
+& $IsaacPython tools\validate_mug_asset.py "$Package\mug_001.usd" `
+  --collision "$Package\mug_001_collision.usd" `
   --asset-id mug_001 --mass-kg 0.3 `
   --report data\assets\qa_reports\mug_001.json
 ```
@@ -100,39 +103,46 @@ data/assets/
 collision。通过后用 `AssetRegistry.promote_to_validated()` 再调用
 `AssetRegistry.promote_to_ready()` 写回 `registry.jsonl`。
 
-## P0-3A YCB 025_mug 真实资产接入
+## P0-3B YCB 025_mug 真实资产接入
 
-真实资源接入命令是：
+真实资源接入命令是（固定 AI Habitat YCB revision）：
 
 ```powershell
-python tools\import_ycb_025_mug.py `
-  --report outputs\asset_qa\ycb_025_mug_import.json
+python tools\fetch_ycb_asset.py `
+  --asset 025_mug `
+  --output data\assets\source\ycb_025_mug
 ```
 
-导入器只接受可验证的真实 `025_mug.tgz`，会拒绝 HTML/空壳响应、路径穿越和覆盖
-已有 source 目录，并写出 `SOURCE.json`、归档 SHA-256 和源文件 SHA-256。导入成功后，
-使用 Isaac Sim `omni.kit.asset_converter` 将选中的真实几何转换到
-`data/assets/usd/mug_001.usd`，也可以直接使用项目封装命令：
+工具会拒绝 HTML/空壳响应、Git LFS 指针和覆盖已有 source 目录，并写出 `SOURCE.json`
+和源文件 SHA-256。来源为 `ai-habitat/ycb`，revision 为
+`29be64fdd95b4881f244152ad653058e0a48c28f`，许可证为 CC BY 4.0。使用 Isaac Sim
+`omni.kit.asset_converter` 将真实 GLB 转换到 ASCII staging 目录，再复制最终 USD
+回 `data/assets/usd/`；完整的视觉/碰撞转换、材质清理和 wrapper 命令见 README：
 
 ```powershell
+$Runtime = "F:\scene_factory_runtime\p0_3b_ycb_mug"
+$Package = "$Runtime\package"
 & $IsaacPython tools\convert_ycb_mug.py `
-  data\assets\source\ycb_025_mug\025_mug\google_16k\textured.obj `
-  --output F:\scene_factory_runtime\mug_001_imported.usd `
-  --report F:\scene_factory_runtime\mug_001_convert.json
+  "$Package\textured.glb" `
+  --output "$Package\mug_001_imported.usd" `
+  --report "$Runtime\mug_001_convert.json"
 ```
 
-随后才可以执行 normalize 和 PhysX 验收。
+转换器生成的 GLB USD 可能引用安装目录中的 `gltf/pbr.mdl`；提交前运行
+`tools/sanitize_usd_materials.py` 将其替换为自包含 USD Preview Surface，避免
+离线场景出现 unresolved layer。随后用 `tools/author_collision_usd.py` 写入 L1 authored collision。authoring 会给
+每个 collision mesh 应用 `CollisionAPI` 和 `MeshCollisionAPI(approximation=convexHull)`，
+并把 Y-up 碰撞源旋转到 Z-up；不会用 cube/cylinder 生成替代 mug。
 
-当前工作区没有 YCB 归档，且网络请求被网关拦截，所以本次 P0-3A 状态是：
+本次真实验收结果：Isaac Sim 6.0.1 可用，1 m/360 steps drop test 通过，
+`usd_load`、`mesh_check`、`mass_check`、`friction_check`、`collision`、`physics` 全部
+为 `passed`，`no_floor_penetration=true`、`stable_stop=true`。真实 QA 保存于
+`data/assets/qa_reports/mug_001.json`，Registry 状态为 `ready`。
 
-```text
-PARTIALLY COMPLETE / BLOCKED BY REAL YCB SOURCE
-```
-
-仓库只保留 [SOURCE.template.json](../data/assets/source/ycb_025_mug/SOURCE.template.json)
-和 raw metadata template，不创建任何假 mug、假 collision 或未运行的 passed QA。
-`kitchen_after_cooking` 已请求 `mug_001`；在它未 ready 时，导出场景中的对象会带有
-`fallback_reason`，使用现有 proxy，真实 asset ready 后无需修改配方即可切换到 USD。
+视觉源 SHA-256 为
+`01953e16a8039c14d9009084f7d17ec4660b97992735d357d4b46bb469717fe7`，碰撞源 SHA-256 为
+`8ed1745c47c2e44a8b4f8132b16ccb62a8fcbef31574444d4e71e3c6f9f36c10`。L1 仍明确限制：
+杯腔可能未被表示，适合抓取/drop 测试，不用于 containment 任务。
 
 ## P0-2 真实 USD 单资产闭环
 
