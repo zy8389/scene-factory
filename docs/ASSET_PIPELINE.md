@@ -100,6 +100,40 @@ data/assets/
 collision。通过后用 `AssetRegistry.promote_to_validated()` 再调用
 `AssetRegistry.promote_to_ready()` 写回 `registry.jsonl`。
 
+## P0-3A YCB 025_mug 真实资产接入
+
+真实资源接入命令是：
+
+```powershell
+python tools\import_ycb_025_mug.py `
+  --report outputs\asset_qa\ycb_025_mug_import.json
+```
+
+导入器只接受可验证的真实 `025_mug.tgz`，会拒绝 HTML/空壳响应、路径穿越和覆盖
+已有 source 目录，并写出 `SOURCE.json`、归档 SHA-256 和源文件 SHA-256。导入成功后，
+使用 Isaac Sim `omni.kit.asset_converter` 将选中的真实几何转换到
+`data/assets/usd/mug_001.usd`，也可以直接使用项目封装命令：
+
+```powershell
+& $IsaacPython tools\convert_ycb_mug.py `
+  data\assets\source\ycb_025_mug\025_mug\google_16k\textured.obj `
+  --output F:\scene_factory_runtime\mug_001_imported.usd `
+  --report F:\scene_factory_runtime\mug_001_convert.json
+```
+
+随后才可以执行 normalize 和 PhysX 验收。
+
+当前工作区没有 YCB 归档，且网络请求被网关拦截，所以本次 P0-3A 状态是：
+
+```text
+PARTIALLY COMPLETE / BLOCKED BY REAL YCB SOURCE
+```
+
+仓库只保留 [SOURCE.template.json](../data/assets/source/ycb_025_mug/SOURCE.template.json)
+和 raw metadata template，不创建任何假 mug、假 collision 或未运行的 passed QA。
+`kitchen_after_cooking` 已请求 `mug_001`；在它未 ready 时，导出场景中的对象会带有
+`fallback_reason`，使用现有 proxy，真实 asset ready 后无需修改配方即可切换到 USD。
+
 ## P0-2 真实 USD 单资产闭环
 
 当前仓库只提供 `mug_001` 的 metadata 模板，不包含虚构的高保真模型或假的

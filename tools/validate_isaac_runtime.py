@@ -21,6 +21,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Require authored collision beneath /World/TestAsset",
     )
+    parser.add_argument(
+        "--mesh-required",
+        action="store_true",
+        help="Require at least one UsdGeom.Mesh beneath /World/TestAsset",
+    )
     return parser.parse_args()
 
 
@@ -108,11 +113,15 @@ def main() -> int:
             raise RuntimeError("The stage contains no rigid bodies to simulate")
         asset_prim = stage.GetPrimAtPath("/World/TestAsset")
         asset_collision_prims = []
+        asset_mesh_prims = []
         if asset_prim.IsValid():
             asset_collision_prims = [
                 prim
                 for prim in Usd.PrimRange(asset_prim)
                 if prim.HasAPI(UsdPhysics.CollisionAPI)
+            ]
+            asset_mesh_prims = [
+                prim for prim in Usd.PrimRange(asset_prim) if prim.IsA(UsdGeom.Mesh)
             ]
         asset_height_attr = (
             asset_prim.GetAttribute("sceneFactory:assetHeightM")
@@ -200,11 +209,13 @@ def main() -> int:
             else:
                 stable_stop = False
         collision_passed = bool(asset_collision_prims) if args.collision_required else True
+        mesh_passed = bool(asset_mesh_prims) if args.mesh_required else True
         checks = {
             "stage_opened": True,
             "physics_scene_exists": stage.GetPrimAtPath("/World/PhysicsScene").IsValid(),
             "rigid_bodies_found": bool(rigid_prims),
             "asset_collision_found": collision_passed,
+            "asset_mesh_found": mesh_passed,
             "requested_steps_completed": completed_steps >= args.steps,
             "final_positions_finite": finite_positions,
             "rigid_bodies_physically_bounded": physically_bounded,
@@ -230,6 +241,7 @@ def main() -> int:
                 "collision_prims_under_asset": [
                     str(prim.GetPath()) for prim in asset_collision_prims
                 ],
+                "mesh_prims_under_asset": [str(prim.GetPath()) for prim in asset_mesh_prims],
                 "drop_test": {
                     "enabled": drop_test_enabled,
                     "drop_height_m": drop_height_m,
@@ -240,6 +252,7 @@ def main() -> int:
                 },
                 "checks": checks,
                 "usd_load": "passed",
+                "mesh_check": "passed" if mesh_passed else "failed",
                 "collision": "passed" if collision_passed else "failed",
                 "physics": "passed" if all(checks.values()) else "failed",
                 "valid": all(checks.values()),

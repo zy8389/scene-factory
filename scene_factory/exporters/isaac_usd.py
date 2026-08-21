@@ -80,6 +80,10 @@ class IsaacUsdExporter:
         physics_prim.CreateAttribute("sceneFactory:category", self._string_type()).Set(
             item.category
         )
+        if item.fallback_reason:
+            physics_prim.CreateAttribute(
+                "sceneFactory:fallbackReason", self._string_type()
+            ).Set(item.fallback_reason)
         if item.dynamic:
             UsdPhysics.RigidBodyAPI.Apply(physics_prim)
             mass_api = UsdPhysics.MassAPI.Apply(physics_prim)

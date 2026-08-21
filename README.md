@@ -219,12 +219,50 @@ $IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
   --collision data\assets\collision\mug_001_collision.usd `
   --asset-id mug_001 `
   --mass-kg 0.3 `
+  --source-manifest data\assets\source\ycb_025_mug\SOURCE.json `
   --report data\assets\qa_reports\mug_001.json
 ```
 
 报告通过后，可按 `raw -> normalized -> validated -> ready` 顺序用
 `AssetRegistry.promote_to_validated()` 和 `promote_to_ready()` 更新 Registry。
 缺少真实 USD 或 authored collision 时，脚本只写出结构化失败报告，不会生成替代资产。
+
+### P0-3A Real Asset Vertical Slice: YCB 025_mug
+
+当前仓库不包含 YCB 原始文件。真实资源接入必须从官方归档开始，导入器会记录来源、
+许可证提示、归档 hash 和每个源文件 hash：
+
+```powershell
+python tools\import_ycb_025_mug.py `
+  --report outputs\asset_qa\ycb_025_mug_import.json
+```
+
+也可以先下载归档后离线导入：
+
+```powershell
+python tools\import_ycb_025_mug.py `
+  --archive F:\scene_factory_assets\025_mug.tgz `
+  --report outputs\asset_qa\ycb_025_mug_import.json
+```
+
+成功导入后，使用 Isaac Sim 的 converter 将真实 OBJ/PLY/DAE/GLB 转换为
+`data/assets/usd/mug_001.usd`：
+
+```powershell
+$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
+& $IsaacPython tools\convert_ycb_mug.py `
+  data\assets\source\ycb_025_mug\025_mug\google_16k\textured.obj `
+  --output F:\scene_factory_runtime\mug_001_imported.usd `
+  --report F:\scene_factory_runtime\mug_001_convert.json
+```
+
+将转换结果复制/登记为 `data/assets/usd/mug_001.usd` 后，再执行 normalize、authored collision 和
+`tools\validate_mug_asset.py`。本任务当前环境无法访问 YCB 归档，因此导入命令会
+返回 `BLOCKED`，不会创建替代几何，也不会把 `mug_001` 晋级为 `validated` 或 `ready`。
+
+`kitchen_after_cooking` 已声明真实 `mug_001` 请求；在真实资产未 ready 时，场景会
+明确记录 `fallback_reason` 并使用现有 mug proxy。真实资产 ready 后，同一配方会引用
+`mug_001` 的 USD，而不是静默退回 proxy。
 
 ## 添加生活事件
 

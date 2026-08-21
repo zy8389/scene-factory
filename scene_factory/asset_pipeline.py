@@ -259,6 +259,7 @@ def build_drop_test_scene(
     mass_kg: float,
     drop_height_m: float = 1.0,
     collision_usd: str | Path | None = None,
+    require_mesh: bool = False,
 ) -> dict[str, Any]:
     """Build a single-asset PhysX drop scene without synthesizing collision."""
     Gf, Sdf, Usd, UsdGeom, UsdPhysics, _ = _pxr_modules()
@@ -274,6 +275,8 @@ def build_drop_test_scene(
     asset_report = inspect_usd(asset_path)
     if not asset_report["valid"]:
         raise ValueError("asset USD is not valid")
+    if require_mesh and int(asset_report["counts"].get("mesh_prims", 0)) <= 0:
+        raise ValueError("asset USD contains no Mesh prims")
     bbox_z = float(asset_report["bbox_m"][2])
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -579,22 +582,35 @@ class AssetNormalizer:
         dynamic_friction: float,
         collision_path: str | None = None,
         source: str | None = None,
+        source_asset: str | None = None,
+        source_url: str | None = None,
         license_name: str | None = None,
+        physics_parameters_source: str = "project_default",
+        collision_level: str = "L1",
+        limitations: list[str] | None = None,
     ) -> dict[str, Any]:
         """Return a non-registered metadata template for a future real asset."""
         return {
             "asset_id": asset_id,
             "name": name,
             "category": category,
+            "source_asset": source_asset,
+            "source_url": source_url,
             "source": source,
             "license": license_name,
             "usd_path": usd_path,
+            "up_axis": "Z",
+            "meters_per_unit": 1.0,
+            "normalized": False,
             "collision_path": collision_path,
             "collision_status": "provided" if collision_path else "not_provided",
+            "collision_level": collision_level,
+            "limitations": limitations or [],
             "mass": float(mass),
             "friction": float(dynamic_friction),
             "static_friction": float(static_friction),
             "dynamic_friction": float(dynamic_friction),
+            "physics_parameters_source": physics_parameters_source,
             "rigid_body": True,
             "collision_enabled": bool(collision_path),
             "status": "raw",

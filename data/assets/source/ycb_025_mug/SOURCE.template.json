@@ -1,0 +1,12 @@
+{
+  "asset_id": "mug_001",
+  "source_name": "YCB 025_mug",
+  "source_url": "https://ycb-benchmarks.s3.amazonaws.com/data/025_mug.tgz",
+  "license": "YCB dataset license; verify source terms before redistribution",
+  "archive_sha256": null,
+  "retrieved_at": null,
+  "source_geometry": null,
+  "source_files": [],
+  "status": "blocked",
+  "notes": "Template only. Run tools/import_ycb_025_mug.py after obtaining the real YCB archive."
+}

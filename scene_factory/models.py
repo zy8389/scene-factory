@@ -233,6 +233,7 @@ class ObjectRequest:
     region_xy: tuple[float, float, float, float] | None = None
     edge_bias: bool = False
     relations: tuple[Relation, ...] = ()
+    fallback_policy: str = "error"
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "ObjectRequest":
@@ -254,7 +255,13 @@ class ObjectRequest:
             region_xy=region,
             edge_bias=bool(raw.get("edge_bias", False)),
             relations=tuple(Relation.from_dict(item) for item in raw.get("relations", [])),
+            fallback_policy=str(raw.get("fallback_policy", "error")),
         )
+        if result.fallback_policy not in {"error", "proxy"}:
+            raise ValueError(
+                f"unsupported fallback policy for object {result.object_id}: "
+                f"{result.fallback_policy}"
+            )
         if result.fixed_pose is None and result.support is None:
             raise ValueError(f"object {result.object_id} needs fixed_pose or support")
         return result
@@ -302,6 +309,7 @@ class PlacedObject:
     dynamic: bool
     support: str | None
     relations: tuple[Relation, ...] = ()
+    fallback_reason: str | None = None
 
 
 @dataclass(frozen=True)
