@@ -1,0 +1,56 @@
+{
+  "recipe": "living_room_returned_home",
+  "seed": 42,
+  "scene_id": "living_room_returned_home-34287e630cd6",
+  "scene_valid": true,
+  "real_assets": [],
+  "proxy_assets": [
+    {
+      "object_id": "coffee_table_1",
+      "asset_id": "coffee_table_oak"
+    },
+    {
+      "object_id": "entry_bench_1",
+      "asset_id": "entry_bench_basic"
+    },
+    {
+      "object_id": "sofa_1",
+      "asset_id": "sofa_basic"
+    },
+    {
+      "object_id": "backpack_1",
+      "asset_id": "backpack_gray"
+    },
+    {
+      "object_id": "keys_1",
+      "asset_id": "keyring_metal"
+    },
+    {
+      "object_id": "shoe_1",
+      "asset_id": "shoe_left_white"
+    }
+  ],
+  "fallback_reasons": {
+    "backpack_1": "requested asset 'backpack_001' unavailable (asset backpack_001 has status rejected, not ready for scenes); using proxy 'backpack_gray'",
+    "keys_1": "requested asset 'keys_001' unavailable (asset keys_001 has status rejected, not ready for scenes); using proxy 'keyring_metal'"
+  },
+  "missing_dependencies": [],
+  "usd_export": "passed",
+  "isaac_stage_load": "passed",
+  "physics_initialization": "passed",
+  "isaac": {
+    "usd": "runtime/scene.usd",
+    "stage_load": "passed",
+    "physics_initialization": "passed",
+    "result": "passed",
+    "physics_scene": "/World/PhysicsScene"
+  },
+  "files": {
+    "scene_spec": "runtime/scene_spec.json",
+    "layout": "runtime/layout.json",
+    "validation": "runtime/validation.json",
+    "preview": "runtime/preview.svg",
+    "usd": "runtime/scene.usd"
+  },
+  "result": "passed"
+}

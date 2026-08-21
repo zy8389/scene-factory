@@ -53,6 +53,16 @@ def _world_position(prim, Usd, UsdGeom) -> list[float]:
     return [float(translation[0]), float(translation[1]), float(translation[2])]
 
 
+def _vector_attribute(prim, name: str) -> list[float] | None:
+    attribute = prim.GetAttribute(name)
+    if not attribute.IsValid():
+        return None
+    value = attribute.Get()
+    if value is None:
+        return None
+    return [float(value[index]) for index in range(3)]
+
+
 def main() -> int:
     args = _parse_args()
     # SimulationApp forwards unknown process arguments to Kit. Keep our validator
@@ -192,6 +202,31 @@ def main() -> int:
         final_positions = {
             str(prim.GetPath()): _world_position(prim, Usd, UsdGeom) for prim in rigid_prims
         }
+        final_asset_bbox = None
+        if asset_prim.IsValid():
+            bbox_cache = UsdGeom.BBoxCache(
+                Usd.TimeCode.Default(),
+                [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy],
+                useExtentsHint=True,
+            )
+            aligned = bbox_cache.ComputeWorldBound(asset_prim).ComputeAlignedRange()
+            if not aligned.IsEmpty():
+                minimum = aligned.GetMin()
+                maximum = aligned.GetMax()
+                final_asset_bbox = {
+                    "min": [float(minimum[index]) for index in range(3)],
+                    "max": [float(maximum[index]) for index in range(3)],
+                }
+        final_linear_velocity = {
+            str(prim.GetPath()): velocity
+            for prim in rigid_prims
+            if (velocity := _vector_attribute(prim, "physics:velocity")) is not None
+        }
+        final_angular_velocity = {
+            str(prim.GetPath()): velocity
+            for prim in rigid_prims
+            if (velocity := _vector_attribute(prim, "physics:angularVelocity")) is not None
+        }
         # stop() resets Isaac's time and step counters, so capture them first.
         completed_steps = simulation.current_time_step_index
         simulated_seconds = simulation.current_time
@@ -218,7 +253,10 @@ def main() -> int:
             start_z = initial_positions["/World/TestAsset"][2]
             final_z = final_positions["/World/TestAsset"][2]
             drop_displacement_m = start_z - final_z
-            no_floor_penetration = final_z >= asset_height_m / 2.0 - 0.01
+            if final_asset_bbox is not None:
+                no_floor_penetration = final_asset_bbox["min"][2] >= -0.01
+            else:
+                no_floor_penetration = final_z >= asset_height_m / 2.0 - 0.01
             samples = recent_positions.get("/World/TestAsset", [])
             if len(samples) >= 2:
                 stable_stop = max(
@@ -277,6 +315,9 @@ def main() -> int:
                 "rigid_body_count": len(rigid_prims),
                 "initial_positions_m": initial_positions,
                 "final_positions_m": final_positions,
+                "final_asset_bbox_m": final_asset_bbox,
+                "final_linear_velocity_mps": final_linear_velocity,
+                "final_angular_velocity_rps": final_angular_velocity,
                 "displacements_m": displacements,
                 "collision_prims_under_asset": [
                     str(prim.GetPath()) for prim in asset_collision_prims

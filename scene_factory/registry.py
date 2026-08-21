@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 from collections import defaultdict
 from dataclasses import asdict, dataclass
@@ -76,6 +77,10 @@ class AssetMetadata:
     qa_report: str | None = None
     tags: tuple[str, ...] = ()
     _record: AssetRecord | None = None
+    batch_id: str | None = None
+    last_validation: str | None = None
+    failure_reason: str | None = None
+    physics_parameters_source: str = "project_default"
 
     @property
     def hash(self) -> str | None:
@@ -89,9 +94,13 @@ class AssetMetadata:
         status = str(raw.get("status", "validated"))
         if status not in _VALID_STATUSES:
             raise ValueError(f"unsupported asset status: {status}")
-        mass_raw = raw.get("mass", raw.get("mass_kg"))
+        mass_raw = raw.get("mass")
+        if mass_raw is None:
+            mass_raw = raw.get("mass_kg")
         mass = None if mass_raw is None else float(mass_raw)
         friction_raw = raw.get("friction")
+        if friction_raw is None and "friction" not in raw:
+            friction_raw = raw.get("dynamic_friction")
         friction = None if friction_raw is None else float(friction_raw)
         static_friction_raw = raw.get("static_friction", friction_raw)
         dynamic_friction_raw = raw.get("dynamic_friction", friction_raw)
@@ -146,6 +155,10 @@ class AssetMetadata:
             qa_report=raw.get("qa_report", raw.get("qa_report_path")),
             tags=record.tags,
             _record=record,
+            batch_id=raw.get("batch_id"),
+            last_validation=raw.get("last_validation"),
+            failure_reason=raw.get("failure_reason"),
+            physics_parameters_source=str(raw.get("physics_parameters_source", "project_default")),
         )
 
     @classmethod
@@ -190,6 +203,10 @@ class AssetMetadata:
             qa_report=record.qa_report,
             tags=record.tags,
             _record=record,
+            batch_id=record.batch_id,
+            last_validation=record.last_validation,
+            failure_reason=record.failure_reason,
+            physics_parameters_source=record.physics_parameters_source,
         )
 
     def to_record(self) -> AssetRecord:
@@ -227,9 +244,14 @@ class AssetMetadata:
             qa_report=self.qa_report or self.qa_report_path,
             metadata_support_surface=self.support_surface,
             metadata_present=True,
+            batch_id=self.batch_id,
+            last_validation=self.last_validation,
+            failure_reason=self.failure_reason,
+            physics_parameters_source=self.physics_parameters_source,
         )
 
     def to_dict(self) -> dict[str, Any]:
+        record = self.to_record()
         payload: dict[str, Any] = {
             "asset_id": self.asset_id,
             "name": self.name,
@@ -240,8 +262,8 @@ class AssetMetadata:
             "usd_path": self.usd_path,
             "collision_path": self.collision_path,
             "collision_status": self.collision_status,
-            "mass": self.mass,
-            "friction": self.friction,
+            "mass": self.mass if self.mass is not None else record.mass_kg,
+            "friction": self.friction if self.friction is not None else record.friction,
             "static_friction": self.static_friction,
             "dynamic_friction": self.dynamic_friction,
             "rigid_body": self.rigid_body,
@@ -256,6 +278,13 @@ class AssetMetadata:
             "collision_mode": self.collision_mode,
             "tags": list(self.tags),
         }
+        if self.batch_id is not None:
+            payload["batch_id"] = self.batch_id
+        if self.last_validation is not None:
+            payload["last_validation"] = self.last_validation
+        if self.failure_reason is not None:
+            payload["failure_reason"] = self.failure_reason
+        payload["physics_parameters_source"] = self.physics_parameters_source
         if self.bbox_m is not None:
             payload["bbox_m"] = list(self.bbox_m)
         return payload
@@ -556,6 +585,14 @@ class AssetRegistry:
             raise ValueError(f"QA report must be a JSON object: {path}")
         return payload
 
+    def _portable_path(self, value: str | Path) -> str:
+        """Store repository-local reports as paths relative to the registry."""
+        path = Path(value).expanduser().resolve()
+        try:
+            return path.relative_to(self.base_dir).as_posix()
+        except ValueError:
+            return str(value)
+
     def promote_to_validated(
         self,
         asset_id: str,
@@ -575,7 +612,7 @@ class AssetRegistry:
             raise ValueError("normalize report did not pass")
         updates: dict[str, Any] = {"status": "validated"}
         if isinstance(normalize_report, (str, Path)):
-            updates["qa_report"] = str(Path(normalize_report).expanduser().resolve())
+            updates["qa_report"] = self._portable_path(normalize_report)
         if collision_report is not None:
             collision = self._read_report(collision_report)
             if not collision.get("valid") or collision.get("generated"):
@@ -614,13 +651,21 @@ class AssetRegistry:
             raise ValueError("ready asset with collision_enabled requires collision_path")
         updates: dict[str, Any] = {"status": "ready"}
         if isinstance(qa_report, (str, Path)):
-            updates["qa_report"] = str(Path(qa_report).expanduser().resolve())
+            updates["qa_report"] = self._portable_path(qa_report)
         return self.update(asset_id, updates, persist_path=persist_path)
 
     def save(self, path: str | Path | None = None) -> Path:
+        return self.save_atomic(path)
+
+    def save_atomic(self, path: str | Path | None = None) -> Path:
+        """Validate and atomically replace a JSONL registry file."""
         target = Path(path or self.registry_path or "registry.jsonl").expanduser().resolve()
         target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("w", encoding="utf-8", newline="\n") as handle:
+        validation = self.validate()
+        if not validation["valid"]:
+            raise ValueError(f"refusing to persist invalid registry: {validation['issues']}")
+        temporary = target.with_name(f".{target.name}.tmp")
+        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
             for asset_id in self._by_id:
                 handle.write(
                     json.dumps(
@@ -630,8 +675,61 @@ class AssetRegistry:
                     )
                     + "\n"
                 )
+        os.replace(temporary, target)
         self.registry_path = target
         return target
+
+    def upsert_batch(
+        self,
+        updates: Iterable[dict[str, Any]],
+        *,
+        persist_path: str | Path | None = None,
+        batch_id: str | None = None,
+        allow_ready_downgrade: bool = False,
+    ) -> dict[str, AssetMetadata]:
+        """Apply a batch of valid records without silently downgrading ready assets."""
+        replacements: dict[str, AssetMetadata] = {}
+        for raw in updates:
+            asset_id = str(raw.get("asset_id", "")).strip()
+            if not asset_id:
+                raise ValueError("batch registry update requires asset_id")
+            current = self._metadata.get(asset_id)
+            if (
+                current is not None
+                and current.status == "ready"
+                and raw.get("status") not in {None, "ready"}
+                and not allow_ready_downgrade
+            ):
+                raise ValueError(f"ready asset cannot be downgraded: {asset_id}")
+            merged = current.to_dict() if current is not None else {}
+            merged.update(raw)
+            if batch_id is not None:
+                merged["batch_id"] = batch_id
+            replacements[asset_id] = AssetMetadata.from_dict(merged)
+        candidate_raw = [
+            replacements.get(asset_id, self._metadata[asset_id]).to_dict()
+            for asset_id in self._by_id
+        ]
+        candidate_raw.extend(
+            replacement.to_dict()
+            for asset_id, replacement in replacements.items()
+            if asset_id not in self._by_id
+        )
+        candidate_metadata = [AssetMetadata.from_dict(raw) for raw in candidate_raw]
+        candidate = AssetRegistry(
+            [item.to_record() for item in candidate_metadata],
+            base_dir=self.base_dir,
+            metadata=candidate_metadata,
+        )
+        validation = candidate.validate()
+        if not validation["valid"]:
+            raise ValueError(f"batch registry update is invalid: {validation['issues']}")
+        self._by_id = candidate._by_id
+        self._metadata = candidate._metadata
+        self._rebuild_categories()
+        if persist_path is not None:
+            self.save_atomic(persist_path)
+        return replacements
 
     def _rebuild_categories(self) -> None:
         self._by_category = defaultdict(list)

@@ -1,0 +1,205 @@
+{
+  "validator": "SceneFactory/Isaac Sim PhysX asset validation",
+  "asset_id": "knife_001",
+  "usd": "runtime/knife_001.usd",
+  "collision_usd": "runtime/knife_001_collision.usd",
+  "drop_height_m": 0.75,
+  "mass_kg": 0.15,
+  "usd_load": "passed",
+  "mesh_check": "passed",
+  "mass_check": "passed",
+  "friction_check": "passed",
+  "collision": "passed",
+  "physics": "passed",
+  "valid": true,
+  "collision_generated": false,
+  "collision_report": {
+    "operation": "collision_process",
+    "collision_path": "runtime/knife_001_collision.usd",
+    "collision_status": "authored",
+    "collision_enabled": true,
+    "available": true,
+    "valid": true,
+    "issues": [],
+    "generated": false
+  },
+  "runtime_report": {
+    "validator": "Isaac Sim/PhysX",
+    "usd": "runtime/knife_001_drop_test.usda",
+    "asset_id": "knife_001",
+    "requested_steps": 480,
+    "valid": true,
+    "isaac_sim_version": "6.0.1.0",
+    "kit_build": "",
+    "completed_steps": 482,
+    "simulated_seconds": 8.033333752304316,
+    "rigid_body_count": 1,
+    "initial_positions_m": {
+      "/World/TestAsset": [
+        0.0,
+        0.0,
+        0.7602320006117225
+      ]
+    },
+    "final_positions_m": {
+      "/World/TestAsset": [
+        -0.0001008063554763794,
+        0.00032106105936691165,
+        0.009341109544038773
+      ]
+    },
+    "final_asset_bbox_m": {
+      "min": [
+        -0.10801052069716277,
+        -0.011808604113050417,
+        -0.0027544617251071025
+      ],
+      "max": [
+        0.10780890798621001,
+        0.012450726231784254,
+        0.02143668081318464
+      ]
+    },
+    "final_linear_velocity_mps": {
+      "/World/TestAsset": [
+        6.409005436580628e-05,
+        0.0012750988826155663,
+        -0.0005747491377405822
+      ]
+    },
+    "final_angular_velocity_rps": {
+      "/World/TestAsset": [
+        -10.753634452819824,
+        0.31618690490722656,
+        -0.12355978786945343
+      ]
+    },
+    "displacements_m": {
+      "/World/TestAsset": [
+        -0.0001008063554763794,
+        0.00032106105936691165,
+        -0.7508908910676837
+      ]
+    },
+    "collision_prims_under_asset": [
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_1/textured_hull_1",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_2/textured_hull_2",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_3/textured_hull_3",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_4/textured_hull_4"
+    ],
+    "mesh_prims_under_asset": [
+      "/World/TestAsset/Visual/Source/textured_043_Mesh",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_1/textured_hull_1",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_2/textured_hull_2",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_3/textured_hull_3",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_4/textured_hull_4"
+    ],
+    "mass_values_kg": [
+      0.15000000596046448
+    ],
+    "physics_material_prims": [
+      "/World/TestAsset/AuthoredCollision/PhysicsMaterial"
+    ],
+    "drop_test": {
+      "enabled": true,
+      "drop_height_m": 0.75,
+      "asset_height_m": 0.020464001223444946,
+      "drop_displacement_m": 0.7508908910676837,
+      "no_floor_penetration": true,
+      "stable_stop": true
+    },
+    "checks": {
+      "stage_opened": true,
+      "physics_scene_exists": true,
+      "rigid_bodies_found": true,
+      "asset_collision_found": true,
+      "asset_mesh_found": true,
+      "mass_found": true,
+      "physics_material_found": true,
+      "requested_steps_completed": true,
+      "final_positions_finite": true,
+      "rigid_bodies_physically_bounded": true,
+      "drop_occurred": true,
+      "no_floor_penetration": true,
+      "stable_stop": true
+    },
+    "usd_load": "passed",
+    "mesh_check": "passed",
+    "mass_check": "passed",
+    "friction_check": "passed",
+    "collision": "passed",
+    "physics": "passed"
+  },
+  "source": {
+    "asset_id": "knife_001",
+    "source_name": "YCB 032_knife",
+    "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+    "license": "CC BY 4.0",
+    "license_source": "https://huggingface.co/datasets/ai-habitat/ycb",
+    "source_revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+    "original_filename": "textured.glb",
+    "source_geometry": "textured.glb",
+    "source_collision_geometry": "collision/032_k_cv_decomp.glb",
+    "source_files": [
+      {
+        "role": "visual",
+        "dataset_path": "meshes/032_knife/google_16k/textured.glb",
+        "path": "textured.glb",
+        "original_filename": "textured.glb",
+        "source_url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/032_knife/google_16k/textured.glb?download=true",
+        "sha256": "ef7df0085a07c6203ac9c4e39c3f323fe0b12053751861f6587ca2c4520d735e",
+        "bytes": 395964
+      },
+      {
+        "role": "collision",
+        "dataset_path": "collision_meshes/032_k_cv_decomp.glb",
+        "path": "collision/032_k_cv_decomp.glb",
+        "original_filename": "032_k_cv_decomp.glb",
+        "source_url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/collision_meshes/032_k_cv_decomp.glb?download=true",
+        "sha256": "87c8d2465b124352f74b57c72476a576e39ffe1dd4d6a59509c700c839f9dee0",
+        "bytes": 17256
+      }
+    ],
+    "retrieved_at": "2026-08-21T04:34:06.480425+00:00",
+    "output_dir": "data/assets/source/knife_001",
+    "status": "imported",
+    "result": "passed",
+    "issues": [],
+    "sha256": "ef7df0085a07c6203ac9c4e39c3f323fe0b12053751861f6587ca2c4520d735e"
+  },
+  "validation_profile": "drop_thin_object",
+  "collision_profile": "thin_object_l1",
+  "validated_use_cases": [
+    "drop",
+    "grasp",
+    "桌面接触"
+  ],
+  "unsupported_use_cases": [
+    "cutting",
+    "high_speed_tunneling"
+  ],
+  "geometry": {
+    "usd_load": "passed",
+    "mesh": "passed",
+    "material_sanitized": "passed"
+  },
+  "physx": {
+    "environment_available": true,
+    "drop_test": "passed",
+    "final_linear_velocity": {
+      "/World/TestAsset": [
+        6.409005436580628e-05,
+        0.0012750988826155663,
+        -0.0005747491377405822
+      ]
+    },
+    "final_angular_velocity": {
+      "/World/TestAsset": [
+        -10.753634452819824,
+        0.31618690490722656,
+        -0.12355978786945343
+      ]
+    }
+  },
+  "result": "passed"
+}

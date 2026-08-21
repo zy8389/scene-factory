@@ -1,0 +1,287 @@
+{
+  "validator": "SceneFactory/Isaac Sim PhysX asset validation",
+  "asset_id": "plate_001",
+  "usd": "runtime/plate_001.usd",
+  "collision_usd": "runtime/plate_001_collision.usd",
+  "drop_height_m": 1.0,
+  "mass_kg": 0.25,
+  "usd_load": "passed",
+  "mesh_check": "passed",
+  "mass_check": "passed",
+  "friction_check": "passed",
+  "collision": "passed",
+  "physics": "passed",
+  "valid": true,
+  "collision_generated": false,
+  "collision_report": {
+    "operation": "collision_process",
+    "collision_path": "runtime/plate_001_collision.usd",
+    "collision_status": "authored",
+    "collision_enabled": true,
+    "available": true,
+    "valid": true,
+    "issues": [],
+    "generated": false
+  },
+  "runtime_report": {
+    "validator": "Isaac Sim/PhysX",
+    "usd": "runtime/plate_001_drop_test.usda",
+    "asset_id": "plate_001",
+    "requested_steps": 360,
+    "valid": true,
+    "isaac_sim_version": "6.0.1.0",
+    "kit_build": "",
+    "completed_steps": 362,
+    "simulated_seconds": 6.033333647996187,
+    "rigid_body_count": 1,
+    "initial_positions_m": {
+      "/World/TestAsset": [
+        0.0,
+        0.0,
+        1.1303350031375885
+      ]
+    },
+    "final_positions_m": {
+      "/World/TestAsset": [
+        -0.004381454549729824,
+        0.13520696759223938,
+        0.014328500255942345
+      ]
+    },
+    "final_asset_bbox_m": {
+      "min": [
+        -0.18933132873940656,
+        -0.04968209860846104,
+        -6.192506478083784e-08
+      ],
+      "max": [
+        0.1805684196399468,
+        0.32009603379294,
+        0.028657062436949488
+      ]
+    },
+    "final_linear_velocity_mps": {
+      "/World/TestAsset": [
+        4.3494998180904076e-07,
+        -2.6713605620898306e-06,
+        -8.364339691979694e-07
+      ]
+    },
+    "final_angular_velocity_rps": {
+      "/World/TestAsset": [
+        0.0006503653130494058,
+        0.00032041690428741276,
+        -0.0019298827974125743
+      ]
+    },
+    "displacements_m": {
+      "/World/TestAsset": [
+        -0.004381454549729824,
+        0.13520696759223938,
+        -1.1160065028816462
+      ]
+    },
+    "collision_prims_under_asset": [
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_1/textured_hull_1",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_2/textured_hull_2",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_3/textured_hull_3",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_4/textured_hull_4",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_5/textured_hull_5",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_6/textured_hull_6",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_7/textured_hull_7",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_8/textured_hull_8",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_9/textured_hull_9",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_10/textured_hull_10",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_11/textured_hull_11",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_12/textured_hull_12",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_13/textured_hull_13",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_14/textured_hull_14",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_15/textured_hull_15",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_16/textured_hull_16",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_17/textured_hull_17",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_18/textured_hull_18",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_19/textured_hull_19",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_20/textured_hull_20",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_21/textured_hull_21",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_22/textured_hull_22",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_23/textured_hull_23",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_24/textured_hull_24",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_25/textured_hull_25",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_26/textured_hull_26",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_27/textured_hull_27",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_28/textured_hull_28",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_29/textured_hull_29",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_30/textured_hull_30",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_31/textured_hull_31",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_32/textured_hull_32",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_33/textured_hull_33",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_34/textured_hull_34",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_35/textured_hull_35",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_36/textured_hull_36",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_37/textured_hull_37",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_38/textured_hull_38",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_39/textured_hull_39",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_40/textured_hull_40",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_41/textured_hull_41",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_42/textured_hull_42",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_43/textured_hull_43",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_44/textured_hull_44",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_45/textured_hull_45"
+    ],
+    "mesh_prims_under_asset": [
+      "/World/TestAsset/Visual/Source/textured_040_Mesh",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_1/textured_hull_1",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_2/textured_hull_2",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_3/textured_hull_3",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_4/textured_hull_4",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_5/textured_hull_5",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_6/textured_hull_6",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_7/textured_hull_7",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_8/textured_hull_8",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_9/textured_hull_9",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_10/textured_hull_10",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_11/textured_hull_11",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_12/textured_hull_12",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_13/textured_hull_13",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_14/textured_hull_14",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_15/textured_hull_15",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_16/textured_hull_16",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_17/textured_hull_17",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_18/textured_hull_18",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_19/textured_hull_19",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_20/textured_hull_20",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_21/textured_hull_21",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_22/textured_hull_22",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_23/textured_hull_23",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_24/textured_hull_24",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_25/textured_hull_25",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_26/textured_hull_26",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_27/textured_hull_27",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_28/textured_hull_28",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_29/textured_hull_29",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_30/textured_hull_30",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_31/textured_hull_31",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_32/textured_hull_32",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_33/textured_hull_33",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_34/textured_hull_34",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_35/textured_hull_35",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_36/textured_hull_36",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_37/textured_hull_37",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_38/textured_hull_38",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_39/textured_hull_39",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_40/textured_hull_40",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_41/textured_hull_41",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_42/textured_hull_42",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_43/textured_hull_43",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_44/textured_hull_44",
+      "/World/TestAsset/AuthoredCollision/Source/textured_hull_45/textured_hull_45"
+    ],
+    "mass_values_kg": [
+      0.25
+    ],
+    "physics_material_prims": [
+      "/World/TestAsset/AuthoredCollision/PhysicsMaterial"
+    ],
+    "drop_test": {
+      "enabled": true,
+      "drop_height_m": 1.0,
+      "asset_height_m": 0.26067000627517706,
+      "drop_displacement_m": 1.1160065028816462,
+      "no_floor_penetration": true,
+      "stable_stop": true
+    },
+    "checks": {
+      "stage_opened": true,
+      "physics_scene_exists": true,
+      "rigid_bodies_found": true,
+      "asset_collision_found": true,
+      "asset_mesh_found": true,
+      "mass_found": true,
+      "physics_material_found": true,
+      "requested_steps_completed": true,
+      "final_positions_finite": true,
+      "rigid_bodies_physically_bounded": true,
+      "drop_occurred": true,
+      "no_floor_penetration": true,
+      "stable_stop": true
+    },
+    "usd_load": "passed",
+    "mesh_check": "passed",
+    "mass_check": "passed",
+    "friction_check": "passed",
+    "collision": "passed",
+    "physics": "passed"
+  },
+  "source": {
+    "asset_id": "plate_001",
+    "source_name": "YCB 029_plate",
+    "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+    "license": "CC BY 4.0",
+    "license_source": "https://huggingface.co/datasets/ai-habitat/ycb",
+    "source_revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+    "original_filename": "textured.glb",
+    "source_geometry": "textured.glb",
+    "source_collision_geometry": "collision/029_p_cv_decomp.glb",
+    "source_files": [
+      {
+        "role": "visual",
+        "dataset_path": "meshes/029_plate/google_16k/textured.glb",
+        "path": "textured.glb",
+        "original_filename": "textured.glb",
+        "source_url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/029_plate/google_16k/textured.glb?download=true",
+        "sha256": "0de7960c542811ab9a03dc9dee65b7cfc5359a0b38496e38266bd85db9907d68",
+        "bytes": 988572
+      },
+      {
+        "role": "collision",
+        "dataset_path": "collision_meshes/029_p_cv_decomp.glb",
+        "path": "collision/029_p_cv_decomp.glb",
+        "original_filename": "029_p_cv_decomp.glb",
+        "source_url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/collision_meshes/029_p_cv_decomp.glb?download=true",
+        "sha256": "8b9600f392b4494f17d7056f7d21cd7c3488b5fa85e0436f615f7b86bf7ec091",
+        "bytes": 177440
+      }
+    ],
+    "retrieved_at": "2026-08-21T04:33:14.011614+00:00",
+    "output_dir": "data/assets/source/plate_001",
+    "status": "imported",
+    "result": "passed",
+    "issues": [],
+    "sha256": "0de7960c542811ab9a03dc9dee65b7cfc5359a0b38496e38266bd85db9907d68"
+  },
+  "validation_profile": "drop",
+  "collision_profile": "thin_object_l1",
+  "validated_use_cases": [
+    "drop",
+    "grasp",
+    "桌面接触"
+  ],
+  "unsupported_use_cases": [
+    "cutting",
+    "high_speed_tunneling"
+  ],
+  "geometry": {
+    "usd_load": "passed",
+    "mesh": "passed",
+    "material_sanitized": "passed"
+  },
+  "physx": {
+    "environment_available": true,
+    "drop_test": "passed",
+    "final_linear_velocity": {
+      "/World/TestAsset": [
+        4.3494998180904076e-07,
+        -2.6713605620898306e-06,
+        -8.364339691979694e-07
+      ]
+    },
+    "final_angular_velocity": {
+      "/World/TestAsset": [
+        0.0006503653130494058,
+        0.00032041690428741276,
+        -0.0019298827974125743
+      ]
+    }
+  },
+  "result": "passed"
+}

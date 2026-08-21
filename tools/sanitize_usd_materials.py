@@ -16,6 +16,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-color", type=float, nargs=3, default=(0.72, 0.58, 0.40))
     parser.add_argument("--roughness", type=float, default=0.65)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--asset-id", default=None)
     return parser
 
 
@@ -36,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
         "output": str(output),
         "operation": "sanitize_external_materials",
         "replacement": "UsdPreviewSurface",
+        "asset_id": args.asset_id,
         "result": "blocked",
         "issues": [],
     }
@@ -81,15 +83,19 @@ def main(argv: list[str] | None = None) -> int:
                     material_output.GetAttr().ClearConnections()
                 material.CreateSurfaceOutput().ConnectToSource(shader_output)
             changed += 1
-        if changed == 0:
-            raise ValueError("no external material shader found")
         output.parent.mkdir(parents=True, exist_ok=True)
         flattened = stage.Flatten()
         # Converter documentation can contain the author's machine-local path.
         # Keep the committed USD portable and reproducible.
         flattened.documentation = "SceneFactory sanitized USD"
         flattened.Export(output.as_posix())
-        report.update({"shader_count": changed, "result": "passed"})
+        report.update(
+            {
+                "shader_count": changed,
+                "result": "passed",
+                "material_sanitized": "passed" if changed else "not_needed",
+            }
+        )
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         report["issues"].append({"code": "material_sanitization_failed", "message": str(exc)})
     finally:

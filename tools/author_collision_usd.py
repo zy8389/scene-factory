@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
                 "disable_viewport_updates": True,
             }
         )
-        from pxr import Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
+        from pxr import Gf, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
 
         source_stage = Usd.Stage.Open(source.as_posix())
         if source_stage is None:
@@ -114,10 +114,36 @@ def main(argv: list[str] | None = None) -> int:
             "sceneFactory:collisionStrategy", Sdf.ValueTypeNames.String
         ).Set("authored_convex_decomposition_mesh")
         source_root = UsdGeom.Xform.Define(stage, "/Collision/Source")
+        source_center = None
+        source_default = source_stage.GetDefaultPrim()
+        if not source_default or not source_default.IsValid():
+            source_children = list(source_stage.GetPseudoRoot().GetChildren())
+            source_default = source_children[0] if source_children else None
+        if source_default and source_default.IsValid():
+            bbox_cache = UsdGeom.BBoxCache(
+                Usd.TimeCode.Default(),
+                [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy],
+                useExtentsHint=True,
+            )
+            aligned = bbox_cache.ComputeWorldBound(source_default).ComputeAlignedRange()
+            if not aligned.IsEmpty():
+                minimum = aligned.GetMin()
+                maximum = aligned.GetMax()
+                center = tuple(
+                    (float(minimum[index]) + float(maximum[index])) / 2.0
+                    for index in range(3)
+                )
+                if UsdGeom.GetStageUpAxis(source_stage) == UsdGeom.Tokens.y:
+                    source_center = (center[0], -center[2], center[1])
+                else:
+                    source_center = center
         # The YCB collision GLB is Y-up. Keep the authored collider in the
         # same Z-up frame as the normalized visual asset and its drop scene.
+        source_xform = UsdGeom.Xformable(source_root)
+        if source_center is not None:
+            source_xform.AddTranslateOp().Set(Gf.Vec3d(*(-value for value in source_center)))
         if UsdGeom.GetStageUpAxis(source_stage) == UsdGeom.Tokens.y:
-            UsdGeom.Xformable(source_root).AddRotateXOp().Set(90.0)
+            source_xform.AddRotateXOp().Set(90.0)
         reference = os.path.relpath(source, output.parent).replace("\\", "/")
         source_root.GetPrim().GetReferences().AddReference(reference)
         stage.SetDefaultPrim(root_prim)

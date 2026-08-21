@@ -1,0 +1,107 @@
+{
+  "batch_id": "p0_household_assets_v1",
+  "assets": [
+    {
+      "asset_id": "mug_001",
+      "category": "mug",
+      "scene_tags": ["kitchen", "real_asset", "graspable"],
+      "preferred_sources": [],
+      "collision_profile": "concave_container_l1",
+      "validation_profile": "drop",
+      "physics": {"mass_kg": 0.3, "static_friction": 0.5, "dynamic_friction": 0.4}
+    },
+    {
+      "asset_id": "bowl_001",
+      "category": "bowl",
+      "scene_tags": ["kitchen", "real_asset", "graspable"],
+      "preferred_sources": [
+        {
+          "source_name": "YCB 024_bowl",
+          "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+          "license": "CC BY 4.0",
+          "license_source": "https://huggingface.co/datasets/ai-habitat/ycb",
+          "source_revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+          "files": [
+            {"role": "visual", "dataset_path": "meshes/024_bowl/google_16k/textured.glb", "relative_path": "textured.glb", "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/024_bowl/google_16k/textured.glb?download=true"},
+            {"role": "collision", "dataset_path": "collision_meshes/024__cv_decomp.glb", "relative_path": "collision/024__cv_decomp.glb", "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/collision_meshes/024__cv_decomp.glb?download=true"}
+          ]
+        }
+      ],
+      "collision_profile": "concave_container_l1",
+      "validation_profile": "drop",
+      "physics": {"mass_kg": 0.35, "static_friction": 0.5, "dynamic_friction": 0.4}
+    },
+    {
+      "asset_id": "plate_001",
+      "category": "plate",
+      "scene_tags": ["kitchen", "real_asset", "graspable"],
+      "preferred_sources": [
+        {
+          "source_name": "YCB 029_plate",
+          "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+          "license": "CC BY 4.0",
+          "license_source": "https://huggingface.co/datasets/ai-habitat/ycb",
+          "source_revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+          "files": [
+            {"role": "visual", "dataset_path": "meshes/029_plate/google_16k/textured.glb", "relative_path": "textured.glb", "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/029_plate/google_16k/textured.glb?download=true"},
+            {"role": "collision", "dataset_path": "collision_meshes/029_p_cv_decomp.glb", "relative_path": "collision/029_p_cv_decomp.glb", "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/collision_meshes/029_p_cv_decomp.glb?download=true"}
+          ]
+        }
+      ],
+      "collision_profile": "thin_object_l1",
+      "validation_profile": "drop",
+      "physics": {"mass_kg": 0.25, "static_friction": 0.45, "dynamic_friction": 0.35}
+    },
+    {
+      "asset_id": "pot_001",
+      "category": "pot",
+      "scene_tags": ["kitchen", "real_asset", "graspable"],
+      "preferred_sources": [],
+      "blocked_reason": "No vetted redistributable pot source is configured yet",
+      "collision_profile": "concave_container_l1",
+      "validation_profile": "drop",
+      "physics": {"mass_kg": 1.0, "static_friction": 0.5, "dynamic_friction": 0.4}
+    },
+    {
+      "asset_id": "knife_001",
+      "category": "kitchen_knife",
+      "scene_tags": ["kitchen", "real_asset", "graspable", "thin_object"],
+      "preferred_sources": [
+        {
+          "source_name": "YCB 032_knife",
+          "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+          "license": "CC BY 4.0",
+          "license_source": "https://huggingface.co/datasets/ai-habitat/ycb",
+          "source_revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+          "files": [
+            {"role": "visual", "dataset_path": "meshes/032_knife/google_16k/textured.glb", "relative_path": "textured.glb", "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/032_knife/google_16k/textured.glb?download=true"},
+            {"role": "collision", "dataset_path": "collision_meshes/032_k_cv_decomp.glb", "relative_path": "collision/032_k_cv_decomp.glb", "url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/collision_meshes/032_k_cv_decomp.glb?download=true"}
+          ]
+        }
+      ],
+      "collision_profile": "thin_object_l1",
+      "validation_profile": "drop_thin_object",
+      "physics": {"mass_kg": 0.15, "static_friction": 0.35, "dynamic_friction": 0.25}
+    },
+    {
+      "asset_id": "backpack_001",
+      "category": "backpack",
+      "scene_tags": ["living_room", "real_asset", "floor_object"],
+      "preferred_sources": [],
+      "blocked_reason": "No vetted redistributable backpack source is configured yet",
+      "collision_profile": "irregular_soft_object_proxy_l1",
+      "validation_profile": "drop",
+      "physics": {"mass_kg": 1.0, "static_friction": 0.6, "dynamic_friction": 0.5}
+    },
+    {
+      "asset_id": "keys_001",
+      "category": "keys",
+      "scene_tags": ["living_room", "real_asset", "small_object"],
+      "preferred_sources": [],
+      "blocked_reason": "No vetted redistributable keys source is configured yet",
+      "collision_profile": "small_complex_object_l1",
+      "validation_profile": "drop",
+      "physics": {"mass_kg": 0.08, "static_friction": 0.3, "dynamic_friction": 0.2}
+    }
+  ]
+}
