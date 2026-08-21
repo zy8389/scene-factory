@@ -1,0 +1,51 @@
+{
+  "asset_id": "plate_001",
+  "name": "YCB 029_plate",
+  "category": "plate",
+  "source": "YCB 029_plate@29be64fdd95b4881f244152ad653058e0a48c28f",
+  "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+  "license": "CC BY 4.0",
+  "source_manifest": "source/plate_001/SOURCE.json",
+  "hash": "sha256:0de7960c542811ab9a03dc9dee65b7cfc5359a0b38496e38266bd85db9907d68",
+  "usd_path": "usd/plate_001.usd",
+  "collision_path": "collision/plate_001_collision.usd",
+  "bbox_m": [
+    0.2599939927458763,
+    0.02677799970842898,
+    0.260670006275177
+  ],
+  "normalized": true,
+  "collision_level": "L1",
+  "collision_profile": "thin_object_l1",
+  "collision_mode": "authored",
+  "mass": 0.25,
+  "static_friction": 0.45,
+  "dynamic_friction": 0.35,
+  "physics_parameters_source": "project_default",
+  "validation_profile": "drop",
+  "status": "ready",
+  "qa_report": "qa_reports/plate_001.json",
+  "validated_use_cases": [
+    "drop",
+    "grasp",
+    "桌面接触"
+  ],
+  "unsupported_use_cases": [
+    "cutting",
+    "high_speed_tunneling"
+  ],
+  "final_linear_velocity": {
+    "/World/TestAsset": [
+      4.3494998180904076e-07,
+      -2.6713605620898306e-06,
+      -8.364339691979694e-07
+    ]
+  },
+  "final_angular_velocity": {
+    "/World/TestAsset": [
+      0.0006503653130494058,
+      0.00032041690428741276,
+      -0.0019298827974125743
+    ]
+  }
+}

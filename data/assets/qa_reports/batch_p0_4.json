@@ -1,0 +1,106 @@
+{
+  "batch_id": "p0_household_assets_v1",
+  "requested": 7,
+  "ready": 4,
+  "blocked": 3,
+  "failed": 0,
+  "assets": {
+    "mug_001": {
+      "asset_id": "mug_001",
+      "state": "ready",
+      "status": "ready",
+      "resumed": false,
+      "issues": [],
+      "registry_status": "ready",
+      "reused": true
+    },
+    "bowl_001": {
+      "asset_id": "bowl_001",
+      "state": "ready",
+      "status": "ready",
+      "resumed": false,
+      "issues": [],
+      "source_candidates": 1,
+      "source_manifest": "data/assets/source/bowl_001/SOURCE.json",
+      "idempotent": true,
+      "bbox_m": [
+        0.16122499853372574,
+        0.05496599938487634,
+        0.16095900163054466
+      ],
+      "usd_path": "data/assets/usd/bowl_001.usd",
+      "qa_report": "data/assets/qa_reports/bowl_001.json"
+    },
+    "plate_001": {
+      "asset_id": "plate_001",
+      "state": "ready",
+      "status": "ready",
+      "resumed": false,
+      "issues": [],
+      "source_candidates": 1,
+      "source_manifest": "data/assets/source/plate_001/SOURCE.json",
+      "idempotent": true,
+      "bbox_m": [
+        0.2599939927458763,
+        0.02677799970842898,
+        0.260670006275177
+      ],
+      "usd_path": "data/assets/usd/plate_001.usd",
+      "qa_report": "data/assets/qa_reports/plate_001.json"
+    },
+    "pot_001": {
+      "asset_id": "pot_001",
+      "state": "blocked",
+      "status": "blocked",
+      "resumed": false,
+      "issues": [
+        {
+          "code": "source_unresolved",
+          "message": "No vetted redistributable pot source is configured yet"
+        }
+      ]
+    },
+    "knife_001": {
+      "asset_id": "knife_001",
+      "state": "ready",
+      "status": "ready",
+      "resumed": false,
+      "issues": [],
+      "source_candidates": 1,
+      "source_manifest": "data/assets/source/knife_001/SOURCE.json",
+      "idempotent": true,
+      "bbox_m": [
+        0.21482500433921814,
+        0.02261199988424778,
+        0.02046400122344494
+      ],
+      "usd_path": "data/assets/usd/knife_001.usd",
+      "qa_report": "data/assets/qa_reports/knife_001.json"
+    },
+    "backpack_001": {
+      "asset_id": "backpack_001",
+      "state": "blocked",
+      "status": "blocked",
+      "resumed": false,
+      "issues": [
+        {
+          "code": "source_unresolved",
+          "message": "No vetted redistributable backpack source is configured yet"
+        }
+      ]
+    },
+    "keys_001": {
+      "asset_id": "keys_001",
+      "state": "blocked",
+      "status": "blocked",
+      "resumed": false,
+      "issues": [
+        {
+          "code": "source_unresolved",
+          "message": "No vetted redistributable keys source is configured yet"
+        }
+      ]
+    }
+  },
+  "result": "partial"
+}

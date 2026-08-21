@@ -1,0 +1,72 @@
+{
+  "recipe": "kitchen_after_cooking",
+  "seed": 42,
+  "scene_id": "kitchen_after_cooking-7553dab416fa",
+  "scene_valid": true,
+  "real_assets": [
+    {
+      "object_id": "bowl_1",
+      "asset_id": "bowl_001"
+    },
+    {
+      "object_id": "mug_1",
+      "asset_id": "mug_001"
+    },
+    {
+      "object_id": "plate_1",
+      "asset_id": "plate_001"
+    },
+    {
+      "object_id": "knife_1",
+      "asset_id": "knife_001"
+    }
+  ],
+  "proxy_assets": [
+    {
+      "object_id": "counter_1",
+      "asset_id": "kitchen_counter_basic"
+    },
+    {
+      "object_id": "island_1",
+      "asset_id": "kitchen_island_basic"
+    },
+    {
+      "object_id": "cutting_board_1",
+      "asset_id": "cutting_board_wood"
+    },
+    {
+      "object_id": "pot_1",
+      "asset_id": "pot_basic"
+    },
+    {
+      "object_id": "pot_lid_1",
+      "asset_id": "pot_lid_basic"
+    },
+    {
+      "object_id": "vegetable_bag_1",
+      "asset_id": "vegetable_bag_green"
+    }
+  ],
+  "fallback_reasons": {
+    "pot_1": "requested asset 'pot_001' unavailable (asset pot_001 has status rejected, not ready for scenes); using proxy 'pot_basic'"
+  },
+  "missing_dependencies": [],
+  "usd_export": "passed",
+  "isaac_stage_load": "passed",
+  "physics_initialization": "passed",
+  "isaac": {
+    "usd": "runtime/scene.usd",
+    "stage_load": "passed",
+    "physics_initialization": "passed",
+    "result": "passed",
+    "physics_scene": "/World/PhysicsScene"
+  },
+  "files": {
+    "scene_spec": "runtime/scene_spec.json",
+    "layout": "runtime/layout.json",
+    "validation": "runtime/validation.json",
+    "preview": "runtime/preview.svg",
+    "usd": "runtime/scene.usd"
+  },
+  "result": "passed"
+}

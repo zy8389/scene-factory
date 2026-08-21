@@ -28,8 +28,26 @@
     {
       "object_id": "knife_1",
       "category": "kitchen_knife",
+      "asset_id": "knife_001",
       "support": "cutting_board_1:top",
-      "yaw_range_deg": [-15, 15]
+      "yaw_range_deg": [-15, 15],
+      "fallback_policy": "proxy"
+    },
+    {
+      "object_id": "bowl_1",
+      "category": "bowl",
+      "asset_id": "bowl_001",
+      "support": "counter_1:top",
+      "yaw_range_deg": [-35, 35],
+      "fallback_policy": "proxy"
+    },
+    {
+      "object_id": "plate_1",
+      "category": "plate",
+      "asset_id": "plate_001",
+      "support": "counter_1:top",
+      "yaw_range_deg": [-35, 35],
+      "fallback_policy": "proxy"
     },
     {
       "object_id": "vegetable_bag_1",
@@ -43,8 +61,10 @@
     {
       "object_id": "pot_1",
       "category": "pot",
+      "asset_id": "pot_001",
       "support": "island_1:top",
-      "yaw_range_deg": [-20, 20]
+      "yaw_range_deg": [-20, 20],
+      "fallback_policy": "proxy"
     },
     {
       "object_id": "pot_lid_1",

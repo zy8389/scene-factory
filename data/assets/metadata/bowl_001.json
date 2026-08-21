@@ -1,0 +1,51 @@
+{
+  "asset_id": "bowl_001",
+  "name": "YCB 024_bowl",
+  "category": "bowl",
+  "source": "YCB 024_bowl@29be64fdd95b4881f244152ad653058e0a48c28f",
+  "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+  "license": "CC BY 4.0",
+  "source_manifest": "source/bowl_001/SOURCE.json",
+  "hash": "sha256:eab02a7fbf0bcc9e3ad0f10797a10bbc3f1a4356e787982e3f41cbfaaf9baa88",
+  "usd_path": "usd/bowl_001.usd",
+  "collision_path": "collision/bowl_001_collision.usd",
+  "bbox_m": [
+    0.16122499853372574,
+    0.05496599938487634,
+    0.16095900163054466
+  ],
+  "normalized": true,
+  "collision_level": "L1",
+  "collision_profile": "concave_container_l1",
+  "collision_mode": "authored",
+  "mass": 0.35,
+  "static_friction": 0.5,
+  "dynamic_friction": 0.4,
+  "physics_parameters_source": "project_default",
+  "validation_profile": "drop",
+  "status": "ready",
+  "qa_report": "qa_reports/bowl_001.json",
+  "validated_use_cases": [
+    "drop",
+    "grasp",
+    "桌面接触"
+  ],
+  "unsupported_use_cases": [
+    "containment",
+    "fluid_simulation"
+  ],
+  "final_linear_velocity": {
+    "/World/TestAsset": [
+      9.198936822940595e-06,
+      -1.3711650353798177e-05,
+      -2.144592144759372e-06
+    ]
+  },
+  "final_angular_velocity": {
+    "/World/TestAsset": [
+      0.02816828154027462,
+      0.015273713506758213,
+      0.0031703130807727575
+    ]
+  }
+}

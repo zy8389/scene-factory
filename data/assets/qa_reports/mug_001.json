@@ -54,10 +54,17 @@
     "completed_steps": 362,
     "final_position_m": [-0.0432278141, 0.0043240134, 0.0529990271],
     "final_velocity": "not_reported_by_validator",
+    "final_linear_velocity": "not_reported",
+    "final_angular_velocity": "not_reported",
     "no_floor_penetration": true,
     "stable": true,
     "runtime_report": "generated with tools/validate_mug_asset.py"
   },
+  "validation_profile": "drop",
+  "collision_profile": "concave_container_l1",
+  "validated_use_cases": ["drop", "grasp", "桌面接触"],
+  "unsupported_use_cases": ["containment", "fluid_simulation"],
+  "geometry_summary": {"material_sanitized": "passed"},
   "result": "passed",
   "valid": true
 }

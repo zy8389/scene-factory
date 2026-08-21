@@ -102,6 +102,10 @@ class AssetRecord:
     qa_report: str | None = None
     metadata_support_surface: tuple[SupportSurface, ...] = ()
     metadata_present: bool = False
+    batch_id: str | None = None
+    last_validation: str | None = None
+    failure_reason: str | None = None
+    physics_parameters_source: str = "project_default"
 
     @property
     def mass(self) -> float:
@@ -139,14 +143,20 @@ class AssetRecord:
         )
         if collision_mode not in {"primitive", "authored", "proxy_box", "none"}:
             raise ValueError(f"unsupported collision_mode: {collision_mode}")
+        mass_value = raw.get("mass_kg")
+        if mass_value is None:
+            mass_value = raw.get("mass", 1.0)
+        friction_value = raw.get("friction")
+        if friction_value is None:
+            friction_value = raw.get("dynamic_friction", 0.5)
         return cls(
             asset_id=asset_id,
             category=category,
             bbox_m=bbox,
             primitive=str(raw.get("primitive", "cube")),
             color=_tuple3(raw.get("color", (0.6, 0.6, 0.6)), "asset.color"),
-            mass_kg=float(raw.get("mass_kg", raw.get("mass", 1.0))),
-            friction=float(raw.get("friction", 0.5)),
+            mass_kg=float(mass_value),
+            friction=float(friction_value),
             support_surfaces=tuple(
                 SupportSurface.from_dict(item) for item in _support_surface_items(raw)
             ),
@@ -170,19 +180,19 @@ class AssetRecord:
             grasp_region=raw.get("grasp_region"),
             source=raw.get("source"),
             metadata_mass=(
-                float(raw["mass"]) if "mass" in raw else
-                (float(raw["mass_kg"]) if "mass_kg" in raw else None)
+                float(raw["mass"]) if raw.get("mass") is not None else
+                (float(raw["mass_kg"]) if raw.get("mass_kg") is not None else None)
             ),
-            metadata_friction=(float(raw["friction"]) if "friction" in raw else None),
+            metadata_friction=(float(raw["friction"]) if raw.get("friction") is not None else None),
             static_friction=(
                 float(raw["static_friction"])
-                if "static_friction" in raw
-                else (float(raw["friction"]) if "friction" in raw else None)
+                if raw.get("static_friction") is not None
+                else (float(raw["friction"]) if raw.get("friction") is not None else None)
             ),
             dynamic_friction=(
                 float(raw["dynamic_friction"])
-                if "dynamic_friction" in raw
-                else (float(raw["friction"]) if "friction" in raw else None)
+                if raw.get("dynamic_friction") is not None
+                else (float(raw["friction"]) if raw.get("friction") is not None else None)
             ),
             rigid_body=bool(raw.get("rigid_body", True)),
             collision_enabled=bool(raw.get("collision_enabled", True)),
@@ -198,6 +208,10 @@ class AssetRecord:
                     "mass", "support_surface", "grasp_region", "source",
                 )
             ),
+            batch_id=raw.get("batch_id"),
+            last_validation=raw.get("last_validation"),
+            failure_reason=raw.get("failure_reason"),
+            physics_parameters_source=str(raw.get("physics_parameters_source", "project_default")),
         )
 
 

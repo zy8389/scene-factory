@@ -1,0 +1,38 @@
+{
+  "asset_id": "plate_001",
+  "source_name": "YCB 029_plate",
+  "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+  "license": "CC BY 4.0",
+  "license_source": "https://huggingface.co/datasets/ai-habitat/ycb",
+  "source_revision": "29be64fdd95b4881f244152ad653058e0a48c28f",
+  "original_filename": "textured.glb",
+  "source_geometry": "textured.glb",
+  "source_collision_geometry": "collision/029_p_cv_decomp.glb",
+  "source_files": [
+    {
+      "role": "visual",
+      "dataset_path": "meshes/029_plate/google_16k/textured.glb",
+      "path": "textured.glb",
+      "original_filename": "textured.glb",
+      "source_url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/meshes/029_plate/google_16k/textured.glb?download=true",
+      "sha256": "0de7960c542811ab9a03dc9dee65b7cfc5359a0b38496e38266bd85db9907d68",
+      "bytes": 988572
+    },
+    {
+      "role": "collision",
+      "dataset_path": "collision_meshes/029_p_cv_decomp.glb",
+      "path": "collision/029_p_cv_decomp.glb",
+      "original_filename": "029_p_cv_decomp.glb",
+      "source_url": "https://huggingface.co/datasets/ai-habitat/ycb/resolve/29be64fdd95b4881f244152ad653058e0a48c28f/collision_meshes/029_p_cv_decomp.glb?download=true",
+      "sha256": "8b9600f392b4494f17d7056f7d21cd7c3488b5fa85e0436f615f7b86bf7ec091",
+      "bytes": 177440
+    }
+  ],
+  "retrieved_at": "2026-08-21T04:33:14.011614+00:00",
+  "output_dir": "data/assets/source/plate_001",
+  "status": "imported",
+  "result": "passed",
+  "issues": [],
+  "sha256": "0de7960c542811ab9a03dc9dee65b7cfc5359a0b38496e38266bd85db9907d68",
+  "idempotent": true
+}

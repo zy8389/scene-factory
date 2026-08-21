@@ -1,0 +1,51 @@
+{
+  "asset_id": "knife_001",
+  "name": "YCB 032_knife",
+  "category": "kitchen_knife",
+  "source": "YCB 032_knife@29be64fdd95b4881f244152ad653058e0a48c28f",
+  "source_url": "https://huggingface.co/datasets/ai-habitat/ycb",
+  "license": "CC BY 4.0",
+  "source_manifest": "source/knife_001/SOURCE.json",
+  "hash": "sha256:ef7df0085a07c6203ac9c4e39c3f323fe0b12053751861f6587ca2c4520d735e",
+  "usd_path": "usd/knife_001.usd",
+  "collision_path": "collision/knife_001_collision.usd",
+  "bbox_m": [
+    0.21482500433921814,
+    0.02261199988424778,
+    0.02046400122344494
+  ],
+  "normalized": true,
+  "collision_level": "L1",
+  "collision_profile": "thin_object_l1",
+  "collision_mode": "authored",
+  "mass": 0.15,
+  "static_friction": 0.35,
+  "dynamic_friction": 0.25,
+  "physics_parameters_source": "project_default",
+  "validation_profile": "drop_thin_object",
+  "status": "ready",
+  "qa_report": "qa_reports/knife_001.json",
+  "validated_use_cases": [
+    "drop",
+    "grasp",
+    "桌面接触"
+  ],
+  "unsupported_use_cases": [
+    "cutting",
+    "high_speed_tunneling"
+  ],
+  "final_linear_velocity": {
+    "/World/TestAsset": [
+      6.409005436580628e-05,
+      0.0012750988826155663,
+      -0.0005747491377405822
+    ]
+  },
+  "final_angular_velocity": {
+    "/World/TestAsset": [
+      -10.753634452819824,
+      0.31618690490722656,
+      -0.12355978786945343
+    ]
+  }
+}
