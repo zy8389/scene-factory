@@ -109,6 +109,7 @@ class IsaacSimBackend:
         self._last_observation: dict[str, Any] | None = None
         self._grasp_diagnostics: dict[str, Any] = _empty_grasp_diagnostics()
         self._material_diagnostics: dict[str, Any] = {}
+        self._finger_gripper_config: dict[str, Any] = {}
         self._contact_subscription = None
         self._contact_interface = None
         self._contact_events: list[dict[str, Any]] = []
@@ -278,6 +279,7 @@ class IsaacSimBackend:
         self._controller = None
         self._grasp_diagnostics = _empty_grasp_diagnostics()
         self._material_diagnostics = {}
+        self._finger_gripper_config = {}
         self._contact_subscription = None
         self._contact_interface = None
         self._contact_events = []
@@ -355,6 +357,7 @@ class IsaacSimBackend:
         )
         self._simulation.initialize_physics()
         self._robot.initialize()
+        self._finger_gripper_config = _resolve_finger_gripper_config(self._robot)
         base_position = np.asarray(base_position, dtype=float)
         base_orientation = np.asarray(base_orientation, dtype=float)
         self._robot.set_world_pose(
@@ -362,17 +365,29 @@ class IsaacSimBackend:
             orientation=base_orientation,
         )
         default_joints = np.asarray(
-            [0.0, -0.3, 0.0, -2.0, 0.0, 1.7, 0.8, 0.05, 0.05], dtype=float
+            [0.0, -0.3, 0.0, -2.0, 0.0, 1.7, 0.8, 0.0, 0.0], dtype=float
         )
+        for index, position in zip(
+            self._finger_gripper_config["indices"],
+            self._finger_gripper_config["open_positions"],
+            strict=True,
+        ):
+            default_joints[index] = position
         self._robot.set_joint_positions(default_joints)
         self._robot.apply_action(ArticulationAction(joint_positions=default_joints))
 
         self._gripper = ParallelGripper(
             end_effector_prim_path=f"{robot_prim_path}/panda_rightfinger",
             joint_prim_names=["panda_finger_joint1", "panda_finger_joint2"],
-            joint_opened_positions=np.asarray([0.05, 0.05], dtype=float),
-            joint_closed_positions=np.asarray([0.0, 0.0], dtype=float),
-            action_deltas=np.asarray([0.005, 0.005], dtype=float),
+            joint_opened_positions=np.asarray(
+                self._finger_gripper_config["open_positions"], dtype=float
+            ),
+            joint_closed_positions=np.asarray(
+                self._finger_gripper_config["closed_positions"], dtype=float
+            ),
+            action_deltas=np.asarray(
+                self._finger_gripper_config["action_deltas"], dtype=float
+            ),
         )
         self._gripper.initialize(
             articulation_apply_action_func=self._robot.apply_action,
@@ -578,6 +593,7 @@ class IsaacSimBackend:
                 "active_contact_pairs": list(self._active_contact_pairs.values()),
                 "last_step_events": list(self._pending_contact_events),
                 "contact_event_count": int(self._contact_event_count),
+                "finger_gripper_config": self._finger_gripper_config,
             }
         )
         for key in ("contact_report_error", "dof_limits_error", "material_resolution_error"):
@@ -767,6 +783,7 @@ def _empty_grasp_diagnostics() -> dict[str, Any]:
         "target_materials": [],
         "finger_material_resolved": False,
         "target_material_resolution": False,
+        "finger_gripper_config": {},
     }
 
 
@@ -826,6 +843,39 @@ def _read_finger_dof_diagnostics(robot: Any, positions: Any) -> dict[str, Any]:
     except (IndexError, KeyError, TypeError, ValueError, AttributeError):
         return result
     return result
+
+
+def _resolve_finger_gripper_config(robot: Any) -> dict[str, Any]:
+    """Build gripper commands from the articulation's runtime finger limits."""
+    try:
+        positions = robot.get_joint_positions()
+    except (AttributeError, RuntimeError, TypeError):
+        positions = None
+    diagnostics = _read_finger_dof_diagnostics(robot, positions)
+    if not (
+        diagnostics["dof_limits_available"]
+        and diagnostics["dof_limits_valid"]
+        and len(diagnostics["finger_dofs"]) == 2
+    ):
+        raise RuntimeError(
+            "Franka finger DOF limits are unavailable or invalid; "
+            "cannot initialize ParallelGripper from runtime limits"
+        )
+    entries = diagnostics["finger_dofs"]
+    open_positions = [float(entry["upper"]) for entry in entries]
+    closed_positions = [float(entry["lower"]) for entry in entries]
+    action_deltas = [
+        max((upper - lower) * 0.1, 1e-6)
+        for lower, upper in zip(closed_positions, open_positions, strict=True)
+    ]
+    return {
+        "source": "runtime_dof_limits",
+        "joint_names": [entry["name"] for entry in entries],
+        "indices": [int(entry["index"]) for entry in entries],
+        "open_positions": open_positions,
+        "closed_positions": closed_positions,
+        "action_deltas": action_deltas,
+    }
 
 
 def _resolve_materials_for_root(stage: Any, root_path: str | None) -> list[dict[str, Any]]:

@@ -11,6 +11,7 @@ from scene_factory.backends.isaac import (
     IsaacBackendUnavailable,
     IsaacSimBackend,
     _load_simulation_app,
+    _resolve_finger_gripper_config,
     build_observation,
 )
 from scene_factory.factory import SceneFactory
@@ -24,6 +25,36 @@ from scene_factory.tasks import TaskEvaluator
 
 
 class RobotRuntimeTests(unittest.TestCase):
+    def test_gripper_commands_use_runtime_finger_limits(self) -> None:
+        class FakeArticulation:
+            dof_names = [
+                "panda_joint1",
+                "panda_joint2",
+                "panda_joint3",
+                "panda_joint4",
+                "panda_joint5",
+                "panda_joint6",
+                "panda_joint7",
+                "panda_finger_joint1",
+                "panda_finger_joint2",
+            ]
+
+            @staticmethod
+            def get_dof_limits():
+                return [[-1.0, 1.0]] * 7 + [[0.0, 0.041], [0.0, 0.039]]
+
+            @staticmethod
+            def get_joint_positions():
+                return [0.0] * 9
+
+        config = _resolve_finger_gripper_config(FakeArticulation())
+        self.assertEqual(config["source"], "runtime_dof_limits")
+        self.assertEqual(config["indices"], [7, 8])
+        self.assertEqual(config["open_positions"], [0.041, 0.039])
+        self.assertEqual(config["closed_positions"], [0.0, 0.0])
+        self.assertAlmostEqual(config["action_deltas"][0], 0.0041)
+        self.assertAlmostEqual(config["action_deltas"][1], 0.0039)
+
     @staticmethod
     def _valid_grasp_diagnostics(contact: bool = True) -> dict:
         return {

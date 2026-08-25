@@ -95,6 +95,7 @@ $env:OMNI_KIT_ACCEPT_EULA = "YES"
 才会进入正式 `LIFT`：
 
 - Franka `panda_finger_joint1/2` 的 lower/upper DOF limits 已从 articulation 读取，且当前位置在 limits 内；
+- `ParallelGripper` 的 opened/closed positions 与 action deltas 由上述 runtime limits 生成，默认值不会覆盖实际 articulation limits；
 - PhysX contact report subscription 成功，并记录了 finger collider 与 `mug_1` collider 的实际 pair；
 - finger 和目标 collider 的 resolved physics material 均能解析出 static friction、dynamic friction、restitution；
 - contact 在验证阶段持续至少 10 个 step，且杯子真实跟随微抬升至少 `5 mm`。
