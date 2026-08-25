@@ -203,6 +203,7 @@ def _run_runtime(
         failure_reason=failure_reason,
         grasp_diagnostics=summary.get("grasp_diagnostics"),
     )
+    report["robot_asset_source"] = summary.get("robot_asset_source")
     report.update(error_payload)
     report["trace"] = str(trace_path)
     diagnostics = report.get("grasp_diagnostics") or summary.get("grasp_diagnostics", {})
@@ -234,6 +235,10 @@ def _write_trace(handle, observation: dict[str, Any]) -> None:
                 "finger_positions": robot.get("finger_positions", {}),
                 "finger_bounds": robot.get("finger_bounds", {}),
                 "finger_joint_positions": robot.get("joint_positions", [])[-2:],
+                "ik_target_joint_positions": robot.get("ik_target_joint_positions", []),
+                "applied_joint_position_targets": robot.get(
+                    "applied_joint_position_targets", []
+                ),
                 "grasp_diagnostics": robot.get("grasp_diagnostics", {}),
                 "task_success": observation.get("task_success"),
             },

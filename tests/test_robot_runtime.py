@@ -55,6 +55,45 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertAlmostEqual(config["action_deltas"][0], 0.0041)
         self.assertAlmostEqual(config["action_deltas"][1], 0.0039)
 
+    def test_gripper_commands_read_isaac6_dof_properties(self) -> None:
+        import numpy as np
+
+        class FakeArticulation:
+            dof_names = [
+                "panda_joint1",
+                "panda_joint2",
+                "panda_joint3",
+                "panda_joint4",
+                "panda_joint5",
+                "panda_joint6",
+                "panda_joint7",
+                "panda_finger_joint1",
+                "panda_finger_joint2",
+            ]
+            dof_properties = np.array(
+                [
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 1.0),
+                    (0.0, 0.04),
+                    (0.0, 0.039),
+                ],
+                dtype=[("lower", float), ("upper", float)],
+            )
+
+            @staticmethod
+            def get_joint_positions():
+                return [0.0] * 9
+
+        config = _resolve_finger_gripper_config(FakeArticulation())
+        self.assertEqual(config["source"], "runtime_dof_limits")
+        self.assertEqual(config["open_positions"], [0.04, 0.039])
+        self.assertEqual(config["closed_positions"], [0.0, 0.0])
+
     @staticmethod
     def _valid_grasp_diagnostics(contact: bool = True) -> dict:
         return {
@@ -155,7 +194,7 @@ class RobotRuntimeTests(unittest.TestCase):
                 task_success=False,
             )
         self.assertEqual(controller.phase, MugLiftPhase.VERIFY_GRASP)
-        for index in range(30):
+        for index in range(controller._VERIFY_GRASP_STEPS):
             controller.advance(
                 target_position=(0.5, 0.0, 0.906 if index >= 20 else 0.9),
                 end_effector_position=(0.5, 0.0, 0.91),
@@ -176,7 +215,7 @@ class RobotRuntimeTests(unittest.TestCase):
         initial = (0.5, 0.0, 0.9)
         controller = MugLiftController(initial, max_steps=400)
         controller.phase = MugLiftPhase.VERIFY_GRASP
-        for _ in range(30):
+        for _ in range(controller._VERIFY_GRASP_STEPS):
             controller.advance(
                 target_position=initial,
                 end_effector_position=initial,
@@ -206,13 +245,14 @@ class RobotRuntimeTests(unittest.TestCase):
         for phase, expected_z in (
             (MugLiftPhase.PRE_GRASP, 1.04),
             (MugLiftPhase.APPROACH, 0.9),
-            (MugLiftPhase.LIFT, 1.15),
+            (MugLiftPhase.LIFT, 1.19),
         ):
             controller.phase = phase
             controller.phase_steps = 120 if phase == MugLiftPhase.LIFT else 0
             goal = controller.command(displaced).goal_position
             self.assertIsNotNone(goal)
-            self.assertEqual(goal[:2], (0.553, 0.007))
+            expected_x = 0.553
+            self.assertEqual(goal[:2], (expected_x, 0.007))
             self.assertAlmostEqual(goal[2], expected_z)
 
     def test_task_evaluator_and_acceptance_report_share_real_pose_delta(self) -> None:

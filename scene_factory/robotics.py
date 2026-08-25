@@ -33,8 +33,8 @@ class MugLiftController:
     _MIN_REACH_STEPS = 20
     _MAX_REACH_STEPS = 180
     _GRASP_STEPS = 120
-    _VERIFY_GRASP_STEPS = 30
-    _VERIFY_GRASP_TARGET_DELTA_M = 0.01
+    _VERIFY_GRASP_STEPS = 60
+    _VERIFY_GRASP_TARGET_DELTA_M = 0.05
     _VERIFY_GRASP_MIN_DELTA_M = 0.005
     _VERIFY_GRASP_MIN_CONTACT_STEPS = 10
     _MAX_LIFT_STEPS = 240
@@ -46,11 +46,17 @@ class MugLiftController:
         initial_target_position: Vec3,
         max_steps: int = 720,
         grasp_offset: Vec3 = (0.0, 0.0, 0.0),
+        approach_clearance_x_m: float = 0.0,
+        approach_clearance_y_m: float = 0.0,
+        hold_at_approach_clearance: bool = False,
     ) -> None:
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
         self.initial_target_position = tuple(float(value) for value in initial_target_position)
         self.grasp_offset = tuple(float(value) for value in grasp_offset)
+        self.approach_clearance_x_m = float(approach_clearance_x_m)
+        self.approach_clearance_y_m = float(approach_clearance_y_m)
+        self.hold_at_approach_clearance = bool(hold_at_approach_clearance)
         self.max_steps = max_steps
         self.phase = MugLiftPhase.PRE_GRASP
         self.total_steps = 0
@@ -69,16 +75,28 @@ class MugLiftController:
             self.initial_target_position[index] + self.grasp_offset[index]
             for index in range(3)
         )
+        approach_x = x + self.approach_clearance_x_m
+        approach_y = y + self.approach_clearance_y_m
+        grasp_x = approach_x if self.hold_at_approach_clearance else x
+        grasp_y = approach_y if self.hold_at_approach_clearance else y
         if self.phase == MugLiftPhase.PRE_GRASP:
-            return MugLiftCommand(self.phase, (x, y, initial_z + 0.14), "open", True)
+            return MugLiftCommand(
+                self.phase, (approach_x, approach_y, initial_z + 0.14), "open", True
+            )
         if self.phase == MugLiftPhase.APPROACH:
-            return MugLiftCommand(self.phase, (x, y, initial_z), "open", True)
+            return MugLiftCommand(
+                self.phase, (approach_x, approach_y, initial_z), "open", True
+            )
         if self.phase == MugLiftPhase.GRASP:
+            if self.approach_clearance_x_m or self.approach_clearance_y_m:
+                return MugLiftCommand(
+                    self.phase, (grasp_x, grasp_y, initial_z), "close", True
+                )
             return MugLiftCommand(self.phase, None, "close", False)
         if self.phase == MugLiftPhase.VERIFY_GRASP:
             return MugLiftCommand(
                 self.phase,
-                (x, y, initial_z + self._VERIFY_GRASP_TARGET_DELTA_M),
+                (grasp_x, grasp_y, initial_z + self._VERIFY_GRASP_TARGET_DELTA_M),
                 "closed",
                 True,
             )
@@ -87,7 +105,7 @@ class MugLiftController:
                 0.24, self.phase_steps * 0.002
             )
             return MugLiftCommand(
-                self.phase, (x, y, initial_z + lift_height), "closed", True
+                self.phase, (grasp_x, grasp_y, initial_z + lift_height), "closed", True
             )
         return MugLiftCommand(self.phase, None, "hold", False)
 
