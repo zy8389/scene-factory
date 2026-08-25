@@ -5,10 +5,10 @@ SceneFactory 将模型输出限制为 `SceneIntent`。LLM 负责房间、事件�
 
 ## 接口具体接在哪里
 
-需要改的文件只有：
+先从公开模板创建本地配置：
 
-```text
-F:\具身智能\config\llm.json
+```powershell
+Copy-Item config\llm.example.json config\llm.json
 ```
 
 例如，接入任意提供 OpenAI-compatible `POST /chat/completions` 的服务：
@@ -20,10 +20,10 @@ F:\具身智能\config\llm.json
   "model": "your-model-name",
   "api_key_env": "SCENE_FACTORY_LLM_API_KEY",
   "timeout_seconds": 60,
-  "ca_bundle": "certifi",
-  "transport": "curl_schannel",
-  "proxy_url": "http://127.0.0.1:7897",
-  "cache_dir": "../../scene_factory_runtime/llm_cache"
+  "ca_bundle": "system",
+  "transport": "urllib",
+  "proxy_url": "",
+  "cache_dir": "../.cache/llm_intents"
 }
 ```
 
@@ -83,19 +83,15 @@ $env:SCENE_FACTORY_LLM_TIMEOUT_SECONDS = "60"
 $env:SCENE_FACTORY_LLM_CACHE = "F:\scene_factory_runtime\llm_cache"
 $env:SCENE_FACTORY_LLM_CA_BUNDLE = "certifi"
 $env:SCENE_FACTORY_LLM_TRANSPORT = "curl_schannel"
-$env:SCENE_FACTORY_LLM_PROXY_URL = "http://127.0.0.1:7897"
+$env:SCENE_FACTORY_LLM_PROXY_URL = "http://proxy.example:8080"
 ```
 
 `ca_bundle` 可填 `system`、`certifi` 或本地 CA PEM 文件路径。不要使用关闭 TLS 校验的
 配置；如果服务商证书无法通过 `certifi` 校验，应向服务商索取正确证书链或 CA 文件。
 
-`transport=urllib` 是跨平台默认值；当前 Windows 网络对 Python/OpenSSL 的 POST 握手会
-间歇性断开，因此本机配置使用 `curl_schannel`。该模式仍校验证书链和主机名，只跳过
-当前网络无法访问的吊销服务器，并对瞬时握手错误最多尝试五次，使用短退避间隔。
-当前第三方网关的默认 TLS 协商还会间歇性断开，因此该传输固定使用 TLS 1.2 和
-HTTP/1.1；证书链与主机名校验仍然开启。
-本机使用 Clash Verge/Mihomo 时，`proxy_url=http://127.0.0.1:7897` 让 HTTPS CONNECT
-直接携带真实域名，避免 `198.18.0.0/15` Fake-IP 映射导致的 TLS 中断。
+`transport=urllib` 是跨平台默认值。只有在 Windows 系统证书栈是部署要求时才使用
+`curl_schannel`；它仍校验证书链和主机名。`proxy_url` 默认留空，需要代理的部署应在
+本地 `config/llm.json` 或环境变量中显式设置，公开仓库不携带个人 endpoint/proxy。
 
 ## 查看状态
 

@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import traceback
+from pathlib import Path
+from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scene_factory.backends import IsaacSimBackend  # noqa: E402
+from scene_factory.factory import SceneFactory  # noqa: E402
+from scene_factory.robotics import build_robot_acceptance_report  # noqa: E402
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Run the SceneFactory Franka real-mug lift acceptance in Isaac Sim."
+    )
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--seed", type=int, default=77)
+    parser.add_argument("--max-steps", type=int, default=720)
+    parser.add_argument("--no-headless", action="store_true")
+    parser.add_argument("--runtime-only", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--layout", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--usd", type=Path, help=argparse.SUPPRESS)
+    return parser
+
+
+def _write(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    output = args.output.expanduser().resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    report_path = output / "robot_acceptance.json"
+    if args.runtime_only:
+        if args.layout is None or args.usd is None:
+            raise ValueError("--runtime-only requires --layout and --usd")
+        return _run_runtime(
+            args.layout.expanduser().resolve(),
+            args.usd.expanduser().resolve(),
+            report_path,
+            max_steps=args.max_steps,
+            headless=not args.no_headless,
+        )
+
+    try:
+        factory = SceneFactory()
+        result = factory.build_from_recipe("kitchen_franka_mug_lift", args.seed)
+        if not result.valid:
+            raise RuntimeError(f"acceptance scene is invalid: {result.validation.to_dict()}")
+        mug = next(item for item in result.scene.objects if item.object_id == "mug_1")
+        if mug.asset_id != "mug_001" or factory.registry.get(mug.asset_id).status != "ready":
+            raise RuntimeError("acceptance requires real ready asset mug_001 without proxy fallback")
+        files = factory.write_result(result, output, export_usd=True)
+    except Exception as exc:
+        report = build_robot_acceptance_report(
+            scene_id="not_generated",
+            initial_observation=None,
+            final_observation=None,
+            steps=0,
+            ik="not_run",
+            grasp="not_run",
+            failure_reason=f"{type(exc).__name__}: {exc}",
+        )
+        report.update({"error": report["failure_reason"], "traceback": traceback.format_exc()})
+        _write(report_path, report)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 2
+
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--output",
+        str(output),
+        "--max-steps",
+        str(args.max_steps),
+        "--runtime-only",
+        "--layout",
+        files["layout"],
+        "--usd",
+        files["usd"],
+    ]
+    if args.no_headless:
+        command.append("--no-headless")
+    environment = os.environ.copy()
+    environment.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
+    log_path = output / "isaac_runtime.log"
+    report_path.unlink(missing_ok=True)
+    with log_path.open("w", encoding="utf-8", errors="replace") as log:
+        process = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            env=environment,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+    if report_path.is_file():
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    else:
+        report = build_robot_acceptance_report(
+            scene_id=result.scene.scene_id,
+            initial_observation=None,
+            final_observation=None,
+            steps=0,
+            ik="not_run",
+            grasp="not_run",
+            failure_reason=f"Isaac runtime process exited with code {process.returncode}",
+        )
+        report["runtime_log"] = str(log_path)
+        _write(report_path, report)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report["result"] == "passed" else 2
+
+
+def _run_runtime(
+    layout_path: Path,
+    usd_path: Path,
+    report_path: Path,
+    *,
+    max_steps: int,
+    headless: bool,
+) -> int:
+    backend = None
+    initial_observation = None
+    final_observation = None
+    failure_reason = None
+    summary = {"steps": 0, "ik": "not_run", "grasp": "not_run"}
+    trace_path = report_path.with_name("robot_trace.jsonl")
+    trace_path.unlink(missing_ok=True)
+    try:
+        scene = json.loads(layout_path.read_text(encoding="utf-8"))
+        backend = IsaacSimBackend(usd_path, headless=headless, max_steps=max_steps)
+        initial_observation, _ = backend.reset(scene)
+        final_observation = initial_observation
+        with trace_path.open("w", encoding="utf-8") as trace:
+            _write_trace(trace, initial_observation)
+            while True:
+                final_observation, _, terminated, truncated, summary = backend.step("scripted")
+                _write_trace(trace, final_observation)
+                trace.flush()
+                if terminated or truncated:
+                    break
+        failure_reason = summary.get("failure_reason")
+    except Exception as exc:
+        failure_reason = f"{type(exc).__name__}: {exc}"
+        summary = backend.runtime_summary if backend is not None else summary
+        error_payload = {
+            "error": failure_reason,
+            "traceback": traceback.format_exc(),
+        }
+    else:
+        error_payload = {}
+    report = build_robot_acceptance_report(
+        scene_id=scene.get("scene_id", "not_loaded") if "scene" in locals() else "not_loaded",
+        initial_observation=initial_observation,
+        final_observation=final_observation,
+        steps=int(summary.get("steps", 0)),
+        ik=str(summary.get("ik", "not_run")),
+        grasp=str(summary.get("grasp", "not_run")),
+        failure_reason=failure_reason,
+    )
+    report.update(error_payload)
+    report["trace"] = str(trace_path)
+    _write(report_path, report)
+    if backend is not None:
+        backend.close()
+    return 0 if report["result"] == "passed" else 2
+
+
+def _write_trace(handle, observation: dict[str, Any]) -> None:
+    robot = observation.get("robot", {})
+    handle.write(
+        json.dumps(
+            {
+                "step": observation.get("simulation_step"),
+                "phase": robot.get("phase"),
+                "failure_reason": robot.get("failure_reason"),
+                "target_position": observation.get("objects", {})
+                .get("mug_1", {})
+                .get("position"),
+                "end_effector_position": robot.get("end_effector_pose", {}).get("position"),
+                "end_effector_orientation_wxyz": robot.get("end_effector_pose", {}).get(
+                    "orientation_wxyz"
+                ),
+                "orientation_error_rad": robot.get("orientation_error_rad"),
+                "finger_positions": robot.get("finger_positions", {}),
+                "finger_bounds": robot.get("finger_bounds", {}),
+                "finger_joint_positions": robot.get("joint_positions", [])[-2:],
+                "task_success": observation.get("task_success"),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

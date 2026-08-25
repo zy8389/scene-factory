@@ -6,7 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "scene-factory"
 version = "0.1.0"
 description = "Natural-language-driven, reproducible household scene generation for robot simulators"
+readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = []
 
 [project.optional-dependencies]
@@ -18,11 +21,52 @@ scene-factory = "scene_factory.cli:main"
 scene-factory-web = "scene_factory.webapp:main"
 
 [tool.setuptools]
-packages = ["scene_factory", "scene_factory.exporters"]
+packages = ["scene_factory", "scene_factory.backends", "scene_factory.exporters"]
+
+[tool.setuptools.data-files]
+"share/scene-factory/recipes" = ["recipes/*.json"]
+"share/scene-factory/web" = ["web/*.html", "web/*.css", "web/*.js"]
+"share/scene-factory/data/assets" = ["data/assets/registry.jsonl"]
+"share/scene-factory/data/assets/collision" = ["data/assets/collision/*.usd"]
+"share/scene-factory/data/assets/metadata" = ["data/assets/metadata/*.json"]
+"share/scene-factory/data/assets/qa_reports" = ["data/assets/qa_reports/*.json"]
+"share/scene-factory/data/assets/usd" = ["data/assets/usd/*.usd"]
+"share/scene-factory/data/assets/source/bowl_001" = [
+  "data/assets/source/bowl_001/*.json",
+  "data/assets/source/bowl_001/*.glb",
+]
+"share/scene-factory/data/assets/source/bowl_001/collision" = [
+  "data/assets/source/bowl_001/collision/*.glb",
+]
+"share/scene-factory/data/assets/source/knife_001" = [
+  "data/assets/source/knife_001/*.json",
+  "data/assets/source/knife_001/*.glb",
+]
+"share/scene-factory/data/assets/source/knife_001/collision" = [
+  "data/assets/source/knife_001/collision/*.glb",
+]
+"share/scene-factory/data/assets/source/plate_001" = [
+  "data/assets/source/plate_001/*.json",
+  "data/assets/source/plate_001/*.glb",
+]
+"share/scene-factory/data/assets/source/plate_001/collision" = [
+  "data/assets/source/plate_001/collision/*.glb",
+]
+"share/scene-factory/data/assets/source/ycb_025_mug" = [
+  "data/assets/source/ycb_025_mug/*.json",
+  "data/assets/source/ycb_025_mug/*.glb",
+]
+"share/scene-factory/data/assets/source/ycb_025_mug/collision" = [
+  "data/assets/source/ycb_025_mug/collision/*.glb",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+per-file-ignores = { "tools/*.py" = ["E402"] }
 
 [tool.ruff]
 line-length = 100

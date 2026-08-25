@@ -14,14 +14,14 @@ from urllib.parse import quote, unquote, urlsplit
 
 from .factory import SceneFactory
 from .intent import SceneIntent
-from .paths import project_root
+from .paths import default_web_dir, project_root
 
 
 class SceneWebApplication:
     def __init__(self, output_root: str | Path, factory: SceneFactory | None = None) -> None:
         self.factory = factory or SceneFactory()
         self.output_root = Path(output_root).expanduser().resolve()
-        self.static_root = (project_root() / "web").resolve()
+        self.static_root = default_web_dir().resolve()
         self.output_root.mkdir(parents=True, exist_ok=True)
 
     def recipe_catalog(self) -> list[dict[str, Any]]:

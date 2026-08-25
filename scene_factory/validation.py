@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from .geometry import objects_overlap, rotate_xy
+from .geometry import (
+    inverse_rotate_xy,
+    objects_overlap,
+    rotate_xy,
+    rotated_half_extents_xy,
+)
 from .models import CompiledScene, ValidationIssue, ValidationReport
 from .registry import AssetRegistry
 
@@ -17,7 +22,8 @@ class SceneValidator:
 
         for item in scene.objects:
             x, y, z = item.pose.position
-            hx, hy, hz = (dimension / 2.0 for dimension in item.bbox_m)
+            hx, hy = rotated_half_extents_xy(item.bbox_m, item.pose.yaw_deg)
+            hz = item.bbox_m[2] / 2.0
             if abs(x) + hx > room_x / 2.0 + self.tolerance_m:
                 issues.append(
                     ValidationIssue("out_of_bounds_x", "object is outside room X bounds", (item.object_id,))
@@ -84,7 +90,32 @@ class SceneValidator:
                     "missing_surface", f"support surface {item.support} is missing", (item.object_id,)
                 )
             surface = surfaces[0]
-            _ = rotate_xy((surface.center[0], surface.center[1]), support_object.pose.yaw_deg)
+            support_yaw = support_object.pose.yaw_deg
+            rotated_center = rotate_xy((surface.center[0], surface.center[1]), support_yaw)
+            surface_world_xy = (
+                support_object.pose.position[0] + rotated_center[0],
+                support_object.pose.position[1] + rotated_center[1],
+            )
+            subject_offset = (
+                item.pose.position[0] - surface_world_xy[0],
+                item.pose.position[1] - surface_world_xy[1],
+            )
+            subject_local = inverse_rotate_xy(subject_offset, support_yaw)
+            footprint_x, footprint_y = rotated_half_extents_xy(
+                item.bbox_m, item.pose.yaw_deg - support_yaw
+            )
+            outside_x = abs(subject_local[0]) + footprint_x > (
+                surface.size[0] / 2.0 + self.tolerance_m
+            )
+            outside_y = abs(subject_local[1]) + footprint_y > (
+                surface.size[1] / 2.0 + self.tolerance_m
+            )
+            if outside_x or outside_y:
+                return ValidationIssue(
+                    "outside_support_surface",
+                    f"object footprint is outside support surface {item.support}",
+                    (item.object_id, support_object.object_id),
+                )
             expected_z = support_object.pose.position[2] + surface.center[2]
         if abs(bottom_z - expected_z) > self.tolerance_m:
             return ValidationIssue(

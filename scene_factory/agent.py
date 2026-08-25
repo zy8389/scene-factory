@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 
+@runtime_checkable
 class SimulatorBackend(Protocol):
     def reset(self, scene: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]: ...
 
@@ -77,4 +78,3 @@ class SceneFactoryEnv:
 
     def close(self) -> None:
         self.backend.close()
-

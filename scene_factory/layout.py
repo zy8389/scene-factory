@@ -48,7 +48,12 @@ class LayoutSolver:
                 candidate = self._make_placed(
                     request, asset, request.fixed_pose, fallback_reason=fallback_reason
                 )
-                if self._collides(candidate, placed, request.support):
+                support_id = (
+                    request.support.split(":", 1)[0]
+                    if request.support and request.support != "floor"
+                    else None
+                )
+                if self._collides(candidate, placed, support_id):
                     raise LayoutError(f"fixed object {request.object_id} collides with existing geometry")
             else:
                 candidate = self._sample_object(
@@ -128,9 +133,6 @@ class LayoutSolver:
             half_x, half_y = rotated_half_extents_xy(asset.bbox_m, yaw - support_yaw)
             margin_x = support_size[0] / 2.0 - half_x
             margin_y = support_size[1] / 2.0 - half_y
-            if request.edge_bias:
-                margin_x += min(asset.bbox_m[0] * 0.2, support_size[0] * 0.08)
-                margin_y += min(asset.bbox_m[1] * 0.2, support_size[1] * 0.08)
             if margin_x <= 0 or margin_y <= 0:
                 raise LayoutError(
                     f"asset {asset.asset_id} does not fit support {request.support}"

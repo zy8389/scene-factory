@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install wheel and development tools
+        run: python -m pip install ".[dev]"
+      - name: Verify installed resources
+        working-directory: ${{ runner.temp }}
+        run: python "$GITHUB_WORKSPACE/tools/smoke_test_installed_package.py"
+      - name: Ruff
+        run: python -m ruff check scene_factory tools tests
+      - name: Compile
+        run: python -m compileall -q scene_factory tools tests
+      - name: Test
+        run: python -B -m pytest -p no:cacheprovider -q

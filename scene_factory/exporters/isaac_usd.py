@@ -49,13 +49,13 @@ class IsaacUsdExporter:
 
         for item in scene.objects:
             asset = self.registry.get(item.asset_id)
-            self._add_object(stage, item, asset, output_path, Gf, UsdGeom, UsdPhysics)
+            self._add_object(stage, item, asset, output_path, Gf, Usd, UsdGeom, UsdPhysics)
 
         stage.SetDefaultPrim(stage.GetPrimAtPath("/World"))
         stage.GetRootLayer().Save()
         return output_path
 
-    def _add_object(self, stage, item, asset, output_path, Gf, UsdGeom, UsdPhysics) -> None:
+    def _add_object(self, stage, item, asset, output_path, Gf, Usd, UsdGeom, UsdPhysics) -> None:
         prim_path = f"/World/Objects/{self._safe_name(item.object_id)}"
         if asset.source_path:
             source_reference = self.registry.resolve_source_path(asset)
@@ -92,6 +92,14 @@ class IsaacUsdExporter:
             collision_xform.GetPrim().CreateAttribute(
                 "sceneFactory:collisionSource", self._string_type()
             ).Set(self._relative_reference(collision_reference, output_path))
+            collision_bounds = UsdGeom.BBoxCache(
+                Usd.TimeCode.Default(), [UsdGeom.Tokens.default_]
+            ).ComputeLocalBound(collision_xform.GetPrim()).ComputeAlignedBox()
+            if not collision_bounds.IsEmpty():
+                center = collision_bounds.GetMidpoint()
+                UsdGeom.Xformable(collision_xform).AddTranslateOp().Set(
+                    Gf.Vec3d(-center[0], -center[1], -center[2])
+                )
         if item.fallback_reason:
             physics_prim.CreateAttribute(
                 "sceneFactory:fallbackReason", self._string_type()

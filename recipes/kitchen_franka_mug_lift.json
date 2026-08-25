@@ -1,0 +1,47 @@
+{
+  "name": "kitchen_franka_mug_lift",
+  "room_type": "kitchen",
+  "room_dimensions_m": [4.0, 3.0, 2.8],
+  "event": "robot_mug_lift",
+  "description": "Franka 从厨房岛台上抓取并抬升真实 YCB 杯子。",
+  "keywords": ["franka", "mug lift", "机器人抓杯", "杯子拿起来"],
+  "objects": [
+    {
+      "object_id": "robot_mount_1",
+      "category": "side_cabinet",
+      "asset_id": "side_cabinet_basic",
+      "dynamic": false,
+      "fixed_pose": {"position": [-0.05, 0.0, 0.39], "yaw_deg": 0}
+    },
+    {
+      "object_id": "island_1",
+      "category": "kitchen_island",
+      "asset_id": "kitchen_island_basic",
+      "dynamic": false,
+      "fixed_pose": {"position": [1.15, 0.0, 0.46], "yaw_deg": 0}
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "asset_id": "mug_001",
+      "support": "island_1:top",
+      "dynamic": true,
+      "fixed_pose": {"position": [0.56, 0.0, 0.9665395013], "yaw_deg": 0}
+    }
+  ],
+  "task": {
+    "instruction": "把杯子拿起来。",
+    "target_object": "mug_1",
+    "asset_id": "mug_001",
+    "robot": "franka",
+    "robot_base_position_m": [-0.05, 0.0, 0.78],
+    "robot_base_orientation_wxyz": [1.0, 0.0, 0.0, 0.0],
+    "grasp_offset_m": [0.053, 0.007, 0.0],
+    "grasp_orientation_wxyz": [0.0, 1.0, 0.0, 0.0],
+    "success": {
+      "predicate": "lifted",
+      "subject": "mug_1",
+      "min_height_delta_m": 0.10
+    }
+  }
+}
