@@ -41,6 +41,7 @@ def build_observation(
     orientation_error_rad: float | None = None,
     finger_positions: dict[str, Vec3] | None = None,
     finger_bounds: dict[str, dict[str, Vec3]] | None = None,
+    grasp_diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "language_instruction": instruction,
@@ -66,6 +67,7 @@ def build_observation(
                 }
                 for name, bounds in (finger_bounds or {}).items()
             },
+            "grasp_diagnostics": grasp_diagnostics or {},
             "phase": phase,
             "failure_reason": failure_reason,
             "orientation_error_rad": (
@@ -105,6 +107,19 @@ class IsaacSimBackend:
         self._task_evaluator: TaskEvaluator | None = None
         self._controller: MugLiftController | None = None
         self._last_observation: dict[str, Any] | None = None
+        self._grasp_diagnostics: dict[str, Any] = _empty_grasp_diagnostics()
+        self._material_diagnostics: dict[str, Any] = {}
+        self._contact_subscription = None
+        self._contact_interface = None
+        self._contact_events: list[dict[str, Any]] = []
+        self._pending_contact_events: list[dict[str, Any]] = []
+        self._active_contact_pairs: dict[str, dict[str, Any]] = {}
+        self._contact_event_count = 0
+        self._finger_root_paths = (
+            "/World/Robot/panda_leftfinger",
+            "/World/Robot/panda_rightfinger",
+        )
+        self._target_root_path: str | None = None
 
     @property
     def runtime_summary(self) -> dict[str, Any]:
@@ -115,6 +130,7 @@ class IsaacSimBackend:
             "grasp": controller.grasp_status if controller else "not_run",
             "phase": controller.phase.value if controller else "not_started",
             "failure_reason": controller.failure_reason if controller else None,
+            "grasp_diagnostics": self._grasp_diagnostics,
         }
 
     def reset(self, scene: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -167,6 +183,8 @@ class IsaacSimBackend:
             self.max_steps,
             tuple(float(value) for value in grasp_offset),
         )
+        self._target_root_path = str(self._object_prims[target_id].GetPath())
+        self._refresh_grasp_diagnostics()
         observation = self._observation(task_success=False)
         self._last_observation = observation
         return observation, {
@@ -198,6 +216,7 @@ class IsaacSimBackend:
         ik_success = self._apply_command(command)
         self._simulation.step(render=not self.headless)
         self.steps += 1
+        self._refresh_grasp_diagnostics()
 
         positions = self._read_object_positions()
         task_success = bool(self._task_evaluator and self._task_evaluator.evaluate(positions))
@@ -209,13 +228,17 @@ class IsaacSimBackend:
             orientation_error_rad=orientation_error,
             ik_success=ik_success,
             task_success=task_success,
+            grasp_diagnostics=self._grasp_diagnostics,
         )
         observation = self._observation(task_success=task_success, positions=positions)
         self._last_observation = observation
         timed_out = self._controller.failure_reason == "timeout"
-        terminated = self._controller.phase in {MugLiftPhase.DONE, MugLiftPhase.FAILED} and not timed_out
+        terminated = (
+            self._controller.phase in {MugLiftPhase.DONE, MugLiftPhase.FAILED}
+            and not timed_out
+        )
         truncated = timed_out
-        reward = 1.0 if task_success else 0.0
+        reward = 1.0 if self._controller.phase == MugLiftPhase.DONE else 0.0
         return observation, reward, terminated, truncated, self.runtime_summary
 
     def render(self) -> None:
@@ -233,6 +256,16 @@ class IsaacSimBackend:
                 simulation.stop()
             except (AttributeError, RuntimeError):
                 pass
+        if self._contact_subscription is not None:
+            try:
+                if hasattr(self._contact_subscription, "unsubscribe"):
+                    self._contact_subscription.unsubscribe()
+                elif self._contact_interface is not None:
+                    self._contact_interface.unsubscribe_physics_contact_report_events(
+                        self._contact_subscription
+                    )
+            except (AttributeError, RuntimeError, TypeError):
+                pass
         if app is not None:
             app.close()
         self.scene = None
@@ -243,6 +276,15 @@ class IsaacSimBackend:
         self._object_prims = {}
         self._task_evaluator = None
         self._controller = None
+        self._grasp_diagnostics = _empty_grasp_diagnostics()
+        self._material_diagnostics = {}
+        self._contact_subscription = None
+        self._contact_interface = None
+        self._contact_events = []
+        self._pending_contact_events = []
+        self._active_contact_pairs = {}
+        self._contact_event_count = 0
+        self._target_root_path = None
 
     def _initialize_runtime(self) -> None:
         try:
@@ -274,6 +316,10 @@ class IsaacSimBackend:
             raise RuntimeError(f"SceneFactory USD is missing required prims: {missing}")
         self._stage = stage
         self._object_prims = self._map_object_prims(stage)
+        target_id = _target_object(self.scene or {})
+        if target_id not in self._object_prims:
+            raise RuntimeError(f"target object is not mapped in USD: {target_id}")
+        self._target_root_path = str(self._object_prims[target_id].GetPath())
 
         assets_root = get_assets_root_path()
         if not assets_root:
@@ -348,6 +394,7 @@ class IsaacSimBackend:
         self._kinematics.get_kinematics_solver().set_robot_base_pose(
             base_position, base_orientation
         )
+        self._initialize_contact_reporting(stage)
         for _ in range(10):
             self._simulation.step(render=False)
         actual_base_position, _ = self._robot.get_world_pose()
@@ -356,6 +403,9 @@ class IsaacSimBackend:
                 "Franka base pose did not persist after physics initialization: "
                 f"expected={base_position.tolist()}, actual={actual_base_position.tolist()}"
             )
+
+        self._material_diagnostics = self._read_material_diagnostics()
+        self._refresh_grasp_diagnostics()
 
     @staticmethod
     def _configure_gripper_material(stage, UsdPhysics, UsdShade) -> None:
@@ -410,6 +460,132 @@ class IsaacSimBackend:
             self._robot.apply_action(action)
         return bool(success)
 
+    def _initialize_contact_reporting(self, stage) -> None:
+        """Subscribe to PhysX contact reports for the actual rigid-body roots."""
+        try:
+            from omni.physics.core import get_physics_simulation_interface
+            from pxr import PhysxSchema
+        except (ImportError, ModuleNotFoundError) as exc:
+            self._grasp_diagnostics.update(
+                {
+                    "contact_report_available": False,
+                    "contact_report_error": f"{type(exc).__name__}: {exc}",
+                }
+            )
+            return
+
+        target_id = _target_object(self.scene or {})
+        target_prim = self._object_prims.get(target_id)
+        roots = [stage.GetPrimAtPath(path) for path in self._finger_root_paths]
+        if target_prim is not None:
+            roots.append(target_prim)
+        invalid = [str(prim.GetPath()) for prim in roots if not prim.IsValid()]
+        if invalid:
+            self._grasp_diagnostics.update(
+                {
+                    "contact_report_available": False,
+                    "contact_report_error": f"missing contact report prims: {invalid}",
+                }
+            )
+            return
+        try:
+            for prim in roots:
+                api = PhysxSchema.PhysxContactReportAPI.Apply(prim)
+                api.CreateThresholdAttr().Set(0.0)
+            interface = get_physics_simulation_interface()
+            self._contact_interface = interface
+            self._contact_subscription = interface.subscribe_physics_contact_report_events(
+                self._on_contact_report
+            )
+        except (AttributeError, RuntimeError, TypeError) as exc:
+            self._grasp_diagnostics.update(
+                {
+                    "contact_report_available": False,
+                    "contact_report_error": f"{type(exc).__name__}: {exc}",
+                }
+            )
+            return
+        self._grasp_diagnostics.update(
+            {
+                "contact_report_available": True,
+                "contact_report_subscribed": True,
+            }
+        )
+
+    def _on_contact_report(self, *args) -> None:
+        if not args:
+            return
+        headers = args[0]
+        if not isinstance(headers, (list, tuple)):
+            headers = (headers,)
+        try:
+            from pxr import PhysicsSchemaTools
+        except (ImportError, ModuleNotFoundError):
+            return
+        for header in headers:
+            try:
+                collider0 = _contact_path(PhysicsSchemaTools, header.collider0)
+                collider1 = _contact_path(PhysicsSchemaTools, header.collider1)
+                event_type = getattr(header, "type", None)
+                event_name = getattr(event_type, "name", str(event_type))
+            except (AttributeError, RuntimeError, TypeError):
+                continue
+            pair = {
+                "collider0": collider0,
+                "collider1": collider1,
+                "event_type": str(event_name),
+            }
+            self._contact_event_count += 1
+            self._contact_events.append(pair)
+            self._pending_contact_events.append(pair)
+            if len(self._contact_events) > 128:
+                del self._contact_events[:-128]
+            if not self._is_finger_target_pair(collider0, collider1):
+                continue
+            key = "|".join(sorted((collider0, collider1)))
+            if "LOST" in str(event_name).upper():
+                self._active_contact_pairs.pop(key, None)
+            else:
+                self._active_contact_pairs[key] = pair
+
+    def _is_finger_target_pair(self, first: str, second: str) -> bool:
+        target = self._target_root_path
+        if not target:
+            return False
+        first_finger = any(_is_descendant(first, root) for root in self._finger_root_paths)
+        second_finger = any(_is_descendant(second, root) for root in self._finger_root_paths)
+        return (first_finger and _is_descendant(second, target)) or (
+            second_finger and _is_descendant(first, target)
+        )
+
+    def _refresh_grasp_diagnostics(self) -> None:
+        positions = None
+        try:
+            positions = self._robot.get_joint_positions() if self._robot is not None else None
+        except (AttributeError, RuntimeError):
+            positions = None
+        diagnostics = _read_finger_dof_diagnostics(self._robot, positions)
+        diagnostics.update(self._material_diagnostics)
+        diagnostics.update(
+            {
+                "contact_report_available": bool(
+                    self._grasp_diagnostics.get("contact_report_available")
+                ),
+                "contact_report_subscribed": bool(
+                    self._grasp_diagnostics.get("contact_report_subscribed")
+                ),
+                "finger_target_contact": bool(self._active_contact_pairs),
+                "active_contact_pairs": list(self._active_contact_pairs.values()),
+                "last_step_events": list(self._pending_contact_events),
+                "contact_event_count": int(self._contact_event_count),
+            }
+        )
+        for key in ("contact_report_error", "dof_limits_error", "material_resolution_error"):
+            if key in self._grasp_diagnostics:
+                diagnostics[key] = self._grasp_diagnostics[key]
+        self._pending_contact_events = []
+        self._grasp_diagnostics = diagnostics
+
     def _observation(
         self,
         *,
@@ -446,6 +622,7 @@ class IsaacSimBackend:
             orientation_error_rad=orientation_error,
             finger_positions=finger_positions,
             finger_bounds=finger_bounds,
+            grasp_diagnostics=self._grasp_diagnostics,
         )
 
     def _end_effector_pose(self):
@@ -505,6 +682,34 @@ class IsaacSimBackend:
             }
         return result
 
+    def _read_material_diagnostics(self) -> dict[str, Any]:
+        if self._stage is None:
+            return {
+                "finger_materials": [],
+                "target_materials": [],
+                "finger_material_resolved": False,
+                "target_material_resolution": False,
+            }
+        target_path = self._target_root_path
+        finger_materials = [
+            material
+            for root in self._finger_root_paths
+            for material in _resolve_materials_for_root(self._stage, root)
+        ]
+        target_materials = (
+            _resolve_materials_for_root(self._stage, target_path)
+            if target_path
+            else []
+        )
+        return {
+            "finger_materials": finger_materials,
+            "target_materials": target_materials,
+            "finger_material_resolved": bool(finger_materials)
+            and all(item.get("resolved") for item in finger_materials),
+            "target_material_resolution": bool(target_materials)
+            and all(item.get("resolved") for item in target_materials),
+        }
+
     @staticmethod
     def _map_object_prims(stage) -> dict[str, Any]:
         result: dict[str, Any] = {}
@@ -544,3 +749,147 @@ def _is_ascii(value: str) -> bool:
     except UnicodeEncodeError:
         return False
     return True
+
+
+def _empty_grasp_diagnostics() -> dict[str, Any]:
+    return {
+        "dof_limits_available": False,
+        "dof_limits_valid": False,
+        "finger_dofs": [],
+        "all_finger_positions_within_limits": False,
+        "contact_report_available": False,
+        "contact_report_subscribed": False,
+        "finger_target_contact": False,
+        "active_contact_pairs": [],
+        "last_step_events": [],
+        "contact_event_count": 0,
+        "finger_materials": [],
+        "target_materials": [],
+        "finger_material_resolved": False,
+        "target_material_resolution": False,
+    }
+
+
+def _read_finger_dof_diagnostics(robot: Any, positions: Any) -> dict[str, Any]:
+    result = {
+        "dof_limits_available": False,
+        "dof_limits_valid": False,
+        "finger_dofs": [],
+        "all_finger_positions_within_limits": False,
+    }
+    if robot is None:
+        return result
+    try:
+        names = [str(name) for name in robot.dof_names]
+        limits = robot.get_dof_limits()
+    except (AttributeError, RuntimeError, TypeError, ValueError):
+        return result
+    try:
+        raw_limits = limits.tolist() if hasattr(limits, "tolist") else limits
+        while (
+            isinstance(raw_limits, list)
+            and len(raw_limits) == 1
+            and isinstance(raw_limits[0], list)
+        ):
+            raw_limits = raw_limits[0]
+        raw_positions = positions.tolist() if hasattr(positions, "tolist") else positions
+        finger_names = ("panda_finger_joint1", "panda_finger_joint2")
+        entries = []
+        for name in finger_names:
+            index = names.index(name)
+            lower, upper = raw_limits[index]
+            position = float(raw_positions[index])
+            lower = float(lower)
+            upper = float(upper)
+            entries.append(
+                {
+                    "name": name,
+                    "index": index,
+                    "position": position,
+                    "lower": lower,
+                    "upper": upper,
+                    "within_limits": lower - 1e-6 <= position <= upper + 1e-6,
+                }
+            )
+        result.update(
+            {
+                "dof_limits_available": True,
+                "dof_limits_valid": all(
+                    entry["lower"] <= entry["upper"] for entry in entries
+                ),
+                "finger_dofs": entries,
+                "all_finger_positions_within_limits": all(
+                    entry["within_limits"] for entry in entries
+                ),
+            }
+        )
+    except (IndexError, KeyError, TypeError, ValueError, AttributeError):
+        return result
+    return result
+
+
+def _resolve_materials_for_root(stage: Any, root_path: str | None) -> list[dict[str, Any]]:
+    if not root_path:
+        return []
+    try:
+        from pxr import UsdPhysics, UsdShade
+    except (ImportError, ModuleNotFoundError):
+        return []
+    root = stage.GetPrimAtPath(root_path)
+    if not root.IsValid():
+        return []
+    result = []
+    seen_paths: set[str] = set()
+    candidate_prims = [
+        prim
+        for prim in stage.Traverse()
+        if _is_descendant(str(prim.GetPath()), root_path)
+    ]
+    for prim in candidate_prims:
+        try:
+            material_binding = UsdShade.MaterialBindingAPI(prim)
+            try:
+                physics_purpose = getattr(UsdShade.Tokens, "physics", "physics")
+                bound = material_binding.ComputeBoundMaterial(physics_purpose)
+            except TypeError:
+                bound = material_binding.ComputeBoundMaterial()
+            material = bound[0] if isinstance(bound, tuple) else bound
+            if material is None or not material.GetPrim().IsValid():
+                continue
+            material_prim = material.GetPrim()
+            material_path = str(material_prim.GetPath())
+            if material_path in seen_paths:
+                continue
+            seen_paths.add(material_path)
+            physics = UsdPhysics.MaterialAPI(material_prim)
+            static = physics.GetStaticFrictionAttr().Get()
+            dynamic = physics.GetDynamicFrictionAttr().Get()
+            restitution = physics.GetRestitutionAttr().Get()
+            result.append(
+                {
+                    "bound_prim": str(prim.GetPath()),
+                    "material_path": material_path,
+                    "static_friction": float(static) if static is not None else None,
+                    "dynamic_friction": float(dynamic) if dynamic is not None else None,
+                    "restitution": float(restitution) if restitution is not None else None,
+                    "resolved": (
+                        static is not None
+                        and dynamic is not None
+                        and restitution is not None
+                    ),
+                }
+            )
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            continue
+    return result
+
+
+def _contact_path(physics_schema_tools: Any, value: Any) -> str:
+    try:
+        return str(physics_schema_tools.intToSdfPath(value))
+    except (AttributeError, TypeError, ValueError):
+        return str(value)
+
+
+def _is_descendant(path: str, root: str) -> bool:
+    return path == root or path.startswith(root.rstrip("/") + "/")

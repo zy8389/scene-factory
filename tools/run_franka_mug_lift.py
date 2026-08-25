@@ -74,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
             ik="not_run",
             grasp="not_run",
             failure_reason=f"{type(exc).__name__}: {exc}",
+            grasp_diagnostics={},
         )
         report.update({"error": report["failure_reason"], "traceback": traceback.format_exc()})
         _write(report_path, report)
@@ -120,9 +121,15 @@ def main(argv: list[str] | None = None) -> int:
             ik="not_run",
             grasp="not_run",
             failure_reason=f"Isaac runtime process exited with code {process.returncode}",
+            grasp_diagnostics={},
         )
         report["runtime_log"] = str(log_path)
         _write(report_path, report)
+    diagnostics_path = output / "grasp_diagnostics.json"
+    if not diagnostics_path.is_file():
+        _write(diagnostics_path, report.get("grasp_diagnostics", {}))
+    report.setdefault("grasp_diagnostics_path", str(diagnostics_path))
+    _write(report_path, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["result"] == "passed" else 2
 
@@ -139,7 +146,12 @@ def _run_runtime(
     initial_observation = None
     final_observation = None
     failure_reason = None
-    summary = {"steps": 0, "ik": "not_run", "grasp": "not_run"}
+    summary = {
+        "steps": 0,
+        "ik": "not_run",
+        "grasp": "not_run",
+        "grasp_diagnostics": {},
+    }
     trace_path = report_path.with_name("robot_trace.jsonl")
     trace_path.unlink(missing_ok=True)
     try:
@@ -165,6 +177,22 @@ def _run_runtime(
         }
     else:
         error_payload = {}
+    if not trace_path.is_file():
+        trace_path.write_text(
+            json.dumps(
+                {
+                    "step": int(summary.get("steps", 0)),
+                    "phase": summary.get("phase", "not_started"),
+                    "failure_reason": failure_reason,
+                    "grasp_diagnostics": summary.get("grasp_diagnostics", {}),
+                    "runtime_error": error_payload.get("error"),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     report = build_robot_acceptance_report(
         scene_id=scene.get("scene_id", "not_loaded") if "scene" in locals() else "not_loaded",
         initial_observation=initial_observation,
@@ -173,9 +201,14 @@ def _run_runtime(
         ik=str(summary.get("ik", "not_run")),
         grasp=str(summary.get("grasp", "not_run")),
         failure_reason=failure_reason,
+        grasp_diagnostics=summary.get("grasp_diagnostics"),
     )
     report.update(error_payload)
     report["trace"] = str(trace_path)
+    diagnostics = report.get("grasp_diagnostics") or summary.get("grasp_diagnostics", {})
+    diagnostics_path = report_path.with_name("grasp_diagnostics.json")
+    _write(diagnostics_path, diagnostics)
+    report["grasp_diagnostics_path"] = str(diagnostics_path)
     _write(report_path, report)
     if backend is not None:
         backend.close()
@@ -201,6 +234,7 @@ def _write_trace(handle, observation: dict[str, Any]) -> None:
                 "finger_positions": robot.get("finger_positions", {}),
                 "finger_bounds": robot.get("finger_bounds", {}),
                 "finger_joint_positions": robot.get("joint_positions", [])[-2:],
+                "grasp_diagnostics": robot.get("grasp_diagnostics", {}),
                 "task_success": observation.get("task_success"),
             },
             ensure_ascii=False,

@@ -87,18 +87,37 @@ $env:OMNI_KIT_ACCEPT_EULA = "YES"
   --output F:\scene_factory_runtime\p1_1_franka_mug_lift
 ```
 
-状态机固定为 `PRE_GRASP -> APPROACH -> GRASP -> LIFT -> DONE/FAILED`，包含总超时、
+状态机固定为
+`PRE_GRASP -> APPROACH -> GRASP -> VERIFY_GRASP -> LIFT -> DONE/FAILED`，包含总超时、
 阶段超时、连续 IK failure、grasp failure 与 object lost。位置和 `right_gripper` frame
-姿态必须同时收敛后才会切换 reach 阶段；抬升目标以每 physics step `2 mm` 递增。
+姿态必须同时收敛后才会切换 reach 阶段。`GRASP` 闭合后，`VERIFY_GRASP` 保持真实闭合
+夹爪并将 IK 目标微抬升 `10 mm`，持续 30 个 physics step；只有在以下证据同时成立时
+才会进入正式 `LIFT`：
+
+- Franka `panda_finger_joint1/2` 的 lower/upper DOF limits 已从 articulation 读取，且当前位置在 limits 内；
+- PhysX contact report subscription 成功，并记录了 finger collider 与 `mug_1` collider 的实际 pair；
+- finger 和目标 collider 的 resolved physics material 均能解析出 static friction、dynamic friction、restitution；
+- contact 在验证阶段持续至少 10 个 step，且杯子真实跟随微抬升至少 `5 mm`。
+
+任一诊断 API 不可用时保持 `FAILED(grasp_diagnostics_unavailable)`；没有真实 pair 或杯子
+没有真实随动时保持 `FAILED(grasp_failure)`。正式抬升目标以每 physics step `2 mm`
+递增，只有 `TaskEvaluator=True` 且真实 `lift_delta_m >= 0.10` 才能进入 `DONE`。
+
+每个 `robot_trace.jsonl` 行的 `grasp_diagnostics` 保存当前快照，最终
+`robot_acceptance.json` 同时包含该快照，并额外写出 `grasp_diagnostics.json`。诊断字段
+包括 `finger_dofs`（name/index/position/lower/upper）、`active_contact_pairs`、
+`last_step_events`、`contact_event_count`、`finger_materials` 和 `target_materials`。
+这些字段来自 Isaac stage/runtime 的真实 API，不通过 attachment、物体 pose 改写或
+修改 `TaskEvaluator` 阈值来制造成功。
 
 真实 `mug_001` visual USD 与 authored collision USD 原点不同。导出器通过
 `UsdGeom.BBoxCache` 计算 collision local midpoint，并在 `AuthoredCollision` reference 上
 施加逆平移，使 visual/collision 中心一致。修复后杯子在桌面稳定于约
 `z=0.964435 m`；修复前约为 `z=0.944196 m`。
 
-### 当前真实结果
+### 诊断改动前的基线结果
 
-最近与当前稳定控制配置一致的完整运行产物：
+诊断门控改动前、稳定控制配置的完整运行产物：
 
 ```text
 F:\scene_factory_runtime\p1_1_franka_mug_lift_v29\robot_acceptance.json
@@ -119,7 +138,11 @@ final_target_z=0.9644355178
 lift_delta_m=0.0000000596
 ```
 
-Franka、Lula IK、真实 PhysX stepping、ready `mug_001`、碰撞接触和 TaskEvaluator 都已
-实际运行，但杯柄未在抬升阶段保持夹持，因此 P1-1 真实机器人 acceptance 仍是
-`FAILED`。在新的 `robot_acceptance.json` 同时满足 `task_success=true` 与
-`lift_delta_m>=0.10` 前，不得写成 `PASSED`。
+该运行证明 Franka、Lula IK、真实 PhysX stepping、ready `mug_001` 和 TaskEvaluator
+可以启动，但杯柄未在抬升阶段保持夹持，因此 acceptance 是 `FAILED`。这是加入诊断
+门控前的基线，不可用来声称新的 `VERIFY_GRASP` 已通过。
+
+诊断版本的 acceptance 仍必须在同一个真实 runtime 中同时满足 `task_success=true` 与
+`lift_delta_m>=0.10` 才能写成 `PASSED`。若 Isaac assets root、contact report 或
+resolved material API 不可用，报告必须保留 `grasp_diagnostics_unavailable` 和具体错误，
+不得回退到 DryRun、attachment 或直接改写目标位姿。

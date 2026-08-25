@@ -24,6 +24,19 @@ from scene_factory.tasks import TaskEvaluator
 
 
 class RobotRuntimeTests(unittest.TestCase):
+    @staticmethod
+    def _valid_grasp_diagnostics(contact: bool = True) -> dict:
+        return {
+            "dof_limits_available": True,
+            "dof_limits_valid": True,
+            "all_finger_positions_within_limits": True,
+            "contact_report_available": True,
+            "contact_report_subscribed": True,
+            "finger_material_resolved": True,
+            "target_material_resolution": True,
+            "finger_target_contact": contact,
+        }
+
     def test_simulator_backend_contract_and_lazy_isaac_import(self) -> None:
         self.assertIsInstance(DryRunBackend(), SimulatorBackend)
         backend = IsaacSimBackend("scene.usd")
@@ -52,6 +65,7 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertEqual(len(observation["robot"]["joint_positions"]), 9)
         self.assertIsNone(observation["robot"]["orientation_error_rad"])
         self.assertFalse(observation["task_success"])
+        self.assertEqual(observation["robot"]["grasp_diagnostics"], {})
 
     def test_reach_phase_waits_for_orientation_convergence(self) -> None:
         initial = (0.5, 0.0, 0.9)
@@ -109,6 +123,15 @@ class RobotRuntimeTests(unittest.TestCase):
                 ik_success=None,
                 task_success=False,
             )
+        self.assertEqual(controller.phase, MugLiftPhase.VERIFY_GRASP)
+        for index in range(30):
+            controller.advance(
+                target_position=(0.5, 0.0, 0.906 if index >= 20 else 0.9),
+                end_effector_position=(0.5, 0.0, 0.91),
+                ik_success=True,
+                task_success=False,
+                grasp_diagnostics=self._valid_grasp_diagnostics(),
+            )
         self.assertEqual(controller.phase, MugLiftPhase.LIFT)
         controller.advance(
             target_position=(0.5, 0.0, 1.01),
@@ -118,6 +141,33 @@ class RobotRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(controller.phase, MugLiftPhase.DONE)
 
+    def test_verify_grasp_without_contact_fails_before_lift(self) -> None:
+        initial = (0.5, 0.0, 0.9)
+        controller = MugLiftController(initial, max_steps=400)
+        controller.phase = MugLiftPhase.VERIFY_GRASP
+        for _ in range(30):
+            controller.advance(
+                target_position=initial,
+                end_effector_position=initial,
+                ik_success=True,
+                task_success=False,
+                grasp_diagnostics=self._valid_grasp_diagnostics(contact=False),
+            )
+        self.assertEqual(controller.phase, MugLiftPhase.FAILED)
+        self.assertEqual(controller.failure_reason, "grasp_failure")
+
+    def test_verify_grasp_requires_auditable_diagnostics(self) -> None:
+        controller = MugLiftController((0.5, 0.0, 0.9), max_steps=100)
+        controller.phase = MugLiftPhase.VERIFY_GRASP
+        controller.advance(
+            target_position=(0.5, 0.0, 0.9),
+            end_effector_position=(0.5, 0.0, 0.9),
+            ik_success=True,
+            task_success=False,
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.FAILED)
+        self.assertEqual(controller.failure_reason, "grasp_diagnostics_unavailable")
+
     def test_controller_does_not_chase_a_displaced_target(self) -> None:
         initial = (0.5, 0.0, 0.9)
         controller = MugLiftController(initial, grasp_offset=(0.053, 0.007, 0.0))
@@ -125,7 +175,7 @@ class RobotRuntimeTests(unittest.TestCase):
         for phase, expected_z in (
             (MugLiftPhase.PRE_GRASP, 1.04),
             (MugLiftPhase.APPROACH, 0.9),
-            (MugLiftPhase.LIFT, 1.14),
+            (MugLiftPhase.LIFT, 1.15),
         ):
             controller.phase = phase
             controller.phase_steps = 120 if phase == MugLiftPhase.LIFT else 0
@@ -149,6 +199,7 @@ class RobotRuntimeTests(unittest.TestCase):
         final = {
             "objects": {"mug_1": {"position": [0.5, 0.0, 1.01]}},
             "task_success": True,
+            "robot": {"phase": "DONE"},
         }
         report = build_robot_acceptance_report(
             scene_id="scene",
@@ -178,11 +229,27 @@ class RobotRuntimeTests(unittest.TestCase):
                 "initial_end_effector_position",
                 "final_end_effector_position",
                 "final_joint_positions",
+                "grasp_diagnostics",
                 "task_success",
                 "result",
                 "failure_reason",
             }.issubset(report),
         )
+        failed_final = {
+            "objects": {"mug_1": {"position": [0.5, 0.0, 1.01]}},
+            "task_success": True,
+            "robot": {"phase": "FAILED"},
+        }
+        failed_report = build_robot_acceptance_report(
+            scene_id="scene",
+            initial_observation=initial,
+            final_observation=failed_final,
+            steps=120,
+            ik="passed",
+            grasp="failed",
+            failure_reason="grasp_failure",
+        )
+        self.assertEqual(failed_report["result"], "failed")
 
     def test_acceptance_recipe_uses_ready_real_mug(self) -> None:
         factory = SceneFactory()
