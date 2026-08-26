@@ -50,7 +50,8 @@
       "min_lift_delta_m": 0.10,
       "lift_height_m": 0.14,
       "transfer_clearance_m": 0.10,
-      "settle_steps": 20
+      "settle_steps": 20,
+      "max_settle_step_distance_m": 0.005
     }
   }
 }

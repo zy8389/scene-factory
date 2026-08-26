@@ -43,6 +43,7 @@ class RobotRuntimeTests(unittest.TestCase):
                 "target_tolerance_m": [0.09, 0.09, 0.03],
                 "min_lift_delta_m": 0.10,
                 "settle_steps": settle_steps,
+                "max_settle_step_distance_m": 0.005,
             },
         }
 
@@ -53,6 +54,7 @@ class RobotRuntimeTests(unittest.TestCase):
             "gripper_open": gripper_open,
             "contact_report_available": True,
             "contact_report_subscribed": True,
+            "contact_force_read_valid": True,
         }
 
     def test_gripper_commands_use_runtime_finger_limits(self) -> None:
@@ -147,6 +149,7 @@ class RobotRuntimeTests(unittest.TestCase):
             "all_finger_positions_within_limits": True,
             "contact_report_available": True,
             "contact_report_subscribed": True,
+            "contact_force_read_valid": True,
             "finger_material_resolved": True,
             "target_material_resolution": True,
             "finger_target_contact": contact,
@@ -402,6 +405,42 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertTrue(final_status["released"])
         self.assertTrue(final_status["placement_stable"])
 
+    def test_pick_place_stability_rejects_fast_target_motion(self) -> None:
+        evaluator = TaskEvaluator(
+            self._pick_place_task(settle_steps=2),
+            {"mug_1": (0.56, 0.0, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+        )
+        evidence = self._release_evidence(contact=True, gripper_open=False)
+        evaluator.status(
+            {"mug_1": (0.56, 0.0, 1.08), "island_1": (1.15, 0.0, 0.46)},
+            evidence,
+        )
+        status = evaluator.status(
+            {"mug_1": (0.78, 0.20, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+            self._release_evidence(contact=False, gripper_open=True),
+        )
+        self.assertFalse(status["placement_motion_stable"])
+        self.assertEqual(status["placement_stable_steps"], 0)
+        self.assertFalse(status["task_success"])
+
+    def test_pick_place_contact_read_failure_cannot_verify_release(self) -> None:
+        evaluator = TaskEvaluator(
+            self._pick_place_task(settle_steps=1),
+            {"mug_1": (0.56, 0.0, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+        )
+        evaluator.status(
+            {"mug_1": (0.56, 0.0, 1.08), "island_1": (1.15, 0.0, 0.46)},
+            self._release_evidence(contact=True, gripper_open=False),
+        )
+        evidence = self._release_evidence(contact=False, gripper_open=True)
+        evidence["contact_force_read_valid"] = False
+        status = evaluator.status(
+            {"mug_1": (0.78, 0.20, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+            evidence,
+        )
+        self.assertFalse(status["released"])
+        self.assertFalse(status["task_success"])
+
     def test_pick_place_controller_transitions_through_release(self) -> None:
         controller = MugLiftController(
             (0.56, 0.0, 0.9665),
@@ -492,7 +531,7 @@ class RobotRuntimeTests(unittest.TestCase):
             initial_observation={"objects": {"mug_1": {"position": [0.56, 0.0, 0.9665]}}},
             final_observation={
                 "objects": {"mug_1": {"position": [0.78, 0.20, 0.9665]}},
-                "task_success": False,
+                "task_success": True,
                 "robot": {
                     "phase": "DONE",
                     "pick_status": "passed",

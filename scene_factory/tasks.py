@@ -14,6 +14,8 @@ class TaskEvaluator:
         self._picked = False
         self._released = False
         self._placement_stable_steps = 0
+        self._last_target_position: tuple[float, float, float] | None = None
+        self._last_target_step_distance_m = 0.0
         self._validate_task()
 
     def evaluate(
@@ -98,6 +100,8 @@ class TaskEvaluator:
             raise ValueError("pick_and_place min_lift_delta_m must be positive")
         if int(success.get("settle_steps", 20)) < 1:
             raise ValueError("pick_and_place settle_steps must be positive")
+        if float(success.get("max_settle_step_distance_m", 0.005)) <= 0.0:
+            raise ValueError("pick_and_place max_settle_step_distance_m must be positive")
 
     def _pick_and_place_status(
         self,
@@ -123,6 +127,14 @@ class TaskEvaluator:
                 "max_lift_delta_m": self._max_lift_delta_m,
             }
 
+        current_position = tuple(float(value) for value in current)
+        if self._last_target_position is None:
+            self._last_target_step_distance_m = 0.0
+        else:
+            self._last_target_step_distance_m = math.dist(
+                current_position, self._last_target_position
+            )
+        self._last_target_position = current_position
         lift_delta = float(current[2]) - float(initial[2])
         self._max_lift_delta_m = max(self._max_lift_delta_m, lift_delta)
         contact = evidence.get("finger_target_contact") is True
@@ -137,9 +149,16 @@ class TaskEvaluator:
         contact_api_valid = (
             evidence.get("contact_report_available") is True
             and evidence.get("contact_report_subscribed") is True
+            and evidence.get("contact_force_read_valid") is True
         )
         self._released = bool(gripper_open and not contact and contact_api_valid)
-        if self._released and in_region:
+        max_settle_step_distance = float(
+            success.get("max_settle_step_distance_m", 0.005)
+        )
+        placement_motion_stable = (
+            self._last_target_step_distance_m <= max_settle_step_distance
+        )
+        if self._released and in_region and placement_motion_stable:
             self._placement_stable_steps += 1
         else:
             self._placement_stable_steps = 0
@@ -154,6 +173,9 @@ class TaskEvaluator:
             "released": self._released,
             "placement_stable": placement_stable,
             "placement_stable_steps": self._placement_stable_steps,
+            "placement_motion_stable": placement_motion_stable,
+            "placement_step_distance_m": self._last_target_step_distance_m,
+            "max_settle_step_distance_m": max_settle_step_distance,
             "max_lift_delta_m": self._max_lift_delta_m,
             "target_support": target_support,
             "target_position_m": [float(value) for value in target],

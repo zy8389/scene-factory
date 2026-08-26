@@ -436,6 +436,7 @@ def _grasp_diagnostics_unavailable(diagnostics: dict[str, Any] | None) -> bool:
         "all_finger_positions_within_limits",
         "contact_report_available",
         "contact_report_subscribed",
+        "contact_force_read_valid",
         "finger_material_resolved",
         "target_material_resolution",
     )
@@ -532,10 +533,14 @@ def build_pick_place_acceptance_report(
         final_diagnostics = _robot_value(final_observation, "grasp_diagnostics")
     oracle = _robot_value(final_observation, "task_oracle") or {}
     phase = _robot_value(final_observation, "phase") or "not_started"
-    task_success = bool(final_observation and final_observation.get("task_success"))
+    task_success = bool(
+        final_observation
+        and final_observation.get("task_success") is True
+        and oracle.get("task_success") is True
+    )
     gripper_open = bool((final_diagnostics or {}).get("gripper_open"))
     current_contact = bool((final_diagnostics or {}).get("finger_target_contact"))
-    released = bool(released or oracle.get("released"))
+    released = bool(released and oracle.get("released") is True)
     passed = bool(
         task_success
         and phase == "DONE"

@@ -156,6 +156,7 @@ class IsaacSimBackend:
         self._active_contact_pairs: dict[str, dict[str, Any]] = {}
         self._contact_views: list[tuple[str, Any]] = []
         self._contact_force_pairs: dict[str, dict[str, Any]] = {}
+        self._contact_force_read_valid = False
         self._contact_event_count = 0
         self._finger_root_paths: tuple[str, str] = (
             "/World/Robot/panda_leftfinger",
@@ -419,6 +420,7 @@ class IsaacSimBackend:
         self._active_contact_pairs = {}
         self._contact_views = []
         self._contact_force_pairs = {}
+        self._contact_force_read_valid = False
         self._contact_event_count = 0
         self._finger_root_paths = (
             "/World/Robot/panda_leftfinger",
@@ -753,6 +755,8 @@ class IsaacSimBackend:
         )
 
     def _refresh_contact_force_pairs(self) -> None:
+        self._contact_force_pairs = {}
+        self._contact_force_read_valid = False
         if not self._contact_views or not self._target_root_path:
             return
         try:
@@ -762,7 +766,7 @@ class IsaacSimBackend:
             for finger_path, view in self._contact_views:
                 matrix = np.asarray(view.get_contact_force_matrix(dt=self.physics_dt))
                 if matrix.ndim != 3 or matrix.shape[0] < 1 or matrix.shape[1] < 1:
-                    continue
+                    raise RuntimeError("invalid Franka contact force matrix")
                 force = np.asarray(matrix[0, 0], dtype=float)
                 magnitude = float(np.linalg.norm(force))
                 if magnitude <= 1e-6:
@@ -776,6 +780,7 @@ class IsaacSimBackend:
                     "force_magnitude": magnitude,
                 }
             self._contact_force_pairs = current
+            self._contact_force_read_valid = True
         except (AttributeError, RuntimeError, TypeError, ValueError):
             self._contact_force_pairs = {}
 
@@ -851,6 +856,7 @@ class IsaacSimBackend:
                 "event_contact_pairs": list(self._active_contact_pairs.values()),
                 "contact_force_pair_count": len(self._contact_force_pairs),
                 "contact_force_pairs": list(self._contact_force_pairs.values()),
+                "contact_force_read_valid": bool(self._contact_force_read_valid),
                 "last_step_events": list(self._pending_contact_events),
                 "contact_event_count": int(self._contact_event_count),
                 "finger_gripper_config": self._finger_gripper_config,
@@ -1241,6 +1247,7 @@ def _empty_grasp_diagnostics() -> dict[str, Any]:
         "all_finger_positions_within_limits": False,
         "contact_report_available": False,
         "contact_report_subscribed": False,
+        "contact_force_read_valid": False,
         "finger_target_contact": False,
         "gripper_open": False,
         "active_contact_pairs": [],
