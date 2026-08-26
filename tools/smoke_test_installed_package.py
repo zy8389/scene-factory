@@ -14,6 +14,7 @@ def main() -> int:
         registry,
         recipes / "kitchen_after_cooking.json",
         recipes / "kitchen_franka_mug_lift.json",
+        recipes / "kitchen_franka_mug_pick_place.json",
         web / "index.html",
     ]
     missing = [str(path) for path in required if not path.is_file()]
@@ -25,6 +26,9 @@ def main() -> int:
     mug = next(item for item in result.scene.objects if item.object_id == "mug_1")
     if not result.valid or mug.asset_id != "mug_001":
         raise RuntimeError("installed SceneFactory failed the real-mug recipe smoke test")
+    pick_place = factory.build_from_recipe("kitchen_franka_mug_pick_place", 77)
+    if not pick_place.valid:
+        raise RuntimeError("installed SceneFactory failed the pick-and-place recipe smoke test")
     print(
         json.dumps(
             {

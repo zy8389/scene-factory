@@ -14,12 +14,14 @@ from scene_factory.backends.isaac import (
     _load_simulation_app,
     _franka_kinematics_frame,
     _resolve_finger_gripper_config,
+    _finger_gripper_is_open,
     build_observation,
 )
 from scene_factory.factory import SceneFactory
 from scene_factory.robotics import (
     MugLiftController,
     MugLiftPhase,
+    build_pick_place_acceptance_report,
     build_robot_acceptance_report,
     quaternion_angular_distance,
 )
@@ -27,6 +29,34 @@ from scene_factory.tasks import TaskEvaluator
 
 
 class RobotRuntimeTests(unittest.TestCase):
+    @staticmethod
+    def _pick_place_task(settle_steps: int = 2) -> dict:
+        return {
+            "target_object": "mug_1",
+            "success": {
+                "predicate": "pick_and_place",
+                "subject": "mug_1",
+                "source_support": "island_1",
+                "target_support": "island_1",
+                "target_position_m": [0.78, 0.20, 0.9665],
+                "target_region_xy": [0.70, 0.86, 0.10, 0.30],
+                "target_tolerance_m": [0.09, 0.09, 0.03],
+                "min_lift_delta_m": 0.10,
+                "settle_steps": settle_steps,
+                "max_settle_step_distance_m": 0.005,
+            },
+        }
+
+    @staticmethod
+    def _release_evidence(*, contact: bool, gripper_open: bool) -> dict:
+        return {
+            "finger_target_contact": contact,
+            "gripper_open": gripper_open,
+            "contact_report_available": True,
+            "contact_report_subscribed": True,
+            "contact_force_read_valid": True,
+        }
+
     def test_gripper_commands_use_runtime_finger_limits(self) -> None:
         class FakeArticulation:
             dof_names = [
@@ -96,6 +126,21 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertEqual(config["open_positions"], [0.04, 0.039])
         self.assertEqual(config["closed_positions"], [0.0, 0.0])
 
+    def test_gripper_open_uses_runtime_delta_tolerance(self) -> None:
+        diagnostics = {
+            "finger_dofs": [
+                {"position": 0.0396},
+                {"position": 0.0395},
+            ],
+            "finger_gripper_config": {
+                "open_positions": [0.04, 0.04],
+                "action_deltas": [0.004, 0.004],
+            },
+        }
+        self.assertTrue(_finger_gripper_is_open(diagnostics))
+        diagnostics["finger_dofs"][0]["position"] = 0.0394
+        self.assertFalse(_finger_gripper_is_open(diagnostics))
+
     @staticmethod
     def _valid_grasp_diagnostics(contact: bool = True) -> dict:
         return {
@@ -104,6 +149,7 @@ class RobotRuntimeTests(unittest.TestCase):
             "all_finger_positions_within_limits": True,
             "contact_report_available": True,
             "contact_report_subscribed": True,
+            "contact_force_read_valid": True,
             "finger_material_resolved": True,
             "target_material_resolution": True,
             "finger_target_contact": contact,
@@ -324,6 +370,189 @@ class RobotRuntimeTests(unittest.TestCase):
             self.assertEqual(goal[:2], (expected_x, 0.007))
             self.assertAlmostEqual(goal[2], expected_z)
 
+    def test_pick_place_oracle_requires_pick_target_release_and_stability(self) -> None:
+        task = self._pick_place_task(settle_steps=2)
+        evaluator = TaskEvaluator(
+            task,
+            {"mug_1": (0.56, 0.0, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+        )
+        self.assertFalse(
+            evaluator.evaluate(
+                {"mug_1": (0.56, 0.0, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+                self._release_evidence(contact=False, gripper_open=True),
+            )
+        )
+        lifted = {"mug_1": (0.56, 0.0, 1.08), "island_1": (1.15, 0.0, 0.46)}
+        picked_status = evaluator.status(
+            lifted,
+            self._release_evidence(contact=True, gripper_open=False),
+        )
+        self.assertTrue(picked_status["pick_success"])
+        target = {"mug_1": (0.78, 0.20, 0.9665), "island_1": (1.15, 0.0, 0.46)}
+        self.assertFalse(
+            evaluator.evaluate(target, self._release_evidence(contact=True, gripper_open=False))
+        )
+        self.assertFalse(
+            evaluator.evaluate(target, self._release_evidence(contact=False, gripper_open=True))
+        )
+        self.assertTrue(
+            evaluator.evaluate(target, self._release_evidence(contact=False, gripper_open=True))
+        )
+        final_status = evaluator.status(
+            target,
+            self._release_evidence(contact=False, gripper_open=True),
+        )
+        self.assertTrue(final_status["released"])
+        self.assertTrue(final_status["placement_stable"])
+
+    def test_pick_place_stability_rejects_fast_target_motion(self) -> None:
+        evaluator = TaskEvaluator(
+            self._pick_place_task(settle_steps=2),
+            {"mug_1": (0.56, 0.0, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+        )
+        evidence = self._release_evidence(contact=True, gripper_open=False)
+        evaluator.status(
+            {"mug_1": (0.56, 0.0, 1.08), "island_1": (1.15, 0.0, 0.46)},
+            evidence,
+        )
+        status = evaluator.status(
+            {"mug_1": (0.78, 0.20, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+            self._release_evidence(contact=False, gripper_open=True),
+        )
+        self.assertFalse(status["placement_motion_stable"])
+        self.assertEqual(status["placement_stable_steps"], 0)
+        self.assertFalse(status["task_success"])
+
+    def test_pick_place_contact_read_failure_cannot_verify_release(self) -> None:
+        evaluator = TaskEvaluator(
+            self._pick_place_task(settle_steps=1),
+            {"mug_1": (0.56, 0.0, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+        )
+        evaluator.status(
+            {"mug_1": (0.56, 0.0, 1.08), "island_1": (1.15, 0.0, 0.46)},
+            self._release_evidence(contact=True, gripper_open=False),
+        )
+        evidence = self._release_evidence(contact=False, gripper_open=True)
+        evidence["contact_force_read_valid"] = False
+        status = evaluator.status(
+            {"mug_1": (0.78, 0.20, 0.9665), "island_1": (1.15, 0.0, 0.46)},
+            evidence,
+        )
+        self.assertFalse(status["released"])
+        self.assertFalse(status["task_success"])
+
+    def test_pick_place_controller_transitions_through_release(self) -> None:
+        controller = MugLiftController(
+            (0.56, 0.0, 0.9665),
+            max_steps=500,
+            place_target_position=(0.78, 0.20, 0.9665),
+            task_mode="pick_place",
+            transfer_clearance_m=0.20,
+        )
+        controller.phase = MugLiftPhase.LIFT
+        lift_command = controller.command((0.56, 0.0, 1.08))
+        controller.advance(
+            target_position=(0.56, 0.0, 1.08),
+            end_effector_position=lift_command.goal_position,
+            ik_success=True,
+            task_success=False,
+            task_state={"pick_success": True, "holding": True, "max_lift_delta_m": 0.20},
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.TRANSFER)
+
+        controller.phase_steps = controller._TRANSFER_RAMP_STEPS
+        transfer_command = controller.command((0.56, 0.0, 1.08))
+        controller.advance(
+            target_position=(0.56, 0.0, 1.08),
+            end_effector_position=transfer_command.goal_position,
+            ik_success=True,
+            task_success=False,
+            task_state={"pick_success": True, "holding": True},
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.LOWER)
+
+        controller.phase_steps = controller._LOWER_RAMP_STEPS
+        lower_command = controller.command((0.78, 0.20, 0.9665))
+        controller.advance(
+            target_position=(0.78, 0.20, 0.9665),
+            end_effector_position=lower_command.goal_position,
+            ik_success=True,
+            task_success=False,
+            task_state={"pick_success": True, "holding": True, "in_target_region": True},
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.RELEASE)
+
+        controller.phase_steps = controller._RELEASE_STEPS
+        controller.advance(
+            target_position=(0.78, 0.20, 0.9665),
+            end_effector_position=(0.78, 0.20, 1.15),
+            ik_success=None,
+            task_success=False,
+            task_state={"gripper_open": True, "released": False},
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.VERIFY_PLACE)
+
+        controller.advance(
+            target_position=(0.78, 0.20, 0.9665),
+            end_effector_position=(0.78, 0.20, 1.15),
+            ik_success=None,
+            task_success=True,
+            task_state={"gripper_open": True, "released": True},
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.DONE)
+
+    def test_pick_place_invalid_target_and_failed_placement_fail_closed(self) -> None:
+        invalid = self._pick_place_task()
+        invalid["success"].pop("target_position_m")
+        with self.assertRaises(ValueError):
+            TaskEvaluator(invalid, {"mug_1": (0.0, 0.0, 0.9)})
+
+        controller = MugLiftController(
+            (0.56, 0.0, 0.9665),
+            max_steps=200,
+            place_target_position=(0.78, 0.20, 0.9665),
+            task_mode="pick_place",
+        )
+        controller.phase = MugLiftPhase.VERIFY_PLACE
+        controller.phase_steps = controller._VERIFY_PLACE_STEPS - 1
+        controller.advance(
+            target_position=(0.56, 0.0, 0.9665),
+            end_effector_position=(0.56, 0.0, 1.1),
+            ik_success=None,
+            task_success=False,
+            task_state={"gripper_open": True, "released": False},
+        )
+        self.assertEqual(controller.phase, MugLiftPhase.FAILED)
+        self.assertEqual(controller.failure_reason, "place_failure")
+
+    def test_pick_place_report_requires_oracle_success_even_when_phase_is_done(self) -> None:
+        report = build_pick_place_acceptance_report(
+            scene_id="scene",
+            initial_observation={"objects": {"mug_1": {"position": [0.56, 0.0, 0.9665]}}},
+            final_observation={
+                "objects": {"mug_1": {"position": [0.78, 0.20, 0.9665]}},
+                "task_success": True,
+                "robot": {
+                    "phase": "DONE",
+                    "pick_status": "passed",
+                    "place_status": "passed",
+                    "released": True,
+                    "task_oracle": {"task_success": False},
+                    "grasp_diagnostics": {
+                        "gripper_open": True,
+                        "finger_target_contact": False,
+                    },
+                },
+            },
+            steps=200,
+            ik="passed",
+            pick="passed",
+            place="passed",
+            released=True,
+            failure_reason=None,
+        )
+        self.assertEqual(report["result"], "failed")
+
     def test_task_evaluator_and_acceptance_report_share_real_pose_delta(self) -> None:
         task = {
             "target_object": "mug_1",
@@ -424,6 +653,17 @@ class RobotRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             files = factory.write_result(result, directory)
             self.assertTrue(Path(files["layout"]).is_file())
+
+    def test_pick_place_recipe_uses_ready_real_mug_and_target_spec(self) -> None:
+        factory = SceneFactory()
+        result = factory.build_from_recipe("kitchen_franka_mug_pick_place", 77)
+        self.assertTrue(result.valid, result.validation.to_dict())
+        mug = next(item for item in result.scene.objects if item.object_id == "mug_1")
+        success = result.scene.task["success"]
+        self.assertEqual(mug.asset_id, "mug_001")
+        self.assertEqual(success["predicate"], "pick_and_place")
+        self.assertEqual(success["target_support"], "island_1")
+        self.assertEqual(len(success["target_position_m"]), 3)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scene_factory.backends import IsaacSimBackend  # noqa: E402
 from scene_factory.factory import SceneFactory  # noqa: E402
-from scene_factory.robotics import build_robot_acceptance_report  # noqa: E402
+from scene_factory.robotics import (  # noqa: E402
+    build_pick_place_acceptance_report,
+    build_robot_acceptance_report,
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -23,6 +26,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Run the SceneFactory Franka real-mug lift acceptance in Isaac Sim."
     )
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--recipe", default="kitchen_franka_mug_lift")
     parser.add_argument("--seed", type=int, default=77)
     parser.add_argument("--max-steps", type=int, default=720)
     parser.add_argument("--no-headless", action="store_true")
@@ -58,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         factory = SceneFactory()
-        result = factory.build_from_recipe("kitchen_franka_mug_lift", args.seed)
+        result = factory.build_from_recipe(args.recipe, args.seed)
         if not result.valid:
             raise RuntimeError(f"acceptance scene is invalid: {result.validation.to_dict()}")
         mug = next(item for item in result.scene.objects if item.object_id == "mug_1")
@@ -86,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
         str(Path(__file__).resolve()),
         "--output",
         str(output),
+        "--recipe",
+        args.recipe,
         "--max-steps",
         str(args.max_steps),
         "--runtime-only",
@@ -147,6 +153,41 @@ def _invalidate_report_on_process_failure(report: dict[str, Any], returncode: in
         )
 
 
+def _build_acceptance_report(
+    *,
+    scene: dict[str, Any],
+    initial_observation: dict[str, Any] | None,
+    final_observation: dict[str, Any] | None,
+    steps: int,
+    summary: dict[str, Any],
+    failure_reason: str | None,
+) -> dict[str, Any]:
+    predicate = scene.get("task", {}).get("success", {}).get("predicate")
+    if predicate == "pick_and_place":
+        return build_pick_place_acceptance_report(
+            scene_id=scene.get("scene_id", "not_loaded"),
+            initial_observation=initial_observation,
+            final_observation=final_observation,
+            steps=steps,
+            ik=str(summary.get("ik", "not_run")),
+            pick=str(summary.get("pick_status", "not_run")),
+            place=str(summary.get("place_status", "not_run")),
+            released=bool(summary.get("released")),
+            failure_reason=failure_reason,
+            grasp_diagnostics=summary.get("grasp_diagnostics"),
+        )
+    return build_robot_acceptance_report(
+        scene_id=scene.get("scene_id", "not_loaded"),
+        initial_observation=initial_observation,
+        final_observation=final_observation,
+        steps=steps,
+        ik=str(summary.get("ik", "not_run")),
+        grasp=str(summary.get("grasp", "not_run")),
+        failure_reason=failure_reason,
+        grasp_diagnostics=summary.get("grasp_diagnostics"),
+    )
+
+
 def _run_runtime(
     layout_path: Path,
     usd_path: Path,
@@ -206,15 +247,13 @@ def _run_runtime(
             + "\n",
             encoding="utf-8",
         )
-    report = build_robot_acceptance_report(
-        scene_id=scene.get("scene_id", "not_loaded") if "scene" in locals() else "not_loaded",
+    report = _build_acceptance_report(
+        scene=scene if "scene" in locals() else {},
         initial_observation=initial_observation,
         final_observation=final_observation,
         steps=int(summary.get("steps", 0)),
-        ik=str(summary.get("ik", "not_run")),
-        grasp=str(summary.get("grasp", "not_run")),
+        summary=summary,
         failure_reason=failure_reason,
-        grasp_diagnostics=summary.get("grasp_diagnostics"),
     )
     report["robot_asset_source"] = summary.get("robot_asset_source")
     report.update(error_payload)
@@ -253,6 +292,10 @@ def _write_trace(handle, observation: dict[str, Any]) -> None:
                     "applied_joint_position_targets", []
                 ),
                 "grasp_diagnostics": robot.get("grasp_diagnostics", {}),
+                "task_oracle": robot.get("task_oracle", {}),
+                "pick_status": robot.get("pick_status"),
+                "place_status": robot.get("place_status"),
+                "released": robot.get("released"),
                 "task_success": observation.get("task_success"),
             },
             ensure_ascii=False,
