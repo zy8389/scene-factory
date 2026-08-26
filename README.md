@@ -127,7 +127,7 @@ PhysX steps；`TaskEvaluator` 直接读取 `mug_1` 的实际 USD 世界位姿。
 Franka vertical slice 采用有界状态机：
 
 ```text
-PRE_GRASP -> APPROACH -> GRASP -> VERIFY_GRASP -> LIFT -> DONE | FAILED
+PRE_GRASP -> APPROACH -> GRASP -> VERIFY_GRASP -> LIFT -> TRANSFER -> LOWER -> RELEASE -> VERIFY_PLACE -> DONE | FAILED
 ```
 
 运行真实 manual gate（输出目录必须是 ASCII 路径）：

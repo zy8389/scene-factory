@@ -36,6 +36,19 @@
     "robot": "franka",
     "robot_base_position_m": [-0.05, 0.0, 0.78],
     "robot_base_orientation_wxyz": [1.0, 0.0, 0.0, 0.0],
+    "camera": {
+      "prim_path": "/World/Sensors/SceneFactoryRGBD",
+      "name": "scene_factory_rgbd",
+      "resolution": [160, 120],
+      "position": [0.65, -1.50, 1.50],
+      "orientation_wxyz": [
+        0.6756562964518921,
+        -0.12356351618216324,
+        0.11637191972696767,
+        0.7174107629752103
+      ],
+      "frequency_hz": 60
+    },
     "grasp_offset_m": [0.053, 0.007, 0.0],
     "grasp_orientation_wxyz": [0.0, 1.0, 0.0, 0.0],
     "success": {
