@@ -125,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         report["runtime_log"] = str(log_path)
         _write(report_path, report)
+    _invalidate_report_on_process_failure(report, process.returncode)
     diagnostics_path = output / "grasp_diagnostics.json"
     if not diagnostics_path.is_file():
         _write(diagnostics_path, report.get("grasp_diagnostics", {}))
@@ -132,6 +133,18 @@ def main(argv: list[str] | None = None) -> int:
     _write(report_path, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if report["result"] == "passed" else 2
+
+
+def _invalidate_report_on_process_failure(report: dict[str, Any], returncode: int) -> None:
+    """Never accept a passed artifact from a failed Isaac child process."""
+    if returncode == 0:
+        return
+    report["runtime_process_returncode"] = int(returncode)
+    if report.get("result") == "passed":
+        report["result"] = "failed"
+        report["failure_reason"] = (
+            f"runtime_process_failed: Isaac runtime exited with code {returncode}"
+        )
 
 
 def _run_runtime(

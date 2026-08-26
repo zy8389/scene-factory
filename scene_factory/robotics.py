@@ -278,7 +278,7 @@ def build_robot_acceptance_report(
     if final_diagnostics is None:
         final_diagnostics = _robot_value(final_observation, "grasp_diagnostics")
     phase = _robot_value(final_observation, "phase") or "not_started"
-    phase_gate = phase in {"DONE", "not_started"}
+    phase_gate = phase == "DONE"
     passed = task_success and lift_delta >= 0.10 and phase_gate and grasp == "passed"
     return {
         "scene_id": scene_id,

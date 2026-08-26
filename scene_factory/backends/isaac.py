@@ -28,6 +28,14 @@ _NUCLEUS_FRANKA_GRASP_OFFSET_Z_M = -0.005
 _GRASP_HOLD_CLOSING_MARGIN_M = 0.007
 
 
+def _franka_kinematics_frame(asset_source: str | None) -> str:
+    return (
+        "panda_hand"
+        if asset_source == "isaacsim_bundled_franka_urdf"
+        else "right_gripper"
+    )
+
+
 def _load_simulation_app():
     try:
         module = import_module("isaacsim")
@@ -128,7 +136,7 @@ class IsaacSimBackend:
         self._finger_gripper_config: dict[str, Any] = {}
         self._robot_asset_source: str | None = None
         self._hand_root_path: str | None = None
-        self._kinematics_frame = "right_gripper"
+        self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         self._last_ik_target_joint_positions: list[float] | None = None
         self._last_applied_joint_position_targets: list[float] | None = None
         self._grasp_hold_positions: list[float] | None = None
@@ -169,7 +177,11 @@ class IsaacSimBackend:
         self.scene = scene
         self.steps = 0
         os.environ.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
-        SimulationApp = _load_simulation_app()
+        try:
+            SimulationApp = _load_simulation_app()
+        except Exception:
+            self.close()
+            raise
         original_argv = sys.argv
         sys.argv = [sys.argv[0]]
         try:
@@ -194,61 +206,61 @@ class IsaacSimBackend:
         finally:
             sys.argv = original_argv
 
-        self._initialize_runtime()
-        positions = self._read_object_positions()
-        self._initial_positions = positions
-        target_id = _target_object(scene)
-        if target_id not in positions:
-            raise RuntimeError(f"target object is not mapped in USD: {target_id}")
-        self._task_evaluator = TaskEvaluator(scene["task"], positions)
-        grasp_offset = scene["task"].get("grasp_offset_m", [0.0, 0.0, 0.0])
-        if not isinstance(grasp_offset, (list, tuple)) or len(grasp_offset) != 3:
-            raise ValueError("task.grasp_offset_m must contain exactly three values")
-        grasp_offset = tuple(float(value) for value in grasp_offset)
-        if self._robot_asset_source == "isaacsim_bundled_franka_urdf":
-            # The recipe offset is calibrated for the Nucleus right_gripper
-            # frame.  The bundled URDF uses panda_hand, whose origin is already
-            # centered over the mug in X; retain only the lateral calibration
-            # and move the hand up to put the finger links at mug height.
-            grasp_offset = (
-                0.0,
-                grasp_offset[1],
-                grasp_offset[2] + _BUNDLED_FRANKA_FINGER_ROOT_OFFSET_M,
+        try:
+            self._initialize_runtime()
+            positions = self._read_object_positions()
+            self._initial_positions = positions
+            target_id = _target_object(scene)
+            if target_id not in positions:
+                raise RuntimeError(f"target object is not mapped in USD: {target_id}")
+            self._task_evaluator = TaskEvaluator(scene["task"], positions)
+            grasp_offset = scene["task"].get("grasp_offset_m", [0.0, 0.0, 0.0])
+            if not isinstance(grasp_offset, (list, tuple)) or len(grasp_offset) != 3:
+                raise ValueError("task.grasp_offset_m must contain exactly three values")
+            grasp_offset = tuple(float(value) for value in grasp_offset)
+            if self._robot_asset_source == "isaacsim_bundled_franka_urdf":
+                # The recipe offset is calibrated for the Nucleus right_gripper
+                # frame.  The bundled URDF uses panda_hand, whose origin is already
+                # centered over the mug in X; retain only the lateral calibration
+                # and move the hand up to put the finger links at mug height.
+                grasp_offset = (
+                    0.0,
+                    grasp_offset[1],
+                    grasp_offset[2] + _BUNDLED_FRANKA_FINGER_ROOT_OFFSET_M,
+                )
+            else:
+                # The authored mug collision is offset from its wrapper pose.  Keep
+                # the Nucleus right_gripper at the collision body's centerline; the
+                # finger links then span the mug wall instead of contacting only its
+                # rim during the lift.
+                grasp_offset = (
+                    0.0,
+                    -0.007,
+                    _NUCLEUS_FRANKA_GRASP_OFFSET_Z_M,
+                )
+            self._controller = MugLiftController(
+                positions[target_id],
+                self.max_steps,
+                grasp_offset,
+                approach_clearance_x_m=_NUCLEUS_FRANKA_APPROACH_CLEARANCE_X_M,
             )
-        else:
-            # The authored mug collision is offset from its wrapper pose.  Keep
-            # the Nucleus right_gripper at the collision body's centerline; the
-            # finger links then span the mug wall instead of contacting only its
-            # rim during the lift.
-            grasp_offset = (
-                0.0,
-                -0.007,
-                _NUCLEUS_FRANKA_GRASP_OFFSET_Z_M,
-            )
-        self._controller = MugLiftController(
-            positions[target_id],
-            self.max_steps,
-            grasp_offset,
-            approach_clearance_x_m=(
-                _NUCLEUS_FRANKA_APPROACH_CLEARANCE_X_M
-                if self._robot_asset_source == "nucleus_franka_usd"
-                else 0.0
-            ),
-        )
-        self._target_root_path = str(self._object_prims[target_id].GetPath())
-        self._refresh_grasp_diagnostics()
-        observation = self._observation(task_success=False)
-        self._last_observation = observation
-        return observation, {
-            "scene_id": scene["scene_id"],
-            "backend": "isaac",
-            "robot": "franka",
-            "usd": str(self.usd_path),
-            "object_prims": {
-                object_id: str(prim.GetPath())
-                for object_id, prim in self._object_prims.items()
-            },
-        }
+            self._target_root_path = str(self._object_prims[target_id].GetPath())
+            self._refresh_grasp_diagnostics()
+            observation = self._observation(task_success=False)
+            self._last_observation = observation
+            return observation, {
+                "scene_id": scene["scene_id"],
+                "backend": "isaac",
+                "robot": "franka",
+                "usd": str(self.usd_path),
+                "object_prims": {
+                    object_id: str(prim.GetPath())
+                    for object_id, prim in self._object_prims.items()
+                },
+            }
+        except Exception:
+            self.close()
+            raise
 
     def step(
         self, action: Any
@@ -328,11 +340,6 @@ class IsaacSimBackend:
         simulation, app = self._simulation, self._app
         self._simulation = None
         self._app = None
-        if simulation is not None:
-            try:
-                simulation.stop()
-            except (AttributeError, RuntimeError):
-                pass
         if self._contact_subscription is not None:
             try:
                 if hasattr(self._contact_subscription, "unsubscribe"):
@@ -341,24 +348,35 @@ class IsaacSimBackend:
                     self._contact_interface.unsubscribe_physics_contact_report_events(
                         self._contact_subscription
                     )
-            except (AttributeError, RuntimeError, TypeError):
+            except Exception:
+                pass
+        if simulation is not None:
+            try:
+                simulation.stop()
+            except Exception:
                 pass
         if app is not None:
-            app.close()
+            try:
+                app.close()
+            except Exception:
+                pass
         self.scene = None
+        self.steps = 0
         self._stage = None
         self._robot = None
         self._gripper = None
         self._kinematics = None
         self._object_prims = {}
+        self._initial_positions = {}
         self._task_evaluator = None
         self._controller = None
+        self._last_observation = None
         self._grasp_diagnostics = _empty_grasp_diagnostics()
         self._material_diagnostics = {}
         self._finger_gripper_config = {}
         self._robot_asset_source = None
         self._hand_root_path = None
-        self._kinematics_frame = "right_gripper"
+        self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         self._last_ik_target_joint_positions = None
         self._last_applied_joint_position_targets = None
         self._grasp_hold_positions = None
@@ -422,11 +440,7 @@ class IsaacSimBackend:
         self._finger_root_paths, self._hand_root_path = _resolve_franka_link_paths(
             stage, robot_prim_path
         )
-        self._kinematics_frame = (
-            "panda_hand"
-            if self._robot_asset_source == "isaacsim_bundled_franka_urdf"
-            else "right_gripper"
-        )
+        self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         if self._robot_asset_source == "isaacsim_bundled_franka_urdf":
             _configure_bundled_franka_drives(stage, robot_prim_path, UsdPhysics)
         self._configure_gripper_material(
@@ -764,8 +778,7 @@ class IsaacSimBackend:
         diagnostics = _read_finger_dof_diagnostics(self._robot, positions)
         diagnostics.update(self._material_diagnostics)
         self._refresh_contact_force_pairs()
-        active_contact_pairs = dict(self._active_contact_pairs)
-        active_contact_pairs.update(self._contact_force_pairs)
+        active_contact_pairs = dict(self._contact_force_pairs)
         diagnostics.update(
             {
                 "contact_report_available": bool(
@@ -774,8 +787,12 @@ class IsaacSimBackend:
                 "contact_report_subscribed": bool(
                     self._grasp_diagnostics.get("contact_report_subscribed")
                 ),
-                "finger_target_contact": bool(active_contact_pairs),
+                # Event reports are retained for diagnostics, but a begin event
+                # can outlive the current physics contact when no LOST event is
+                # emitted.  Acceptance must use the current force view instead.
+                "finger_target_contact": bool(self._contact_force_pairs),
                 "active_contact_pairs": list(active_contact_pairs.values()),
+                "event_contact_pairs": list(self._active_contact_pairs.values()),
                 "contact_force_pair_count": len(self._contact_force_pairs),
                 "contact_force_pairs": list(self._contact_force_pairs.values()),
                 "last_step_events": list(self._pending_contact_events),
@@ -1132,6 +1149,7 @@ def _empty_grasp_diagnostics() -> dict[str, Any]:
         "contact_report_subscribed": False,
         "finger_target_contact": False,
         "active_contact_pairs": [],
+        "event_contact_pairs": [],
         "last_step_events": [],
         "contact_event_count": 0,
         "finger_materials": [],

@@ -6,11 +6,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tools.run_franka_mug_lift import _invalidate_report_on_process_failure
 from scene_factory.agent import DryRunBackend, SimulatorBackend
 from scene_factory.backends.isaac import (
     IsaacBackendUnavailable,
     IsaacSimBackend,
     _load_simulation_app,
+    _franka_kinematics_frame,
     _resolve_finger_gripper_config,
     build_observation,
 )
@@ -117,6 +119,73 @@ class RobotRuntimeTests(unittest.TestCase):
         ):
             with self.assertRaises(IsaacBackendUnavailable):
                 _load_simulation_app()
+
+    def test_reset_failure_closes_started_simulation_app(self) -> None:
+        class FakeApp:
+            def __init__(self) -> None:
+                self.closed = False
+
+            def close(self) -> None:
+                self.closed = True
+
+        with tempfile.TemporaryDirectory() as directory:
+            usd_path = Path(directory) / "scene.usd"
+            usd_path.write_text("#usda 1.0\n", encoding="utf-8")
+            app = FakeApp()
+            backend = IsaacSimBackend(usd_path)
+            with patch(
+                "scene_factory.backends.isaac._load_simulation_app",
+                return_value=lambda settings: app,
+            ), patch.object(
+                backend,
+                "_initialize_runtime",
+                side_effect=RuntimeError("initialization failed"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "initialization failed"):
+                    backend.reset({
+                        "scene_id": "scene",
+                        "objects": [],
+                        "task": {"target_object": "mug_1"},
+                    })
+            self.assertTrue(app.closed)
+            self.assertIsNone(backend.scene)
+            self.assertEqual(backend.steps, 0)
+            self.assertIsNone(backend._last_observation)
+            self.assertEqual(backend._initial_positions, {})
+
+    def test_close_clears_episode_state(self) -> None:
+        backend = IsaacSimBackend("scene.usd")
+        backend.steps = 42
+        backend.scene = {"scene_id": "scene"}
+        backend._initial_positions = {"mug_1": (0.0, 0.0, 0.9)}
+        backend._last_observation = {"task_success": False}
+        backend.close()
+        self.assertEqual(backend.steps, 0)
+        self.assertIsNone(backend.scene)
+        self.assertEqual(backend._initial_positions, {})
+        self.assertIsNone(backend._last_observation)
+
+    def test_bundled_franka_uses_its_panda_hand_kinematics_frame(self) -> None:
+        self.assertEqual(
+            _franka_kinematics_frame("isaacsim_bundled_franka_urdf"),
+            "panda_hand",
+        )
+        self.assertEqual(_franka_kinematics_frame("nucleus_franka_usd"), "right_gripper")
+
+    def test_stale_contact_event_cannot_set_current_contact_flag(self) -> None:
+        backend = IsaacSimBackend("scene.usd")
+        backend._active_contact_pairs = {
+            "stale": {
+                "collider0": "/World/Robot/panda_leftfinger",
+                "collider1": "/World/Objects/mug_1",
+                "event_type": "CONTACT_FOUND",
+            }
+        }
+        with patch.object(backend, "_refresh_contact_force_pairs"):
+            backend._refresh_grasp_diagnostics()
+        self.assertFalse(backend._grasp_diagnostics["finger_target_contact"])
+        self.assertEqual(backend._grasp_diagnostics["active_contact_pairs"], [])
+        self.assertEqual(len(backend._grasp_diagnostics["event_contact_pairs"]), 1)
 
     def test_observation_schema(self) -> None:
         observation = build_observation(
@@ -321,6 +390,28 @@ class RobotRuntimeTests(unittest.TestCase):
             failure_reason="grasp_failure",
         )
         self.assertEqual(failed_report["result"], "failed")
+
+        missing_phase_report = build_robot_acceptance_report(
+            scene_id="scene",
+            initial_observation=initial,
+            final_observation={
+                "objects": {"mug_1": {"position": [0.5, 0.0, 1.01]}},
+                "task_success": True,
+                "robot": {},
+            },
+            steps=120,
+            ik="passed",
+            grasp="passed",
+            failure_reason=None,
+        )
+        self.assertEqual(missing_phase_report["result"], "failed")
+
+    def test_failed_runtime_process_cannot_leave_passed_report(self) -> None:
+        report = {"result": "passed", "failure_reason": None}
+        _invalidate_report_on_process_failure(report, 1)
+        self.assertEqual(report["result"], "failed")
+        self.assertIn("runtime_process_failed", report["failure_reason"])
+        self.assertEqual(report["runtime_process_returncode"], 1)
 
     def test_acceptance_recipe_uses_ready_real_mug(self) -> None:
         factory = SceneFactory()
