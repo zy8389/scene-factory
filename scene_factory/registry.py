@@ -20,7 +20,6 @@ _VALID_STATUSES = {
     "ready",
     "rejected",
 }
-_ACTIVE_STATUSES = {"validated", "ready"}
 _COLLISION_STATUSES = {
     "not_provided",
     "pending",
@@ -37,6 +36,17 @@ _STATUS_TRANSITIONS = {
     "ready": {"ready", "rejected"},
     "rejected": {"raw", "normalized"},
 }
+
+
+def _scene_selectable(asset: AssetRecord) -> bool:
+    """Keep validated proxies compatible while requiring PhysX-ready real USD assets."""
+    if asset.status == "ready":
+        return True
+    is_real_usd = bool(asset.usd_path or asset.source_path) or asset.source_type not in {
+        "primitive",
+        "proxy",
+    }
+    return asset.status == "validated" and not is_real_usd
 
 
 class RegistryValidationReport(dict[str, Any]):
@@ -312,7 +322,7 @@ class AssetRegistry:
             self._metadata[asset.asset_id] = metadata_by_id.get(
                 asset.asset_id, AssetMetadata.from_record(asset)
             )
-            if asset.status in _ACTIVE_STATUSES:
+            if _scene_selectable(asset):
                 self._by_category[asset.category].append(asset)
 
     @classmethod
@@ -376,7 +386,7 @@ class AssetRegistry:
             raise ValueError(
                 f"asset {asset.asset_id} has category {asset.category}, expected {category}"
             )
-        if asset.status not in _ACTIVE_STATUSES:
+        if not _scene_selectable(asset):
             raise ValueError(
                 f"asset {asset.asset_id} has status {asset.status}, not ready for scenes"
             )
@@ -527,9 +537,7 @@ class AssetRegistry:
             "validated_count": sum(
                 asset.status == "validated" for asset in self._by_id.values()
             ),
-            "ready_count": sum(
-                asset.status in _ACTIVE_STATUSES for asset in self._by_id.values()
-            ),
+            "ready_count": sum(asset.status == "ready" for asset in self._by_id.values()),
             "issues": issues,
         })
 
@@ -734,7 +742,7 @@ class AssetRegistry:
     def _rebuild_categories(self) -> None:
         self._by_category = defaultdict(list)
         for asset in self._by_id.values():
-            if asset.status in _ACTIVE_STATUSES:
+            if _scene_selectable(asset):
                 self._by_category[asset.category].append(asset)
 
     def __len__(self) -> int:

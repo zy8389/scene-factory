@@ -15,18 +15,20 @@ Isaac Sim 6.0.1 的本机安装、一键 USD/PhysX 验收和已知硬件限制�
 
 结构化 LLM/VLM 语义解析、环境变量配置、缓存和降级策略见
 [`docs/LLM_INTEGRATION.md`](docs/LLM_INTEGRATION.md)。
-LLM 的直接接入口是 [`config/llm.json`](config/llm.json)；密钥只通过
+LLM 配置模板是 [`config/llm.example.json`](config/llm.example.json)。复制为本地
+`config/llm.json` 后填写 provider；该文件默认忽略，密钥只通过
 `SCENE_FACTORY_LLM_API_KEY` 环境变量传入。
 
 SceneFactory 把自然语言或事件配方编译为可复现的家庭仿真场景。当前版本可在纯
 Python 环境中完成资产选择、约束布局、几何质检、批量生成和俯视预览；在 Isaac
-Sim Python 环境中还可以导出 USD。
+Sim Python 环境中还可以导出 USD，并通过 `IsaacSimBackend` 执行 Franka 抓杯闭环。
 
-当前自带三个“生活痕迹”事件：
+当前自带四个确定性事件：
 
 - `living_room_recent_snacking`：刚吃完零食的客厅；
 - `living_room_returned_home`：刚回家后的入口区域；
-- `kitchen_after_cooking`：刚做完饭的厨房。
+- `kitchen_after_cooking`：刚做完饭的厨房；
+- `kitchen_franka_mug_lift`：Franka 抓取真实 `mug_001` 的机器人验收场景。
 
 ## 快速开始
 
@@ -64,6 +66,15 @@ python -m scene_factory batch `
 每个场景都有由配方、描述和 seed 决定的稳定 `scene_id`。批次根目录的
 `manifest.jsonl` 可直接交给训练或数据管线。
 
+也可以构建并安装 wheel。安装包把 `recipes/`、运行时资产注册表/USD/collision 和
+`web/` 放入 `share/scene-factory`；`SCENE_FACTORY_HOME` 可覆盖该数据根：
+
+```powershell
+python -m pip install .
+scene-factory list-recipes
+scene-factory-web --port 8765
+```
+
 ## Isaac Sim 6.0.1 导出
 
 使用 Isaac Sim 的 Python 3.12 环境安装和运行：
@@ -99,16 +110,39 @@ obs, info = env.reset()
 obs, reward, terminated, truncated, info = env.step([0.0])
 ```
 
-真实 Isaac Sim 接入时实现同一个 `SimulatorBackend` 协议即可：
+真实 Isaac Sim 后端实现同一个 `SimulatorBackend` 协议：
 
 ```text
 reset(scene) -> observation, info
 step(action) -> observation, reward, terminated, truncated, info
-render() -> rgb
+render()
 close()
 ```
 
-机器人本体、动作空间和传感器与具体项目强相关，因此没有在通用后端中猜测。
+`scene_factory.backends.IsaacSimBackend` 延迟导入 `isaacsim`/`omni`/`pxr`，所以普通
+Python import 不依赖 Isaac。它使用 Isaac 6.0.1 的 `SimulationContext`、
+`SingleArticulation`、`ParallelGripper`、Lula `ArticulationKinematicsSolver` 和真实
+PhysX steps；`TaskEvaluator` 直接读取 `mug_1` 的实际 USD 世界位姿。
+
+Franka vertical slice 采用有界状态机：
+
+```text
+PRE_GRASP -> APPROACH -> GRASP -> LIFT -> DONE | FAILED
+```
+
+运行真实 manual gate（输出目录必须是 ASCII 路径）：
+
+```powershell
+$env:OMNI_KIT_ACCEPT_EULA = "YES"
+& F:\scene_factory_isaac_py312\Scripts\python.exe `
+  tools\run_franka_mug_lift.py `
+  --output F:\scene_factory_runtime\p1_1_franka_mug_lift
+```
+
+入口先在父进程生成/导出场景，再用干净子进程启动 `SimulationApp`，避免在 Kit 启动前
+导入 OpenUSD plugin。它写出 `robot_acceptance.json`、`robot_trace.jsonl` 和
+`isaac_runtime.log`。报告只有在真实位姿抬升至少 `0.10 m` 且 `TaskEvaluator=True` 时
+才会是 `passed`。
 
 ## 添加资产
 
@@ -124,8 +158,9 @@ close()
 {"name":"top","center":[0,0,0.4],"size":[1.0,0.6]}
 ```
 
-资产只有 `status=validated` 时才会被随机选中。混元生成的资产建议先标记为
-`quarantine`，完成单位、网格、碰撞体、质量和跌落测试后再改为 `validated`。
+legacy primitive/proxy 资产继续兼容 `status=validated`；Registry v2 真实 USD 资产只有
+`status=ready` 才能进入真实场景。新资产应先标记为 `quarantine`，完成单位、网格、
+碰撞体、质量和真实 PhysX 验收后再逐级晋升。
 
 ### P0 Asset Pipeline
 
@@ -425,7 +460,7 @@ requested=7, ready=4, blocked=3, failed=0, result=partial
 python -m unittest discover -s tests -v
 ```
 
-当前纯 Python 回归为 71 项，覆盖随机种子复现、中文提示词路由、所有配方多 seed
+纯 Python 回归覆盖随机种子复现、中文提示词路由、所有配方多 seed
 生成、batch 配置/状态/resume、source hash/license、碰撞/验证 profile、原子 registry
 更新、真实资产映射、Agent 接口和任务判定。无需 Isaac Sim 的测试可运行：
 
@@ -443,5 +478,5 @@ git diff --check
 - 自然语言层目前是离线关键词到事件配方的确定性路由，接口已保留；下一步可以替换为
   结构化输出的 LLM，同时继续使用同一个 SceneSpec 校验器。
 - 当前碰撞检测使用保守的旋转包围盒，物理落稳需要 Isaac Sim worker 执行。
-- 尚未实现照片解析、混元自动清洗、机器人专用 Isaac backend 和 MuJoCo 编译器。
+- 尚未实现照片解析、混元自动清洗、通用机器人任务层和 MuJoCo 编译器。
   这些都可以在不改变配方和训练清单格式的前提下逐步加入。

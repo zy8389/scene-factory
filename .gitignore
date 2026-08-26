@@ -10,6 +10,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+config/llm.json
 *.log
 dist/
 build/

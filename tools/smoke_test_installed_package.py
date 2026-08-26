@@ -1,0 +1,45 @@
+from __future__ import annotations
+
+import json
+
+from scene_factory.factory import SceneFactory
+from scene_factory.paths import default_recipes_dir, default_registry_path, default_web_dir
+
+
+def main() -> int:
+    registry = default_registry_path()
+    recipes = default_recipes_dir()
+    web = default_web_dir()
+    required = [
+        registry,
+        recipes / "kitchen_after_cooking.json",
+        recipes / "kitchen_franka_mug_lift.json",
+        web / "index.html",
+    ]
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(f"installed SceneFactory resources are missing: {missing}")
+
+    factory = SceneFactory()
+    result = factory.build_from_recipe("kitchen_franka_mug_lift", 77)
+    mug = next(item for item in result.scene.objects if item.object_id == "mug_1")
+    if not result.valid or mug.asset_id != "mug_001":
+        raise RuntimeError("installed SceneFactory failed the real-mug recipe smoke test")
+    print(
+        json.dumps(
+            {
+                "result": "passed",
+                "registry": str(registry),
+                "recipes": str(recipes),
+                "web": str(web),
+                "scene_id": result.scene.scene_id,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

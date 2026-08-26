@@ -307,7 +307,6 @@ def _process_asset(
     collision_report.setdefault("generated", False)
     manifest = _load_manifest(source_dir / "SOURCE.json")
     source_hash = manifest.get("sha256") or manifest.get("source_files", [{}])[0].get("sha256")
-    category = str(item["category"])
     bbox = list(normalize_report.get("wrapped_bbox_m") or normalize_report.get("bbox_m") or [0.1, 0.1, 0.1])
     result.details["bbox_m"] = bbox
     defaults = physics_defaults(str(item["category"]), item.get("physics"))

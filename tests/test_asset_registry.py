@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 import tempfile
 import unittest
 from pathlib import Path
@@ -60,6 +61,49 @@ class AssetRegistryV2Tests(unittest.TestCase):
         self.assertEqual(registry.get("mug_blue").source_type, "primitive")
         self.assertEqual(registry.resolve_collision_path(registry.get("mug_blue")), None)
         self.assertEqual(registry.validate()["issues"], [])
+
+    def test_real_asset_requires_ready_while_validated_proxy_remains_selectable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "real.usda").write_text("#usda 1.0\n", encoding="utf-8")
+            records = [
+                {
+                    "asset_id": f"real_{status}",
+                    "category": "mug",
+                    "bbox_m": [0.1, 0.1, 0.1],
+                    "usd_path": "real.usda",
+                    "mass": 0.3,
+                    "friction": 0.4,
+                    "collision_enabled": False,
+                    "status": status,
+                }
+                for status in ("normalized", "validated", "ready")
+            ]
+            records.append(
+                {
+                    "asset_id": "proxy_validated",
+                    "category": "mug",
+                    "bbox_m": [0.1, 0.1, 0.1],
+                    "mass": 0.3,
+                    "friction": 0.4,
+                    "status": "validated",
+                }
+            )
+            registry = AssetRegistry.load(self._write_registry(root, *records))
+            candidates = {asset.asset_id for asset in registry.candidates("mug")}
+            self.assertEqual(candidates, {"real_ready", "proxy_validated"})
+            for asset_id in ("real_normalized", "real_validated"):
+                with self.subTest(asset_id=asset_id):
+                    with self.assertRaisesRegex(ValueError, "not ready for scenes"):
+                        registry.resolve("mug", asset_id, random.Random(1))
+            self.assertEqual(
+                registry.resolve("mug", "real_ready", random.Random(1)).asset_id,
+                "real_ready",
+            )
+            self.assertEqual(
+                registry.resolve("mug", "proxy_validated", random.Random(1)).asset_id,
+                "proxy_validated",
+            )
 
     def test_duplicate_and_invalid_status_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

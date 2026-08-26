@@ -16,23 +16,42 @@ def _module_available(name: str) -> bool:
         return False
 
 
-def detect_environment() -> dict[str, Any]:
+def _distribution_version(name: str) -> str | None:
     try:
-        version = importlib.metadata.version("isaacsim")
+        return importlib.metadata.version(name)
     except importlib.metadata.PackageNotFoundError:
-        version = None
+        return None
+
+
+def detect_environment() -> dict[str, Any]:
+    version = _distribution_version("isaacsim")
+    app_version = _distribution_version("isaacsim-app")
+    core_version = _distribution_version("isaacsim-core")
+    physics_version = _distribution_version("isaacsim-extscache-physics")
+    motion_version = _distribution_version("isaacsim-robot-motion")
     result = {
         "python": sys.executable,
         "python_version": sys.version.split()[0],
         "isaac_sim": _module_available("isaacsim"),
         "isaac_sim_version": version,
-        "simulation_app": _module_available("isaacsim.simulation_app"),
+        "simulation_app": bool(app_version),
+        "simulation_app_api": "isaacsim.SimulationApp" if app_version else None,
+        "core_api_distribution": core_version,
+        "robot_motion_distribution": motion_version,
         "pxr": _module_available("pxr"),
-        "omni": _module_available("omni"),
-        "physx": _module_available("omni.physx"),
+        "physx_distribution": physics_version,
+        "runtime_import_probe": "deferred_until_SimulationApp",
     }
     result["available"] = all(
-        result[key] for key in ("isaac_sim", "simulation_app", "pxr", "omni", "physx")
+        result[key]
+        for key in (
+            "isaac_sim",
+            "simulation_app",
+            "core_api_distribution",
+            "robot_motion_distribution",
+            "pxr",
+            "physx_distribution",
+        )
     )
     return result
 

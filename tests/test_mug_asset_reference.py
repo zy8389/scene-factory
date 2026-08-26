@@ -6,7 +6,6 @@ import unittest
 from pathlib import Path
 
 from scene_factory.factory import SceneFactory
-from scene_factory.registry import AssetRegistry
 
 
 class MugAssetReferenceTests(unittest.TestCase):

@@ -16,7 +16,8 @@
 | OpenUSD/pxr 验证 | 使用现有 Isaac Python | 否 |
 | Isaac Sim/PhysX Headless 验收 | 使用现有 Isaac Sim 6.0.1 | 否 |
 | 批量场景制造 | 可运行 | 否 |
-| 高质量真实资产 | 暂不启用，继续使用占位几何 | 不下载 |
+| 四个 ready YCB 真实资产 | 可运行；仓库已包含固定 revision 与 attribution | 否 |
+| Franka mug-lift manual gate | 可运行；当前真实结果为 grasp failure | 否 |
 
 ## 最简单的启动方式
 
