@@ -6,6 +6,7 @@ import math
 from importlib import import_module
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from ..exporters.isaac_usd import IsaacBackendUnavailable
 from ..robotics import (
@@ -154,6 +155,7 @@ class IsaacSimBackend:
         self._material_diagnostics: dict[str, Any] = {}
         self._finger_gripper_config: dict[str, Any] = {}
         self._robot_asset_source: str | None = None
+        self._asset_root_diagnostics = _empty_asset_root_diagnostics()
         self._hand_root_path: str | None = None
         self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         self._last_ik_target_joint_positions: list[float] | None = None
@@ -194,6 +196,7 @@ class IsaacSimBackend:
             "released": controller.released if controller else False,
             "robot_asset_source": self._robot_asset_source,
             "action": self._last_command,
+            **self._asset_root_diagnostics,
         }
 
     @property
@@ -446,6 +449,7 @@ class IsaacSimBackend:
         self._material_diagnostics = {}
         self._finger_gripper_config = {}
         self._robot_asset_source = None
+        self._asset_root_diagnostics = _empty_asset_root_diagnostics()
         self._hand_root_path = None
         self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         self._last_ik_target_joint_positions = None
@@ -506,16 +510,27 @@ class IsaacSimBackend:
         self._target_root_path = str(self._object_prims[target_id].GetPath())
 
         robot_prim_path = "/World/Robot"
+        self._asset_root_diagnostics = _empty_asset_root_diagnostics()
         robot_usd, self._robot_asset_source = _resolve_franka_usd(
             get_assets_root_path,
             self.usd_path.parent,
+            self._asset_root_diagnostics,
         )
-        add_reference_to_stage(usd_path=robot_usd, prim_path=robot_prim_path)
-        stage.Load(robot_prim_path)
-        self._app.update()
-        self._finger_root_paths, self._hand_root_path = _resolve_franka_link_paths(
-            stage, robot_prim_path
-        )
+        try:
+            add_reference_to_stage(usd_path=robot_usd, prim_path=robot_prim_path)
+            stage.Load(robot_prim_path)
+            self._app.update()
+            self._finger_root_paths, self._hand_root_path = _resolve_franka_link_paths(
+                stage, robot_prim_path
+            )
+        except Exception as exc:
+            self._asset_root_diagnostics["franka_usd_accessible"] = False
+            self._asset_root_diagnostics["asset_root_error"] = _asset_error(
+                exc, self._asset_root_diagnostics.get("franka_usd")
+            )
+            raise
+        else:
+            self._asset_root_diagnostics["franka_usd_accessible"] = True
         self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         if self._robot_asset_source == "isaacsim_bundled_franka_urdf":
             _configure_bundled_franka_drives(stage, robot_prim_path, UsdPhysics)
@@ -1199,17 +1214,44 @@ class IsaacSimBackend:
         return result
 
 
-def _resolve_franka_usd(get_assets_root_path, cache_parent: Path) -> tuple[str, str]:
+def _resolve_franka_usd(
+    get_assets_root_path,
+    cache_parent: Path,
+    diagnostics: dict[str, Any] | None = None,
+) -> tuple[str, str]:
     """Resolve a real Franka asset without requiring a reachable Nucleus server."""
+    diagnostics = diagnostics if diagnostics is not None else _empty_asset_root_diagnostics()
+    diagnostics.update(_empty_asset_root_diagnostics())
     try:
         assets_root = get_assets_root_path()
-    except (OSError, RuntimeError):
+    except Exception as exc:
+        diagnostics["asset_root_resolution_status"] = "failed"
+        diagnostics["asset_root_error"] = _asset_error(exc)
         assets_root = None
     if assets_root:
+        asset_root = _safe_asset_value(assets_root)
+        franka_usd = (
+            str(assets_root).rstrip("/")
+            + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
+        )
+        diagnostics.update(
+            {
+                "asset_root_resolution_status": "resolved",
+                "asset_root": asset_root,
+                "franka_usd": _safe_asset_value(franka_usd),
+                "asset_transport": _asset_transport(assets_root),
+                "official_isaac_asset": True,
+                "franka_usd_accessible": _is_local_asset_file(franka_usd),
+                "robot_asset_source": "nucleus_franka_usd",
+            }
+        )
         return (
-            assets_root + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd",
+            franka_usd,
             "nucleus_franka_usd",
         )
+
+    if diagnostics["asset_root_resolution_status"] == "not_attempted":
+        diagnostics["asset_root_resolution_status"] = "empty"
 
     try:
         import isaacsim.asset.importer.urdf as urdf_module
@@ -1253,6 +1295,16 @@ def _resolve_franka_usd(get_assets_root_path, cache_parent: Path) -> tuple[str, 
             output_path = generated_path
     if not output_path.is_file():
         raise RuntimeError(f"bundled Franka URDF import did not produce USD: {output_path}")
+    diagnostics.update(
+        {
+            "asset_root_resolution_status": "fallback_bundled",
+            "franka_usd": str(output_path),
+            "asset_transport": "local",
+            "official_isaac_asset": False,
+            "franka_usd_accessible": output_path.is_file(),
+            "robot_asset_source": "isaacsim_bundled_franka_urdf",
+        }
+    )
     return str(output_path), "isaacsim_bundled_franka_urdf"
 
 
@@ -1492,6 +1544,47 @@ def _is_ascii(value: str) -> bool:
     except UnicodeEncodeError:
         return False
     return True
+
+
+def _empty_asset_root_diagnostics() -> dict[str, Any]:
+    return {
+        "asset_root_resolution_status": "not_attempted",
+        "asset_root": None,
+        "asset_root_error": None,
+        "franka_usd": None,
+        "franka_usd_accessible": False,
+        "asset_transport": None,
+        "official_isaac_asset": False,
+        "robot_asset_source": None,
+    }
+
+
+def _safe_asset_value(value: Any) -> str:
+    """Keep asset diagnostics useful without persisting URL credentials."""
+    text = str(value)
+    parsed = urlsplit(text)
+    if not parsed.scheme or not parsed.netloc:
+        return text
+    return urlunsplit((parsed.scheme, parsed.hostname or "", parsed.path.rstrip("/"), "", ""))
+
+
+def _asset_transport(value: Any) -> str:
+    parsed = urlsplit(str(value))
+    if not parsed.netloc or len(parsed.scheme) == 1:
+        return "local"
+    return parsed.scheme
+
+
+def _is_local_asset_file(value: Any) -> bool:
+    text = str(value)
+    return "://" not in text and Path(text).is_file()
+
+
+def _asset_error(exc: BaseException, asset_value: Any | None = None) -> str:
+    message = f"{type(exc).__name__}: {exc}"
+    if asset_value is not None:
+        message = message.replace(str(asset_value), _safe_asset_value(asset_value))
+    return message
 
 
 def _empty_grasp_diagnostics() -> dict[str, Any]:

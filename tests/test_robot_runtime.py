@@ -13,6 +13,7 @@ from scene_factory.backends.isaac import (
     IsaacSimBackend,
     _load_simulation_app,
     _franka_kinematics_frame,
+    _resolve_franka_usd,
     _resolve_finger_gripper_config,
     _finger_gripper_is_open,
     build_observation,
@@ -210,6 +211,41 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertIsNone(backend.scene)
         self.assertEqual(backend._initial_positions, {})
         self.assertIsNone(backend._last_observation)
+
+    def test_asset_root_diagnostics_capture_official_local_asset(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            franka = root / "Isaac" / "Robots" / "FrankaRobotics" / "FrankaPanda" / "franka.usd"
+            franka.parent.mkdir(parents=True)
+            franka.write_text("#usda 1.0\n", encoding="utf-8")
+            diagnostics = {}
+
+            usd_path, source = _resolve_franka_usd(lambda: str(root), root, diagnostics)
+
+            self.assertEqual(source, "nucleus_franka_usd")
+            self.assertEqual(Path(usd_path).resolve(), franka.resolve())
+            self.assertEqual(diagnostics["asset_root_resolution_status"], "resolved")
+            self.assertEqual(diagnostics["asset_root"], str(root))
+            self.assertEqual(Path(diagnostics["franka_usd"]).resolve(), franka.resolve())
+            self.assertEqual(diagnostics["asset_transport"], "local")
+            self.assertTrue(diagnostics["official_isaac_asset"])
+            self.assertTrue(diagnostics["franka_usd_accessible"])
+            self.assertEqual(diagnostics["robot_asset_source"], "nucleus_franka_usd")
+
+    def test_asset_root_diagnostics_capture_resolution_failure(self) -> None:
+        diagnostics = {}
+
+        with self.assertRaises(RuntimeError):
+            _resolve_franka_usd(
+                lambda: (_ for _ in ()).throw(RuntimeError("asset root unavailable")),
+                Path("."),
+                diagnostics,
+            )
+
+        self.assertEqual(diagnostics["asset_root_resolution_status"], "failed")
+        self.assertIn("RuntimeError: asset root unavailable", diagnostics["asset_root_error"])
+        self.assertIsNone(diagnostics["asset_root"])
+        self.assertFalse(diagnostics["franka_usd_accessible"])
 
     def test_bundled_franka_uses_its_panda_hand_kinematics_frame(self) -> None:
         self.assertEqual(
