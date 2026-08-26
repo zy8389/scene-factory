@@ -56,7 +56,8 @@ class RobotRuntimeTests(unittest.TestCase):
         self.assertAlmostEqual(config["action_deltas"][1], 0.0039)
 
     def test_gripper_commands_read_isaac6_dof_properties(self) -> None:
-        import numpy as np
+        class FakeDofProperties(list):
+            dtype = type("Dtype", (), {"names": ("lower", "upper")})()
 
         class FakeArticulation:
             dof_names = [
@@ -70,19 +71,18 @@ class RobotRuntimeTests(unittest.TestCase):
                 "panda_finger_joint1",
                 "panda_finger_joint2",
             ]
-            dof_properties = np.array(
+            dof_properties = FakeDofProperties(
                 [
-                    (0.0, 1.0),
-                    (0.0, 1.0),
-                    (0.0, 1.0),
-                    (0.0, 1.0),
-                    (0.0, 1.0),
-                    (0.0, 1.0),
-                    (0.0, 1.0),
-                    (0.0, 0.04),
-                    (0.0, 0.039),
-                ],
-                dtype=[("lower", float), ("upper", float)],
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 1.0},
+                    {"lower": 0.0, "upper": 0.04},
+                    {"lower": 0.0, "upper": 0.039},
+                ]
             )
 
             @staticmethod
