@@ -15,6 +15,10 @@ class MugLiftPhase(str, Enum):
     GRASP = "GRASP"
     VERIFY_GRASP = "VERIFY_GRASP"
     LIFT = "LIFT"
+    TRANSFER = "TRANSFER"
+    LOWER = "LOWER"
+    RELEASE = "RELEASE"
+    VERIFY_PLACE = "VERIFY_PLACE"
     DONE = "DONE"
     FAILED = "FAILED"
 
@@ -38,6 +42,12 @@ class MugLiftController:
     _VERIFY_GRASP_MIN_DELTA_M = 0.005
     _VERIFY_GRASP_MIN_CONTACT_STEPS = 10
     _MAX_LIFT_STEPS = 240
+    _MAX_TRANSFER_STEPS = 240
+    _TRANSFER_RAMP_STEPS = 90
+    _MAX_LOWER_STEPS = 180
+    _LOWER_RAMP_STEPS = 45
+    _RELEASE_STEPS = 140
+    _VERIFY_PLACE_STEPS = 90
     _MAX_CONSECUTIVE_IK_FAILURES = 30
     _ORIENTATION_TOLERANCE_RAD = 0.15
 
@@ -49,6 +59,10 @@ class MugLiftController:
         approach_clearance_x_m: float = 0.0,
         approach_clearance_y_m: float = 0.0,
         hold_at_approach_clearance: bool = False,
+        task_mode: str = "lift",
+        place_target_position: Vec3 | None = None,
+        transfer_clearance_m: float = 0.2,
+        lift_height_m: float | None = None,
     ) -> None:
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
@@ -57,6 +71,24 @@ class MugLiftController:
         self.approach_clearance_x_m = float(approach_clearance_x_m)
         self.approach_clearance_y_m = float(approach_clearance_y_m)
         self.hold_at_approach_clearance = bool(hold_at_approach_clearance)
+        if task_mode not in {"lift", "pick_place"}:
+            raise ValueError(f"unsupported task mode: {task_mode!r}")
+        if task_mode == "pick_place" and place_target_position is None:
+            raise ValueError("pick_place mode requires place_target_position")
+        self.task_mode = task_mode
+        self.place_target_position = (
+            tuple(float(value) for value in place_target_position)
+            if place_target_position is not None
+            else None
+        )
+        self.transfer_clearance_m = float(transfer_clearance_m)
+        if self.transfer_clearance_m <= 0.0:
+            raise ValueError("transfer_clearance_m must be positive")
+        self.lift_height_m = float(
+            self.transfer_clearance_m if lift_height_m is None else lift_height_m
+        )
+        if self.lift_height_m <= 0.0:
+            raise ValueError("lift_height_m must be positive")
         self.max_steps = max_steps
         self.phase = MugLiftPhase.PRE_GRASP
         self.total_steps = 0
@@ -64,6 +96,10 @@ class MugLiftController:
         self.consecutive_ik_failures = 0
         self.ik_status = "not_run"
         self.grasp_status = "open"
+        self.pick_status = "not_run"
+        self.place_status = "not_run"
+        self.released = False
+        self.transfer_start_position: Vec3 | None = None
         self.failure_reason: str | None = None
         self.max_lift_delta_m = 0.0
         self.verify_contact_steps = 0
@@ -101,12 +137,67 @@ class MugLiftController:
                 True,
             )
         if self.phase == MugLiftPhase.LIFT:
-            lift_height = self._VERIFY_GRASP_TARGET_DELTA_M + min(
-                0.24, self.phase_steps * 0.002
-            )
+            if self.task_mode == "pick_place":
+                lift_height = min(
+                    self.lift_height_m,
+                    self._VERIFY_GRASP_TARGET_DELTA_M + min(
+                        0.24, self.phase_steps * 0.002
+                    ),
+                )
+            else:
+                lift_height = self._VERIFY_GRASP_TARGET_DELTA_M + min(
+                    0.24, self.phase_steps * 0.002
+                )
             return MugLiftCommand(
                 self.phase, (grasp_x, grasp_y, initial_z + lift_height), "closed", True
             )
+        if self.phase == MugLiftPhase.TRANSFER:
+            if self.place_target_position is None:
+                raise RuntimeError("pick_place controller has no place target")
+            source_x, source_y, source_z = self.transfer_start_position or tuple(
+                self.initial_target_position[index] + self.grasp_offset[index]
+                for index in range(3)
+            )
+            place_x, place_y, place_z = (
+                self.place_target_position[index] + self.grasp_offset[index]
+                for index in range(3)
+            )
+            progress = min(1.0, self.phase_steps / self._TRANSFER_RAMP_STEPS)
+            return MugLiftCommand(
+                self.phase,
+                (
+                    source_x + (place_x - source_x) * progress,
+                    source_y + (place_y - source_y) * progress,
+                    source_z,
+                ),
+                "closed",
+                True,
+            )
+        if self.phase == MugLiftPhase.LOWER:
+            if self.place_target_position is None:
+                raise RuntimeError("pick_place controller has no place target")
+            place_x, place_y, place_z = (
+                self.place_target_position[index] + self.grasp_offset[index]
+                for index in range(3)
+            )
+            progress = min(1.0, self.phase_steps / self._LOWER_RAMP_STEPS)
+            start_z = (
+                self.transfer_start_position[2]
+                if self.transfer_start_position is not None
+                else place_z + self.transfer_clearance_m
+            )
+            return MugLiftCommand(
+                self.phase,
+                (
+                    place_x,
+                    place_y,
+                    place_z + (start_z - place_z) * (1.0 - progress),
+                ),
+                "closed",
+                True,
+            )
+        if self.phase in {MugLiftPhase.RELEASE, MugLiftPhase.VERIFY_PLACE}:
+            return MugLiftCommand(self.phase, None, "open", False)
         return MugLiftCommand(self.phase, None, "hold", False)
 
     def advance(
@@ -118,6 +209,7 @@ class MugLiftController:
         ik_success: bool | None,
         task_success: bool,
         grasp_diagnostics: dict[str, Any] | None = None,
+        task_state: dict[str, Any] | None = None,
     ) -> None:
         if self.phase in {MugLiftPhase.DONE, MugLiftPhase.FAILED}:
             return
@@ -128,12 +220,24 @@ class MugLiftController:
         self.max_lift_delta_m = max(self.max_lift_delta_m, lift_delta)
 
         if (
-            self.phase == MugLiftPhase.LIFT
+            self.task_mode == "lift"
+            and self.phase == MugLiftPhase.LIFT
             and task_success
             and lift_delta >= 0.10
         ):
             self.phase = MugLiftPhase.DONE
             self.grasp_status = "passed"
+            return
+        if (
+            self.task_mode == "pick_place"
+            and self.phase == MugLiftPhase.VERIFY_PLACE
+            and task_success
+            and task_state
+            and task_state.get("released") is True
+        ):
+            self.phase = MugLiftPhase.DONE
+            self.place_status = "passed"
+            self.released = True
             return
         if self.total_steps >= self.max_steps:
             self.fail("timeout")
@@ -155,6 +259,16 @@ class MugLiftController:
             self.phase == MugLiftPhase.LIFT
             and self.max_lift_delta_m >= 0.03
             and lift_delta < 0.01
+        ):
+            self.fail("object_lost")
+            return
+
+        if (
+            self.task_mode == "pick_place"
+            and self.phase in {MugLiftPhase.TRANSFER, MugLiftPhase.LOWER}
+            and task_state
+            and task_state.get("pick_success") is True
+            and task_state.get("holding") is not True
         ):
             self.fail("object_lost")
             return
@@ -196,9 +310,61 @@ class MugLiftController:
                 self._next_phase()
             elif self.phase_steps >= self._VERIFY_GRASP_STEPS:
                 self.fail("grasp_failure")
-        elif self.phase == MugLiftPhase.LIFT and self.phase_steps >= self._MAX_LIFT_STEPS:
-            self.grasp_status = "failed"
-            self.fail("grasp_failure")
+        elif self.phase == MugLiftPhase.LIFT:
+            if self.task_mode == "pick_place":
+                if (
+                    task_state
+                    and task_state.get("pick_success") is True
+                    and float(task_state.get("max_lift_delta_m", 0.0))
+                    >= self.transfer_clearance_m
+                ):
+                    self.pick_status = "passed"
+                    self.transfer_start_position = tuple(
+                        float(value) for value in end_effector_position
+                    )
+                    self._next_phase()
+                elif self.phase_steps >= self._MAX_LIFT_STEPS:
+                    self.grasp_status = "failed"
+                    self.fail("grasp_failure")
+            elif self.phase_steps >= self._MAX_LIFT_STEPS:
+                self.grasp_status = "failed"
+                self.fail("grasp_failure")
+        elif self.phase == MugLiftPhase.TRANSFER:
+            if (
+                self.phase_steps >= self._TRANSFER_RAMP_STEPS
+                and self._horizontal_pose_reached(
+                    end_effector_position, orientation_error_rad, command, 0.03
+                )
+            ):
+                if self.phase_steps >= self._MIN_REACH_STEPS:
+                    self._next_phase()
+            elif self.phase_steps >= self._MAX_TRANSFER_STEPS:
+                self.fail("transfer_failure")
+        elif self.phase == MugLiftPhase.LOWER:
+            in_target_region = bool(task_state and task_state.get("in_target_region"))
+            if (
+                self.phase_steps >= self._LOWER_RAMP_STEPS
+                and in_target_region
+                and self._pose_reached(end_effector_position, orientation_error_rad, command, 0.025)
+            ):
+                if self.phase_steps >= self._MIN_REACH_STEPS:
+                    self._next_phase()
+            elif self.phase_steps >= self._MAX_LOWER_STEPS:
+                self.fail("place_failure")
+        elif self.phase == MugLiftPhase.RELEASE:
+            if self.phase_steps >= self._RELEASE_STEPS:
+                if task_state and task_state.get("gripper_open") is True:
+                    self._next_phase()
+                else:
+                    self.fail("release_failure")
+        elif self.phase == MugLiftPhase.VERIFY_PLACE:
+            if task_state:
+                self.released = task_state.get("released") is True
+            if self.phase_steps >= self._VERIFY_PLACE_STEPS:
+                if not task_state or task_state.get("gripper_open") is not True:
+                    self.fail("release_failure")
+                else:
+                    self.fail("place_failure")
 
     def fail(self, reason: str) -> None:
         self.phase = MugLiftPhase.FAILED
@@ -207,6 +373,11 @@ class MugLiftController:
             self.ik_status = "failed"
         if reason in {"grasp_failure", "grasp_diagnostics_unavailable", "object_lost"}:
             self.grasp_status = "failed"
+        if self.task_mode == "pick_place":
+            if reason in {"grasp_failure", "grasp_diagnostics_unavailable"}:
+                self.pick_status = "failed"
+            if reason in {"object_lost", "transfer_failure", "place_failure", "release_failure"}:
+                self.place_status = "failed"
 
     def _next_phase(self) -> None:
         transitions = {
@@ -215,8 +386,44 @@ class MugLiftController:
             MugLiftPhase.GRASP: MugLiftPhase.VERIFY_GRASP,
             MugLiftPhase.VERIFY_GRASP: MugLiftPhase.LIFT,
         }
+        if self.task_mode == "pick_place":
+            transitions.update(
+                {
+                    MugLiftPhase.LIFT: MugLiftPhase.TRANSFER,
+                    MugLiftPhase.TRANSFER: MugLiftPhase.LOWER,
+                    MugLiftPhase.LOWER: MugLiftPhase.RELEASE,
+                    MugLiftPhase.RELEASE: MugLiftPhase.VERIFY_PLACE,
+                }
+            )
         self.phase = transitions[self.phase]
         self.phase_steps = 0
+
+    @staticmethod
+    def _pose_reached(
+        end_effector_position: Vec3,
+        orientation_error_rad: float,
+        command: MugLiftCommand,
+        position_tolerance: float,
+    ) -> bool:
+        return (
+            command.goal_position is not None
+            and math.dist(end_effector_position, command.goal_position) <= position_tolerance
+            and orientation_error_rad <= MugLiftController._ORIENTATION_TOLERANCE_RAD
+        )
+
+    @staticmethod
+    def _horizontal_pose_reached(
+        end_effector_position: Vec3,
+        orientation_error_rad: float,
+        command: MugLiftCommand,
+        position_tolerance: float,
+    ) -> bool:
+        return (
+            command.goal_position is not None
+            and math.dist(end_effector_position[:2], command.goal_position[:2])
+            <= position_tolerance
+            and orientation_error_rad <= MugLiftController._ORIENTATION_TOLERANCE_RAD
+        )
 
 
 def _grasp_diagnostics_unavailable(diagnostics: dict[str, Any] | None) -> bool:
@@ -296,6 +503,70 @@ def build_robot_acceptance_report(
         "initial_end_effector_position": initial_ee or [],
         "final_end_effector_position": final_ee or [],
         "final_joint_positions": final_joints or [],
+        "grasp_diagnostics": final_diagnostics or {},
+        "task_success": task_success,
+        "result": "passed" if passed else "failed",
+        "failure_reason": None if passed else (failure_reason or "task_not_satisfied"),
+    }
+
+
+def build_pick_place_acceptance_report(
+    *,
+    scene_id: str,
+    initial_observation: dict[str, Any] | None,
+    final_observation: dict[str, Any] | None,
+    steps: int,
+    ik: str,
+    pick: str,
+    place: str,
+    released: bool,
+    failure_reason: str | None,
+    target_object: str = "mug_1",
+    asset_id: str = "mug_001",
+    grasp_diagnostics: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    initial_position = _observation_position(initial_observation, target_object)
+    final_position = _observation_position(final_observation, target_object)
+    final_diagnostics = grasp_diagnostics
+    if final_diagnostics is None:
+        final_diagnostics = _robot_value(final_observation, "grasp_diagnostics")
+    oracle = _robot_value(final_observation, "task_oracle") or {}
+    phase = _robot_value(final_observation, "phase") or "not_started"
+    task_success = bool(final_observation and final_observation.get("task_success"))
+    gripper_open = bool((final_diagnostics or {}).get("gripper_open"))
+    current_contact = bool((final_diagnostics or {}).get("finger_target_contact"))
+    released = bool(released or oracle.get("released"))
+    passed = bool(
+        task_success
+        and phase == "DONE"
+        and pick == "passed"
+        and place == "passed"
+        and released
+        and gripper_open
+        and not current_contact
+    )
+    return {
+        "scene_id": scene_id,
+        "backend": "isaac",
+        "robot": "franka",
+        "task": "pick_and_place",
+        "target_object": target_object,
+        "asset_id": asset_id,
+        "initial_target_position": initial_position or [],
+        "final_target_position": final_position or [],
+        "max_lift_delta_m": float(oracle.get("max_lift_delta_m", 0.0)),
+        "target_position_m": oracle.get("target_position_m", []),
+        "target_support": oracle.get("target_support"),
+        "placement_stable_steps": int(oracle.get("placement_stable_steps", 0)),
+        "steps": int(steps),
+        "ik": ik,
+        "pick": pick,
+        "place": place,
+        "released": released,
+        "gripper_open": gripper_open,
+        "finger_target_contact": current_contact,
+        "phase": phase,
+        "task_oracle": oracle,
         "grasp_diagnostics": final_diagnostics or {},
         "task_success": task_success,
         "result": "passed" if passed else "failed",

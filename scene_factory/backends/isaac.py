@@ -64,6 +64,10 @@ def build_observation(
     grasp_diagnostics: dict[str, Any] | None = None,
     ik_target_joint_positions: list[float] | None = None,
     applied_joint_position_targets: list[float] | None = None,
+    task_oracle: dict[str, Any] | None = None,
+    pick_status: str = "not_run",
+    place_status: str = "not_run",
+    released: bool = False,
 ) -> dict[str, Any]:
     return {
         "language_instruction": instruction,
@@ -90,6 +94,10 @@ def build_observation(
                 for name, bounds in (finger_bounds or {}).items()
             },
             "grasp_diagnostics": grasp_diagnostics or {},
+            "task_oracle": task_oracle or {},
+            "pick_status": pick_status,
+            "place_status": place_status,
+            "released": bool(released),
             "ik_target_joint_positions": ik_target_joint_positions or [],
             "applied_joint_position_targets": applied_joint_position_targets or [],
             "phase": phase,
@@ -129,6 +137,7 @@ class IsaacSimBackend:
         self._object_prims: dict[str, Any] = {}
         self._initial_positions: dict[str, Vec3] = {}
         self._task_evaluator: TaskEvaluator | None = None
+        self._task_status: dict[str, Any] = {}
         self._controller: MugLiftController | None = None
         self._last_observation: dict[str, Any] | None = None
         self._grasp_diagnostics: dict[str, Any] = _empty_grasp_diagnostics()
@@ -164,6 +173,10 @@ class IsaacSimBackend:
             "phase": controller.phase.value if controller else "not_started",
             "failure_reason": controller.failure_reason if controller else None,
             "grasp_diagnostics": self._grasp_diagnostics,
+            "task_oracle": self._task_status,
+            "pick_status": controller.pick_status if controller else "not_run",
+            "place_status": controller.place_status if controller else "not_run",
+            "released": controller.released if controller else False,
             "robot_asset_source": self._robot_asset_source,
         }
 
@@ -214,6 +227,10 @@ class IsaacSimBackend:
             if target_id not in positions:
                 raise RuntimeError(f"target object is not mapped in USD: {target_id}")
             self._task_evaluator = TaskEvaluator(scene["task"], positions)
+            self._task_status = self._task_evaluator.status(
+                positions,
+                self._task_evidence(),
+            )
             grasp_offset = scene["task"].get("grasp_offset_m", [0.0, 0.0, 0.0])
             if not isinstance(grasp_offset, (list, tuple)) or len(grasp_offset) != 3:
                 raise ValueError("task.grasp_offset_m must contain exactly three values")
@@ -243,6 +260,14 @@ class IsaacSimBackend:
                 self.max_steps,
                 grasp_offset,
                 approach_clearance_x_m=_NUCLEUS_FRANKA_APPROACH_CLEARANCE_X_M,
+                task_mode=(
+                    "pick_place"
+                    if scene["task"].get("success", {}).get("predicate") == "pick_and_place"
+                    else "lift"
+                ),
+                place_target_position=_pick_place_target_position(scene["task"]),
+                transfer_clearance_m=_pick_place_transfer_clearance(scene["task"]),
+                lift_height_m=_pick_place_lift_height(scene["task"]),
             )
             self._target_root_path = str(self._object_prims[target_id].GetPath())
             self._refresh_grasp_diagnostics()
@@ -283,7 +308,12 @@ class IsaacSimBackend:
         self._refresh_grasp_diagnostics()
 
         positions = self._read_object_positions()
-        task_success = bool(self._task_evaluator and self._task_evaluator.evaluate(positions))
+        self._task_status = (
+            self._task_evaluator.status(positions, self._task_evidence())
+            if self._task_evaluator
+            else {"task_success": False}
+        )
+        task_success = bool(self._task_status.get("task_success"))
         ee_position, ee_orientation = self._end_effector_pose()
         orientation_error = self._orientation_error(ee_orientation)
         self._controller.advance(
@@ -293,6 +323,7 @@ class IsaacSimBackend:
             ik_success=ik_success,
             task_success=task_success,
             grasp_diagnostics=self._grasp_diagnostics,
+            task_state=self._task_status,
         )
         if (
             command.phase == MugLiftPhase.GRASP
@@ -369,6 +400,7 @@ class IsaacSimBackend:
         self._object_prims = {}
         self._initial_positions = {}
         self._task_evaluator = None
+        self._task_status = {}
         self._controller = None
         self._last_observation = None
         self._grasp_diagnostics = _empty_grasp_diagnostics()
@@ -581,6 +613,30 @@ class IsaacSimBackend:
 
         if command.gripper == "open":
             self._gripper.open()
+            from isaacsim.core.utils.types import ArticulationAction
+
+            self._robot.apply_action(
+                ArticulationAction(
+                    joint_positions=np.asarray(
+                        self._finger_gripper_config["open_positions"],
+                        dtype=float,
+                    ),
+                    joint_velocities=(
+                        np.asarray(
+                            self._finger_gripper_config["action_deltas"],
+                            dtype=float,
+                        )
+                        / self.physics_dt
+                        * 0.5
+                        if command.phase in {MugLiftPhase.RELEASE, MugLiftPhase.VERIFY_PLACE}
+                        else None
+                    ),
+                    joint_indices=np.asarray(
+                        self._finger_gripper_config["indices"],
+                        dtype=int,
+                    ),
+                )
+            )
         elif command.gripper in {"close", "closed"}:
             self._gripper.close()
             # Keep ParallelGripper as the command interface, then submit the
@@ -800,6 +856,7 @@ class IsaacSimBackend:
                 "finger_gripper_config": self._finger_gripper_config,
             }
         )
+        diagnostics["gripper_open"] = _finger_gripper_is_open(diagnostics)
         for key in ("contact_report_error", "dof_limits_error", "material_resolution_error"):
             if key in self._grasp_diagnostics:
                 diagnostics[key] = self._grasp_diagnostics[key]
@@ -839,7 +896,14 @@ class IsaacSimBackend:
             grasp_diagnostics=self._grasp_diagnostics,
             ik_target_joint_positions=self._last_ik_target_joint_positions,
             applied_joint_position_targets=self._last_applied_joint_position_targets,
+            task_oracle=self._task_status,
+            pick_status=controller.pick_status if controller else "not_run",
+            place_status=controller.place_status if controller else "not_run",
+            released=controller.released if controller else False,
         )
+
+    def _task_evidence(self) -> dict[str, Any]:
+        return dict(self._grasp_diagnostics)
 
     def _end_effector_pose(self):
         from isaacsim.core.utils.numpy.rotations import rot_matrices_to_quats
@@ -1123,6 +1187,36 @@ def _target_object(scene: dict[str, Any]) -> str:
     return str(target)
 
 
+def _pick_place_target_position(task: dict[str, Any]) -> Vec3 | None:
+    success = task.get("success", {})
+    if success.get("predicate") != "pick_and_place":
+        return None
+    target = success.get("target_position_m")
+    if not isinstance(target, (list, tuple)) or len(target) != 3:
+        raise ValueError("pick_and_place requires task.success.target_position_m")
+    return tuple(float(value) for value in target)
+
+
+def _pick_place_transfer_clearance(task: dict[str, Any]) -> float:
+    success = task.get("success", {})
+    if success.get("predicate") != "pick_and_place":
+        return 0.2
+    value = float(success.get("transfer_clearance_m", 0.0))
+    if value <= 0.0:
+        raise ValueError("pick_and_place requires a positive transfer_clearance_m")
+    return value
+
+
+def _pick_place_lift_height(task: dict[str, Any]) -> float | None:
+    success = task.get("success", {})
+    if success.get("predicate") != "pick_and_place":
+        return None
+    value = float(success.get("lift_height_m", 0.0))
+    if value <= 0.0:
+        raise ValueError("pick_and_place requires a positive lift_height_m")
+    return value
+
+
 def _validate_scene_payload(scene: dict[str, Any]) -> None:
     if not isinstance(scene, dict) or not scene.get("scene_id"):
         raise ValueError("backend reset requires a SceneFactory scene payload")
@@ -1148,6 +1242,7 @@ def _empty_grasp_diagnostics() -> dict[str, Any]:
         "contact_report_available": False,
         "contact_report_subscribed": False,
         "finger_target_contact": False,
+        "gripper_open": False,
         "active_contact_pairs": [],
         "event_contact_pairs": [],
         "last_step_events": [],
@@ -1216,6 +1311,30 @@ def _read_finger_dof_diagnostics(robot: Any, positions: Any) -> dict[str, Any]:
     except (IndexError, KeyError, TypeError, ValueError, AttributeError):
         return result
     return result
+
+
+def _finger_gripper_is_open(diagnostics: dict[str, Any]) -> bool:
+    config = diagnostics.get("finger_gripper_config") or {}
+    entries = diagnostics.get("finger_dofs") or []
+    open_positions = config.get("open_positions")
+    action_deltas = config.get("action_deltas")
+    if (
+        not isinstance(open_positions, (list, tuple))
+        or not isinstance(action_deltas, (list, tuple))
+        or len(entries) != 2
+        or len(action_deltas) != 2
+    ):
+        return False
+    try:
+        return all(
+            float(entry["position"])
+            >= float(open_position) - max(2e-4, abs(float(action_delta)) / 8.0)
+            for entry, open_position, action_delta in zip(
+                entries, open_positions, action_deltas, strict=True
+            )
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 def _read_runtime_dof_limits(robot: Any) -> Any:
