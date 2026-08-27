@@ -77,11 +77,13 @@ def _check_metadata(failures: list[str]) -> None:
         "name": "scene-factory",
         "version": EXPECTED_VERSION,
         "requires-python": ">=3.12",
-        "license": "MIT",
     }
     for key, value in expected.items():
         if project.get(key) != value:
             failures.append(f"pyproject {key} is {project.get(key)!r}, expected {value!r}")
+    license_metadata = project.get("license")
+    if license_metadata not in ({"text": "MIT"}, {"file": "LICENSE"}):
+        failures.append(f"pyproject license is {license_metadata!r}, expected MIT text or file metadata")
     if project.get("dependencies") != []:
         failures.append("core runtime dependencies must remain empty")
     scripts = project.get("scripts", {})
