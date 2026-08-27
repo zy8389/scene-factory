@@ -17,7 +17,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install wheel and development tools
-        run: python -m pip install ".[dev]"
+        run: python -m pip install ".[dev]" "setuptools>=69"
       - name: Build release wheel
         run: python -m pip wheel . --no-deps --no-build-isolation --wheel-dir "$RUNNER_TEMP/wheel"
       - name: Fresh install release smoke
