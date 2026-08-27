@@ -149,7 +149,12 @@ class IsaacUsdExporter:
             relative = Path(reference).resolve().relative_to(output_path.parent.resolve())
             return relative.as_posix()
         except ValueError:
-            return Path(os.path.relpath(reference, output_path.parent)).as_posix()
+            try:
+                return Path(os.path.relpath(reference, output_path.parent)).as_posix()
+            except ValueError:
+                # Windows cannot compute a relative path across drive letters, but USD
+                # accepts a normalized absolute asset path for that case.
+                return Path(reference).resolve().as_posix()
 
     @staticmethod
     def _string_type():
