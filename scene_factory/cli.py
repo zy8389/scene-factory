@@ -18,6 +18,12 @@ from .planning import (
     validate_interaction_plan,
     write_plan_atomic,
 )
+from .execution import (
+    DryRunInteractionExecutor,
+    execute_interaction_plan,
+    validate_execution_trace,
+    write_execution_trace_atomic,
+)
 from .registry import AssetRegistry
 
 
@@ -111,6 +117,24 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("--scene", dest="scene", type=Path)
         command.add_argument("plan_pos", nargs="?", type=Path)
         command.add_argument("--plan", dest="plan", type=Path)
+    task_execute = task_commands.add_parser(
+        "execute", help="Execute a symbolic plan through an offline executor"
+    )
+    task_execute.add_argument("scene_pos", nargs="?", type=Path)
+    task_execute.add_argument("--scene", dest="scene", type=Path)
+    task_execute.add_argument("plan_pos", nargs="?", type=Path)
+    task_execute.add_argument("--plan", dest="plan", type=Path)
+    task_execute.add_argument("--executor", choices=("dry-run",), default="dry-run")
+    task_execute.add_argument("--output", type=Path)
+    trace_validate = task_commands.add_parser(
+        "execution-validate", help="Validate a serialized execution trace"
+    )
+    trace_validate.add_argument("scene_pos", nargs="?", type=Path)
+    trace_validate.add_argument("--scene", dest="scene", type=Path)
+    trace_validate.add_argument("plan_pos", nargs="?", type=Path)
+    trace_validate.add_argument("--plan", dest="plan", type=Path)
+    trace_validate.add_argument("trace_pos", nargs="?", type=Path)
+    trace_validate.add_argument("--trace", dest="trace", type=Path)
 
     asset = subparsers.add_parser("asset", help="Inspect and validate registered assets")
     asset_commands = asset.add_subparsers(dest="asset_command", required=True)
@@ -209,6 +233,26 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if result.valid and args.output is not None and result.plan is not None:
                     write_plan_atomic(args.output, result.plan)
+                print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if result.valid else 2
+            if args.task_command == "execute":
+                plan_path = args.plan or args.plan_pos
+                if plan_path is None:
+                    raise ValueError("task execute command requires --plan plan.json")
+                executor = DryRunInteractionExecutor()
+                result = execute_interaction_plan(scene_path, plan_path, executor)
+                if result.trace is not None and args.output is not None:
+                    write_execution_trace_atomic(args.output, result.trace)
+                print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if result.valid else 2
+            if args.task_command == "execution-validate":
+                plan_path = args.plan or args.plan_pos
+                trace_path = args.trace or args.trace_pos
+                if plan_path is None or trace_path is None:
+                    raise ValueError(
+                        "task execution-validate requires --plan plan.json and --trace trace.json"
+                    )
+                result = validate_execution_trace(scene_path, plan_path, trace_path)
                 print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
                 return 0 if result.valid else 2
             plan_path = args.plan or args.plan_pos

@@ -25,6 +25,7 @@ packages = ["scene_factory", "scene_factory.backends", "scene_factory.exporters"
 
 [tool.setuptools.data-files]
 "share/scene-factory/recipes" = ["recipes/*.json"]
+"share/scene-factory/schemas" = ["schemas/*.json"]
 "share/scene-factory/web" = ["web/*.html", "web/*.css", "web/*.js"]
 "share/scene-factory/data/assets" = ["data/assets/registry.jsonl"]
 "share/scene-factory/data/assets/collision" = ["data/assets/collision/*.usd"]

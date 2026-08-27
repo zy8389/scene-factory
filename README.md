@@ -133,12 +133,29 @@ scene-factory task validate `
 scene-factory task replay `
   --scene outputs\articulated\layout.json `
   --plan outputs\articulated\task_plan.json
+
+scene-factory task execute `
+  --scene outputs\articulated\layout.json `
+  --plan outputs\articulated\task_plan.json `
+  --executor dry-run `
+  --output outputs\articulated\execution_trace.json
+
+scene-factory task execution-validate `
+  --scene outputs\articulated\layout.json `
+  --plan outputs\articulated\task_plan.json `
+  --trace outputs\articulated\execution_trace.json
 ```
 
 计划使用 `scene_factory.interaction_plan.v1` 和基于 semantic content 的 SHA-256；验证器
 逐步检查 approach、grasp、pull/push/rotate、release 的符号前置条件和效果，回放结束后
 仍由现有 `TaskEvaluator` 判断目标。`task replay` 是离线 semantic replay，不是 episode
 trajectory replay、机器人执行或物理仿真。
+
+`task execute --executor dry-run` 验证 `InteractionPlan` 到 executor 的命令、结果、
+失败传播和确定性执行 trace；它只应用符号状态转移，输出中的 `physical_execution` 始终为
+`false`，不代表物理执行或机器人执行。`task replay` 是 symbolic plan replay，
+`task execution-validate` 只验证已保存的 trace，不会重新调用 executor；三者都不同于
+P1-3 的 episode replay。
 
 也可以构建并安装 wheel。安装包把 `recipes/`、运行时资产注册表/USD/collision 和
 `web/` 放入 `share/scene-factory`；`SCENE_FACTORY_HOME` 可覆盖该数据根：

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene_factory.execution_trace.v1",
+  "title": "SceneFactory semantic execution trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_sha256",
+    "scene_id",
+    "executor",
+    "result",
+    "steps",
+    "final_evidence",
+    "goal_status",
+    "failure_reason",
+    "trace_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "scene_factory.execution_trace.v1"},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "scene_id": {"type": ["string", "null"]},
+    "executor": {"$ref": "#/$defs/executor"},
+    "result": {"enum": ["passed", "failed"]},
+    "steps": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/trace_step"}
+    },
+    "final_evidence": {"type": "object"},
+    "goal_status": {"type": "object"},
+    "failure_reason": {"type": ["string", "null"]},
+    "trace_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executor",
+        "version",
+        "physical",
+        "supported_actions",
+        "articulation_execution"
+      ],
+      "properties": {
+        "executor": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "physical": {"type": "boolean"},
+        "supported_actions": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "articulation_execution": {"type": "boolean"}
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "action", "object_id", "region_id"],
+      "properties": {
+        "step_id": {"type": "integer", "minimum": 0},
+        "action": {
+          "enum": ["approach", "grasp", "pull", "push", "rotate", "release"]
+        },
+        "object_id": {"type": "string", "minLength": 1},
+        "region_id": {"type": "string", "minLength": 1},
+        "joint_id": {"type": "string", "minLength": 1},
+        "target_position": {"type": "number"}
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "command_id", "plan_sha256", "step_id", "action"],
+      "properties": {
+        "schema_version": {"const": "scene_factory.execution_command.v1"},
+        "command_id": {"type": "string", "minLength": 1},
+        "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "step_id": {"type": "integer", "minimum": 0},
+        "action": {"$ref": "#/$defs/action"}
+      }
+    },
+    "step_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "step_id", "status", "reason", "evidence"],
+      "properties": {
+        "command_id": {"type": "string", "minLength": 1},
+        "step_id": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["succeeded", "failed", "not_supported"]},
+        "reason": {"type": ["string", "null"]},
+        "evidence": {"type": "object"}
+      }
+    },
+    "trace_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "result"],
+      "properties": {
+        "command": {"$ref": "#/$defs/command"},
+        "result": {"$ref": "#/$defs/step_result"}
+      }
+    }
+  }
+}

@@ -30,6 +30,10 @@ def default_web_dir() -> Path:
     return project_root() / "web"
 
 
+def default_schemas_dir() -> Path:
+    return project_root() / "schemas"
+
+
 def _has_runtime_resources(root: Path) -> bool:
     return (
         (root / "recipes").is_dir()
