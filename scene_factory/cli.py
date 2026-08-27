@@ -7,6 +7,15 @@ from pathlib import Path
 
 from .asset_pipeline import AssetNormalizer, CollisionProcessor
 from .asset_validator import validate_asset, validate_usd
+from .conformance import (
+    EXECUTOR_NAMES,
+    capability_sha256,
+    create_executor,
+    normalize_executor_capabilities,
+    run_executor_conformance,
+    validate_conformance_report,
+    write_conformance_report_atomic,
+)
 from .dataset import inspect_dataset, reproduce_dataset, validate_dataset
 from .external import ExternalSceneError, external_scene_schema, load_external_scene
 from .exporters.isaac_usd import IsaacBackendUnavailable
@@ -135,6 +144,20 @@ def _parser() -> argparse.ArgumentParser:
     trace_validate.add_argument("--plan", dest="plan", type=Path)
     trace_validate.add_argument("trace_pos", nargs="?", type=Path)
     trace_validate.add_argument("--trace", dest="trace", type=Path)
+
+    executor = subparsers.add_parser("executor", help="Inspect and validate executor compatibility")
+    executor_commands = executor.add_subparsers(dest="executor_command", required=True)
+    executor_inspect = executor_commands.add_parser("inspect", help="Inspect executor capabilities")
+    executor_inspect.add_argument("--executor", choices=EXECUTOR_NAMES, default="dry-run")
+    executor_conformance = executor_commands.add_parser(
+        "conformance", help="Run the core executor conformance suite"
+    )
+    executor_conformance.add_argument("--executor", choices=EXECUTOR_NAMES, default="dry-run")
+    executor_conformance.add_argument("--output", type=Path)
+    executor_validate = executor_commands.add_parser(
+        "validate-report", help="Validate a serialized executor conformance report"
+    )
+    executor_validate.add_argument("path", type=Path)
 
     asset = subparsers.add_parser("asset", help="Inspect and validate registered assets")
     asset_commands = asset.add_subparsers(dest="asset_command", required=True)
@@ -266,6 +289,40 @@ def main(argv: list[str] | None = None) -> int:
             result = handler(scene_path, plan_path)
             print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
             return 0 if result.valid else 2
+
+        if args.command == "executor":
+            if args.executor_command == "inspect":
+                instance = create_executor(args.executor)
+                capabilities = normalize_executor_capabilities(instance.capabilities())
+                try:
+                    instance.close()
+                except Exception:
+                    pass
+                print(
+                    json.dumps(
+                        {
+                            "result": "passed",
+                            "valid": True,
+                            "executor": capabilities.to_dict(),
+                            "capability_sha256": capability_sha256(capabilities),
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return 0
+            if args.executor_command == "conformance":
+                report = run_executor_conformance(
+                    lambda: create_executor(args.executor),
+                )
+                if args.output is not None:
+                    write_conformance_report_atomic(args.output, report)
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.result == "passed" else 2
+            validation = validate_conformance_report(args.path)
+            print(json.dumps(validation.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+            return 0 if validation.valid else 2
 
         factory = SceneFactory(args.registry, args.recipes)
         if args.command == "intent":

@@ -48,6 +48,22 @@ from .execution import (
     validate_execution_trace,
     write_execution_trace_atomic,
 )
+from .conformance import (
+    CONFORMANCE_SCHEMA_VERSION,
+    CORE_CONFORMANCE_CASES,
+    CORE_PROFILE,
+    EXECUTOR_NAMES,
+    ConformanceCaseResult,
+    ConformanceError,
+    ConformanceValidationResult,
+    ExecutorConformanceReport,
+    capability_sha256,
+    create_executor,
+    normalize_executor_capabilities,
+    run_executor_conformance,
+    validate_conformance_report,
+    write_conformance_report_atomic,
+)
 
 __all__ = [
     "AssetLoader",
@@ -104,5 +120,19 @@ __all__ = [
     "execute_interaction_plan",
     "validate_execution_trace",
     "write_execution_trace_atomic",
+    "CONFORMANCE_SCHEMA_VERSION",
+    "CORE_CONFORMANCE_CASES",
+    "CORE_PROFILE",
+    "EXECUTOR_NAMES",
+    "ConformanceCaseResult",
+    "ConformanceError",
+    "ConformanceValidationResult",
+    "ExecutorConformanceReport",
+    "capability_sha256",
+    "create_executor",
+    "normalize_executor_capabilities",
+    "run_executor_conformance",
+    "validate_conformance_report",
+    "write_conformance_report_atomic",
 ]
 __version__ = "0.1.0"

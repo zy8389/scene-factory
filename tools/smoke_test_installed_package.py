@@ -31,6 +31,8 @@ def main() -> int:
         web / "index.html",
         schemas / "interaction_plan.schema.json",
         schemas / "execution_trace.schema.json",
+        schemas / "executor_capabilities.schema.json",
+        schemas / "executor_conformance.schema.json",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -118,6 +120,7 @@ def main() -> int:
         planning_scene_path = Path(directory) / "articulated-layout.json"
         planning_plan_path = Path(directory) / "articulated-plan.json"
         execution_trace_path = Path(directory) / "execution-trace.json"
+        conformance_report_path = Path(directory) / "executor-conformance.json"
         planning_scene_path.write_text(
             json.dumps(
                 {
@@ -259,6 +262,17 @@ def main() -> int:
                 "--trace",
                 str(execution_trace_path),
             ],
+            [cli, "executor", "inspect", "--executor", "dry-run"],
+            [
+                cli,
+                "executor",
+                "conformance",
+                "--executor",
+                "dry-run",
+                "--output",
+                str(conformance_report_path),
+            ],
+            [cli, "executor", "validate-report", str(conformance_report_path)],
         ]
         for command in commands:
             completed = subprocess.run(
@@ -275,6 +289,8 @@ def main() -> int:
                 )
         if not execution_trace_path.is_file():
             raise RuntimeError("installed execution CLI did not write its trace output")
+        if not conformance_report_path.is_file():
+            raise RuntimeError("installed executor CLI did not write its conformance report")
     print(
         json.dumps(
             {

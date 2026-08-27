@@ -157,6 +157,29 @@ trajectory replay、机器人执行或物理仿真。
 `task execution-validate` 只验证已保存的 trace，不会重新调用 executor；三者都不同于
 P1-3 的 episode replay。
 
+### Executor Conformance
+
+`InteractionExecutor` 是 semantic interaction-plan execution abstraction；它与已有的
+`SimulatorBackend` environment reset/step abstraction 分开。新的 executor 应先实现同一
+protocol，声明 capabilities，再运行 core conformance suite：
+
+```powershell
+scene-factory executor inspect --executor dry-run
+
+scene-factory executor conformance --executor dry-run
+
+scene-factory executor conformance `
+  --executor dry-run `
+  --output executor_conformance.json
+
+scene-factory executor validate-report executor_conformance.json
+```
+
+通过 core conformance 表示 executor 满足 SceneFactory 的 semantic contract，包括 lifecycle、
+capability、command/result correlation、TaskEvaluator final gate 和 execution trace。它不表示
+物理操作质量或真实机器人验收。当前 `DryRunInteractionExecutor` 的 conformance 结果中
+`physical` 始终为 `false`；未来 Isaac executor 仍需另外通过 physical acceptance。
+
 也可以构建并安装 wheel。安装包把 `recipes/`、运行时资产注册表/USD/collision 和
 `web/` 放入 `share/scene-factory`；`SCENE_FACTORY_HOME` 可覆盖该数据根：
 
