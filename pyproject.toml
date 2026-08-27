@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,7 @@ version = "0.1.0"
 description = "Deterministic scene, task, interaction-planning, and executor contracts for embodied-AI simulation workflows"
 readme = "README.md"
 requires-python = ">=3.12"
-license = "MIT"
-license-files = ["LICENSE"]
+license = { text = "MIT" }
 dependencies = []
 
 [project.optional-dependencies]
@@ -22,6 +21,7 @@ scene-factory-web = "scene_factory.webapp:main"
 
 [tool.setuptools]
 packages = ["scene_factory", "scene_factory.backends", "scene_factory.exporters"]
+license-files = ["LICENSE"]
 
 [tool.setuptools.data-files]
 "share/scene-factory/recipes" = ["recipes/*.json"]

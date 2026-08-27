@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 release candidate
+## 0.1.0 - Unreleased
 
 This is a release-readiness milestone, not a published package release.
 

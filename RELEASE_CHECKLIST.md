@@ -25,9 +25,13 @@ the evidence. It describes readiness work; it is not a publication record.
 
 - [ ] README is accurate for the current scope
 - [ ] architecture, API, compatibility, and schema policy docs are current
+- [ ] v0.1.0 release notes and API/CLI surface snapshots are reviewed
 - [ ] runnable examples pass from an installed package
 - [ ] third-party asset notices cover all packaged source manifests
 - [ ] no secrets, personal paths, or generated outputs are tracked
+- [ ] wheel and sdist contents pass the release artifact audit
+- [ ] artifact SHA-256 and git provenance manifest is generated from a clean tag commit
+- [ ] wheel and sdist-derived fresh installs pass outside the source checkout
 
 ## Physical simulator status
 
