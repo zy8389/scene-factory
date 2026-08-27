@@ -303,7 +303,7 @@ def _default_output() -> Path:
     configured = os.environ.get("SCENE_FACTORY_WEB_OUTPUT")
     if configured:
         return Path(configured)
-    return Path("F:/scene_factory_runtime/web") if os.name == "nt" else Path("/tmp/scene_factory_web")
+    return Path("outputs/web")
 
 
 def main(argv: list[str] | None = None) -> int:

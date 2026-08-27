@@ -27,19 +27,21 @@ class TaskEvaluator:
 
     def status(
         self,
-        state: dict[str, tuple[float, float, float]],
+        state: dict[str, Any],
         evidence: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         success = self.task.get("success", {})
         predicate = success.get("predicate")
         if predicate == "pick_and_place":
             return self._pick_and_place_status(state, evidence or {})
+        if predicate == "articulation_state":
+            return self._articulation_state_status(success, state, evidence or {})
         return {"task_success": self._evaluate_simple(success, state)}
 
     def _evaluate_simple(
         self,
         success: dict[str, Any],
-        state: dict[str, tuple[float, float, float]],
+        state: dict[str, Any],
     ) -> bool:
         predicate = success.get("predicate")
         if predicate == "lifted":
@@ -68,8 +70,122 @@ class TaskEvaluator:
             return xy_distance <= radius and abs(subject_pose[2] - target_pose[2]) <= half_height
         raise ValueError(f"unsupported success predicate: {predicate!r}")
 
+    def _articulation_state_status(
+        self,
+        success: dict[str, Any],
+        state: dict[str, Any],
+        evidence: dict[str, Any],
+    ) -> dict[str, Any]:
+        object_id, joint, state_name, state_range = self._articulation_target(success)
+        current = self._current_joint_position(state, evidence, object_id, joint)
+        passed = (
+            current is not None
+            and isinstance(state_range, (list, tuple))
+            and len(state_range) == 2
+            and float(state_range[0]) <= current <= float(state_range[1])
+        )
+        return {
+            "task_success": bool(passed),
+            "object_id": object_id,
+            "joint": joint,
+            "state": state_name,
+            "current_position": current,
+            "target_range": list(state_range) if isinstance(state_range, (list, tuple)) else None,
+        }
+
+    @staticmethod
+    def _current_joint_position(
+        state: dict[str, Any],
+        evidence: dict[str, Any],
+        object_id: Any,
+        joint: Any,
+    ) -> float | None:
+        if not isinstance(object_id, str) or not isinstance(joint, str):
+            return None
+        articulation_positions = evidence.get("articulation_positions")
+        candidates = []
+        if isinstance(articulation_positions, dict):
+            candidates.append(articulation_positions.get(object_id))
+        candidates.append(state.get(object_id))
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                joints = candidate.get("joints", candidate)
+                if isinstance(joints, dict) and joint in joints:
+                    value = joints[joint]
+                    if isinstance(value, bool) or not isinstance(value, (int, float)):
+                        return None
+                    value = float(value)
+                    return value if math.isfinite(value) else None
+                if isinstance(joints, list):
+                    for item in joints:
+                        if isinstance(item, dict) and item.get("joint_id") == joint:
+                            value = item.get("position")
+                            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                                return None
+                            value = float(value)
+                            return value if math.isfinite(value) else None
+        return None
+
+    def _articulation_target(
+        self, success: dict[str, Any]
+    ) -> tuple[Any, Any, Any, Any]:
+        object_id = (
+            success.get("object_id")
+            or self.task.get("object_id")
+            or self.task.get("target_object")
+            or success.get("target_object")
+            or success.get("subject")
+        )
+        state_name = success.get("state")
+        joint = success.get("joint") or success.get("joint_id")
+        state_range = success.get("range", success.get("state_range"))
+        state_sources = (
+            success.get("state_ranges"),
+            success.get("states"),
+            self.task.get("state_ranges"),
+            self.task.get("states"),
+        )
+        initial_object = (
+            self.initial_state.get(object_id) if isinstance(object_id, str) else None
+        )
+        if isinstance(initial_object, dict):
+            state_sources += (
+                initial_object.get("semantic_states"),
+                initial_object.get("states"),
+            )
+        for state_specs in state_sources:
+            selected = state_specs.get(state_name) if isinstance(state_specs, dict) else None
+            if isinstance(selected, dict):
+                joint = joint or selected.get("joint") or selected.get("joint_id")
+                if state_range is None:
+                    state_range = selected.get("range", selected.get("state_range"))
+                if joint is not None and state_range is not None:
+                    break
+        return object_id, joint, state_name, state_range
+
     def _validate_task(self) -> None:
         success = self.task.get("success", {})
+        if success.get("predicate") == "articulation_state":
+            object_id, joint, state_name, state_range = self._articulation_target(success)
+            if not isinstance(object_id, str) or not object_id.strip():
+                raise ValueError("articulation_state requires a valid object_id")
+            if not isinstance(state_name, str) or not state_name.strip():
+                raise ValueError("articulation_state requires a state name")
+            if not isinstance(joint, str) or not joint.strip():
+                raise ValueError("articulation_state requires a joint")
+            if (
+                not isinstance(state_range, (list, tuple))
+                or len(state_range) != 2
+                or any(
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                    for value in state_range
+                )
+                or float(state_range[0]) > float(state_range[1])
+            ):
+                raise ValueError("articulation_state range must contain two finite ordered values")
+            return
         if success.get("predicate") != "pick_and_place":
             return
         subject = self.task.get("target_object") or success.get("subject")

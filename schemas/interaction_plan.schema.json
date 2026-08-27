@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene_factory.interaction_plan.v1",
+  "title": "SceneFactory symbolic interaction plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "goal",
+    "initial_state",
+    "steps",
+    "expected_final_state",
+    "planner",
+    "plan_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "scene_factory.interaction_plan.v1"},
+    "goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["predicate", "object_id", "state"],
+      "properties": {
+        "predicate": {"const": "articulation_state"},
+        "object_id": {"type": "string", "minLength": 1},
+        "state": {"type": "string", "minLength": 1},
+        "joint_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "initial_state": {"$ref": "#/$defs/world_state"},
+    "steps": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/action"}
+    },
+    "expected_final_state": {"$ref": "#/$defs/world_state"},
+    "planner": {"type": "string", "minLength": 1},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "region_ref": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["object_id", "region_id"],
+      "properties": {
+        "object_id": {"type": "string", "minLength": 1},
+        "region_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "world_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["joint_positions", "holding", "approached_region"],
+      "properties": {
+        "joint_positions": {"type": "object"},
+        "holding": {"$ref": "#/$defs/region_ref"},
+        "approached_region": {"$ref": "#/$defs/region_ref"}
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "action", "object_id", "region_id"],
+      "properties": {
+        "step_id": {"type": "integer", "minimum": 0},
+        "action": {
+          "enum": ["approach", "grasp", "pull", "push", "rotate", "release"]
+        },
+        "object_id": {"type": "string", "minLength": 1},
+        "region_id": {"type": "string", "minLength": 1},
+        "joint_id": {"type": "string", "minLength": 1},
+        "target_position": {"type": "number"}
+      }
+    }
+  }
+}

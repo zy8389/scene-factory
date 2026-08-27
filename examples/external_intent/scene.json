@@ -1,0 +1,41 @@
+{
+  "room_type": "living_room",
+  "event": "recent_snacking",
+  "description": "A mug on the coffee table after a snack.",
+  "objects": [
+    {
+      "object_id": "sofa_1",
+      "category": "sofa",
+      "dynamic": false,
+      "support_hint": null,
+      "attributes": [],
+      "state": []
+    },
+    {
+      "object_id": "coffee_table_1",
+      "category": "coffee_table",
+      "dynamic": false,
+      "support_hint": null,
+      "attributes": [],
+      "state": []
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "dynamic": true,
+      "support_hint": "coffee_table_1",
+      "attributes": [],
+      "state": []
+    }
+  ],
+  "relations": [
+    {
+      "subject": "mug_1",
+      "predicate": "on",
+      "target": "coffee_table_1"
+    }
+  ],
+  "room_dimensions_m": null,
+  "clutter_level": 0.5,
+  "layout_style": "casual"
+}

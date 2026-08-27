@@ -7,6 +7,7 @@ import random
 from .geometry import inverse_rotate_xy, objects_overlap, rotate_xy, rotated_half_extents_xy
 from .models import (
     AssetRecord,
+    build_interaction_snapshot,
     CompiledScene,
     ObjectRequest,
     PlacedObject,
@@ -256,6 +257,13 @@ class LayoutSolver:
             support=request.support,
             relations=request.relations,
             fallback_reason=fallback_reason,
+            interactions=build_interaction_snapshot(
+                asset.articulations,
+                asset.interaction_regions,
+                asset.interior_regions,
+                asset.semantic_states,
+                request.state,
+            ),
         )
 
     def _collides(

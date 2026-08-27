@@ -29,7 +29,7 @@ def main() -> int:
     if sys.platform == "win32" and _has_non_ascii(str(usd_path)):
         raise RuntimeError(
             "OpenUSD 25.05 on Windows cannot reliably reopen this non-ASCII path. "
-            "Export to an ASCII-only path such as F:/scene_factory_runtime/scene.usd."
+            "Export to an ASCII-only path such as outputs/scene.usd."
         )
 
     try:

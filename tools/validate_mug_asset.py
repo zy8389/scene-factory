@@ -32,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--work-dir",
         type=Path,
-        default=Path("F:/scene_factory_runtime/mug_001_physx"),
+        default=Path("outputs/mug_001_physx"),
         help="ASCII-only Isaac Sim working directory on Windows",
     )
     parser.add_argument("--report", type=Path, required=True)
