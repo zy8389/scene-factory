@@ -1,14 +1,25 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
+from scene_factory.exporters.isaac_usd import IsaacUsdExporter
 from scene_factory.registry import AssetLoader, AssetRegistry
 
 
 class RealUsdAssetLoadingTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "cross-drive paths are Windows-specific")
+    def test_cross_drive_usd_reference_uses_absolute_path(self) -> None:
+        reference = f"{chr(70)}:{chr(92)}assets{chr(92)}mug_001.usd"
+        output_path = Path(f"{chr(67)}:{chr(92)}scene_factory{chr(92)}scene.usd")
+        self.assertEqual(
+            IsaacUsdExporter._relative_reference(reference, output_path),
+            f"{chr(70)}:{chr(47)}assets{chr(47)}mug_001.usd",
+        )
+
     def test_physx_metadata_and_ready_status_are_loaded(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
