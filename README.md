@@ -113,6 +113,33 @@ scene-factory batch `
 `dataset reproduce` 对 intent dataset 使用内嵌的 normalized `SceneIntent` snapshot
 离线重建，不重新调用外部 generator、网络服务或 Isaac Sim。
 
+### Symbolic Interaction Planning
+
+带有 P1-3E articulated interaction snapshot 的 `layout.json` 可以在普通 Python 环境中
+生成、验证和符号回放 articulation-state 任务。规划器只处理 semantic metadata，不启动
+Isaac Sim，不执行机器人运动，也不代表存在无碰撞或物理可行的轨迹：
+
+```powershell
+scene-factory task plan `
+  --scene outputs\articulated\layout.json `
+  --object drawer_1 `
+  --state open `
+  --output outputs\articulated\task_plan.json
+
+scene-factory task validate `
+  --scene outputs\articulated\layout.json `
+  --plan outputs\articulated\task_plan.json
+
+scene-factory task replay `
+  --scene outputs\articulated\layout.json `
+  --plan outputs\articulated\task_plan.json
+```
+
+计划使用 `scene_factory.interaction_plan.v1` 和基于 semantic content 的 SHA-256；验证器
+逐步检查 approach、grasp、pull/push/rotate、release 的符号前置条件和效果，回放结束后
+仍由现有 `TaskEvaluator` 判断目标。`task replay` 是离线 semantic replay，不是 episode
+trajectory replay、机器人执行或物理仿真。
+
 也可以构建并安装 wheel。安装包把 `recipes/`、运行时资产注册表/USD/collision 和
 `web/` 放入 `share/scene-factory`；`SCENE_FACTORY_HOME` 可覆盖该数据根：
 
