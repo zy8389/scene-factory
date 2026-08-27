@@ -17,6 +17,7 @@ This is a release-readiness milestone, not a published package release.
 
 - Pure-Python SDK workflows are available without Isaac Sim, GPU, NumPy, or a
   network connection.
-- Real Isaac Sim Franka and RGB-D acceptance remains environment-dependent and
-  is not part of this release candidate's pure-Python gate.
+- Reference Isaac Sim 6.0.1 Franka and RGB-D acceptance passes are recorded for
+  the official Local Assets environment; these checks remain environment-specific
+  and are not part of this release candidate's pure-Python gate.
 - No PyPI package, Git tag, GitHub Release, or release artifact has been published.

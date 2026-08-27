@@ -147,8 +147,8 @@ def _check_release_documents(failures: list[str]) -> None:
     normalized_notes = " ".join(notes.split())
     required_notes = (
         "early developer release",
-        "Real P1-3 Isaac RGB-D acceptance remains environment-blocked.",
-        "Real articulated execution has not been validated.",
+        "Reference Isaac Sim 6.0.1 real P1-1, P1-2, and P1-3 acceptance passes locally",
+        "Real articulated asset execution has not been validated.",
         "Real robot execution has not been run.",
         "Isaac Lab integration has not started.",
     )

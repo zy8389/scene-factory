@@ -60,10 +60,19 @@ Isaac 6.0.1 兼容性检查器的结果是 `FAILED`，原因是本机约 8.59 GB
 
 ## 当前物理验收状态
 
-P1-1 Franka mug-lift 和 P1-2 Franka pick-and-place 均有通过的环境特定验收记录。
-P1-3 RGB-D acceptance 仍依赖官方 Isaac Sim Local Assets 和已验证的 resolver 环境，
-因此在没有该环境时保持 `BLOCKED`。这些状态不影响纯 Python SDK 的 release readiness，
-也不允许用 bundled URDF、dry-run 或离线结果替代真实 Isaac acceptance。
+参考 Isaac Sim 6.0.1 local environment 已使用官方 Local Assets 完成真实验收：
+
+- P1-1 Franka mug-lift：`PASS`；
+- P1-2 Franka pick-and-place：`PASS`；
+- P1-3 RGB-D trajectory export：两个独立 episode 均为 `PASS`。
+
+P1-3 的两个 episode 均包含 621 个 RGB、depth 和 trajectory frame，
+`sensor_state_synchronized=true`，并通过最终任务成功检查。P1-1/P1-2/P1-3
+的报告都记录了 `robot_asset_source=nucleus_franka_usd`、本地 asset transport 和
+官方 Isaac USD 路径解析成功。该结果是 reference environment-specific evidence，
+不是对所有硬件和驱动组合的兼容性承诺；其他机器仍必须使用官方 Local Assets
+独立复现。上述状态不影响纯 Python SDK 的 release readiness，也不允许用 bundled
+URDF、dry-run 或离线结果替代真实 Isaac acceptance。
 
 ## Franka mug-lift manual gate
 

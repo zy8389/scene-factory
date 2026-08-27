@@ -191,14 +191,16 @@ The current public status is intentionally conservative:
 | --- | --- |
 | Pure-Python scene, dataset, planning, and dry-run workflows | available |
 | Executor conformance | available |
-| Franka real execution | environment-blocked |
-| Real RGB-D acceptance | environment-blocked |
+| Real Isaac Franka acceptance (P1-1/P1-2) | validated on reference Isaac Sim 6.0.1 |
+| Real Isaac RGB-D acceptance (P1-3) | validated on reference Isaac Sim 6.0.1 |
 | Isaac Lab | not started |
 
 Official Isaac Sim Local Assets are not bundled with SceneFactory. Real Franka
 and RGB-D acceptance requires a separately validated Isaac environment and
-official assets. No bundled URDF or offline result is presented as a substitute
-for that acceptance.
+official assets. The reference Isaac Sim 6.0.1 local environment has passed
+P1-1, P1-2, and P1-3; this evidence is environment-specific and is not a
+claim of universal hardware compatibility. No bundled URDF or offline result
+is presented as a substitute for that acceptance.
 
 ## CLI reference
 
