@@ -237,6 +237,23 @@ python -B -m pytest -p no:cacheprovider -q
 fresh virtual environment. It runs from a temporary directory outside the
 repository and does not import repository source files.
 
+## Episode validation and replay
+
+Exported RGB-D episodes can be inspected in a regular Python environment
+without starting Isaac Sim:
+
+```powershell
+scene-factory episode inspect <episode_path>
+scene-factory episode validate <episode_path>
+scene-factory episode replay <episode_path>
+```
+
+`validate` checks episode files, media, calibration, frame synchronization,
+state-machine transitions, and result consistency. `replay` is a deterministic
+offline consistency check; it does not rerun Isaac Sim physics. When episode
+metadata includes a task snapshot, it also recomputes the pure-Python task
+oracle. Otherwise it reports `task_replay=not_available` explicitly.
+
 ## License and asset attribution
 
 The code is licensed under MIT. Packaged YCB source assets are attributed in

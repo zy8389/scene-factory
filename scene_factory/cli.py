@@ -34,6 +34,7 @@ from .execution import (
     write_execution_trace_atomic,
 )
 from .registry import AssetRegistry
+from .trajectory import inspect_episode, replay_episode, validate_episode
 
 
 def _intent_report(document) -> dict[str, object]:
@@ -191,6 +192,16 @@ def _parser() -> argparse.ArgumentParser:
     collision.add_argument("--status")
     collision.add_argument("--enabled", action="store_true")
     collision.add_argument("--report", type=Path)
+
+    episode = subparsers.add_parser("episode", help="Inspect, validate, or replay an offline episode")
+    episode_commands = episode.add_subparsers(dest="episode_command", required=True)
+    for command, help_text in (
+        ("inspect", "Inspect episode structure and summary"),
+        ("validate", "Validate episode integrity and task result"),
+        ("replay", "Replay episode consistency checks offline"),
+    ):
+        command_parser = episode_commands.add_parser(command, help=help_text)
+        command_parser.add_argument("path", type=Path, help="Episode directory")
     return parser
 
 
@@ -230,6 +241,16 @@ def main(argv: list[str] | None = None) -> int:
                 report = validate_usd(args.usd, report_path=report_path)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             return 0 if report["valid"] else 2
+
+        if args.command == "episode":
+            operation = {
+                "inspect": inspect_episode,
+                "validate": validate_episode,
+                "replay": replay_episode,
+            }[args.episode_command]
+            report = operation(args.path)
+            print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+            return 0 if report.valid else 2
 
         if args.command == "dataset":
             handler = {
