@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene_factory.executor_conformance.v1",
+  "title": "SceneFactory executor conformance report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile",
+    "executor",
+    "capabilities",
+    "capability_sha256",
+    "result",
+    "cases",
+    "summary",
+    "failure_reason"
+  ],
+  "properties": {
+    "schema_version": {"const": "scene_factory.executor_conformance.v1"},
+    "profile": {"const": "core"},
+    "executor": {
+      "anyOf": [
+        {"$ref": "#/$defs/executor"},
+        {"type": "null"}
+      ]
+    },
+    "capabilities": {
+      "anyOf": [
+        {"$ref": "#/$defs/capabilities"},
+        {"type": "null"}
+      ]
+    },
+    "capability_sha256": {
+      "anyOf": [
+        {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        {"type": "null"}
+      ]
+    },
+    "result": {"enum": ["passed", "failed"]},
+    "cases": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/case"}
+    },
+    "summary": {"$ref": "#/$defs/summary"},
+    "failure_reason": {"type": ["string", "null"]}
+  },
+  "$defs": {
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "physical"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "physical": {"type": "boolean"}
+      }
+    },
+    "capabilities": {
+      "$ref": "executor_capabilities.schema.json"
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["case_id", "result", "reason", "message", "details"],
+      "properties": {
+        "case_id": {"type": "string", "minLength": 1},
+        "result": {"enum": ["passed", "failed", "not_applicable"]},
+        "reason": {"type": ["string", "null"]},
+        "message": {"type": ["string", "null"]},
+        "details": {"type": "object"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed", "not_applicable"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "not_applicable": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

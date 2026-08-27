@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene_factory.executor_capabilities.v1",
+  "title": "SceneFactory executor capabilities",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "executor",
+    "version",
+    "physical",
+    "supported_actions",
+    "articulation_execution"
+  ],
+  "properties": {
+    "executor": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "physical": {"type": "boolean"},
+    "supported_actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["approach", "grasp", "pull", "push", "rotate", "release"]
+      }
+    },
+    "articulation_execution": {"type": "boolean"}
+  }
+}
