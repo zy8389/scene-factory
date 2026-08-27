@@ -1,6 +1,6 @@
 param(
-    [string]$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe",
-    [string]$Output = "F:\scene_factory_runtime\acceptance",
+    [string]$IsaacPython = "",
+    [string]$Output = "",
     [string]$Recipe = "kitchen_after_cooking",
     [int]$Seed = 77,
     [int]$Steps = 240
@@ -8,6 +8,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) {
+        throw "Python executable not found; pass -IsaacPython explicitly."
+    }
+    $IsaacPython = $python.Source
+}
+if ([string]::IsNullOrWhiteSpace($Output)) {
+    $Output = Join-Path $ProjectRoot "outputs\acceptance"
+}
 $Output = [System.IO.Path]::GetFullPath($Output)
 
 if (-not (Test-Path -LiteralPath $IsaacPython -PathType Leaf)) {

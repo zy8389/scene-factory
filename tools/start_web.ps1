@@ -1,13 +1,23 @@
 param(
-    [string]$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe",
+    [string]$IsaacPython = "",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8765,
-    [string]$Output = "F:\scene_factory_runtime\web",
+    [string]$Output = "",
     [switch]$Restart
 )
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) {
+        throw "Python executable not found; pass -IsaacPython explicitly."
+    }
+    $IsaacPython = $python.Source
+}
+if ([string]::IsNullOrWhiteSpace($Output)) {
+    $Output = Join-Path $ProjectRoot "outputs\web"
+}
 
 if (-not (Test-Path -LiteralPath $IsaacPython -PathType Leaf)) {
     throw "Isaac Python not found: $IsaacPython"

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "scene-factory"
 version = "0.1.0"
-description = "Natural-language-driven, reproducible household scene generation for robot simulators"
+description = "Deterministic scene, task, interaction-planning, and executor contracts for embodied-AI simulation workflows"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

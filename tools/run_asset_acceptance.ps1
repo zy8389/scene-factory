@@ -1,8 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$AssetUsd,
-    [string]$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe",
-    [string]$Output = "F:\scene_factory_runtime\asset_acceptance",
+    [string]$IsaacPython = "",
+    [string]$Output = "",
     [double]$MassKg = 1.0,
     [double]$DropHeightM = 1.0,
     [int]$Steps = 180,
@@ -12,6 +12,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -eq $python) {
+        throw "Python executable not found; pass -IsaacPython explicitly."
+    }
+    $IsaacPython = $python.Source
+}
+if ([string]::IsNullOrWhiteSpace($Output)) {
+    $Output = Join-Path $ProjectRoot "outputs\asset_acceptance"
+}
 $AssetUsd = [System.IO.Path]::GetFullPath($AssetUsd)
 $Output = [System.IO.Path]::GetFullPath($Output)
 

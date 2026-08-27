@@ -80,7 +80,7 @@ $env:SCENE_FACTORY_LLM_API_KEY = "..."
 
 ```powershell
 $env:SCENE_FACTORY_LLM_TIMEOUT_SECONDS = "60"
-$env:SCENE_FACTORY_LLM_CACHE = "F:\scene_factory_runtime\llm_cache"
+$env:SCENE_FACTORY_LLM_CACHE = ".\runtime-work\llm_cache"
 $env:SCENE_FACTORY_LLM_CA_BUNDLE = "certifi"
 $env:SCENE_FACTORY_LLM_TRANSPORT = "curl_schannel"
 $env:SCENE_FACTORY_LLM_PROXY_URL = "http://proxy.example:8080"

@@ -2,7 +2,7 @@
 
 本机已安装好一套独立环境：
 
-- Python：`F:\scene_factory_isaac_py312\Scripts\python.exe`
+- Python：使用已安装的 Isaac Sim Python；在命令示例中以 `$IsaacPython` 表示
 - Isaac Sim：6.0.1.0（`all` + `extscache`）
 - OpenUSD / pxr：25.05
 - PyTorch：2.11.0+cu128
@@ -13,7 +13,7 @@
 import 必须等 `SimulationApp` 启动后执行，因此探针不会在 Kit 启动前错误导入它们：
 
 ```powershell
-& F:\scene_factory_isaac_py312\Scripts\python.exe tools\detect_isaac_env.py --require
+& $IsaacPython tools\detect_isaac_env.py --require
 ```
 
 ## 一键生成并验收
@@ -26,7 +26,7 @@ powershell -ExecutionPolicy Bypass -File tools\run_isaac_acceptance.ps1
 
 默认会完成三件事：
 
-1. 用 SceneFactory 直接生成 `F:\scene_factory_runtime\acceptance\scene.usd`；
+1. 用 SceneFactory 直接生成运行时输出目录中的 `scene.usd`；
 2. 用 Isaac 自带的 `pxr` 检查 USD 单位、Z-up、PhysicsScene、Collision、RigidBody、Mass 和资产依赖；
 3. 无界面启动 Isaac Sim / PhysX，推进 240 个物理步并输出刚体位姿报告。
 
@@ -40,14 +40,14 @@ powershell -ExecutionPolicy Bypass -File tools\run_isaac_acceptance.ps1 `
   -Recipe living_room_recent_snacking `
   -Seed 1001 `
   -Steps 360 `
-  -Output F:\scene_factory_runtime\living_room_1001
+  -Output .\runtime-work\living_room_1001
 ```
 
 ## Windows 路径限制
 
 OpenUSD 25.05 在当前 Windows 环境中可以创建中文路径下的 USD，但重新打开时会失败。
 因此，要进入 Isaac worker 的 USD 输出目录必须使用纯 ASCII 路径，例如
-`F:\scene_factory_runtime\...`。验收脚本会在启动前主动检查这一点。
+ASCII-only runtime output directory。验收脚本会在启动前主动检查这一点。
 
 ## 硬件注意事项
 
@@ -57,6 +57,13 @@ Isaac 6.0.1 兼容性检查器的结果是 `FAILED`，原因是本机约 8.59 GB
 本项目的小型无头 PhysX 验收已可运行，但大型房间、高分辨率 RTX 相机、Replicator
 多传感器和并行多 worker 仍容易受内存/显存限制。批量 worker 建议首先使用纯物理、低分辨率、单 GPU
 配置，并根据显存实测控制并发数。
+
+## 当前物理验收状态
+
+P1-1 Franka mug-lift 和 P1-2 Franka pick-and-place 均有通过的环境特定验收记录。
+P1-3 RGB-D acceptance 仍依赖官方 Isaac Sim Local Assets 和已验证的 resolver 环境，
+因此在没有该环境时保持 `BLOCKED`。这些状态不影响纯 Python SDK 的 release readiness，
+也不允许用 bundled URDF、dry-run 或离线结果替代真实 Isaac acceptance。
 
 ## Franka mug-lift manual gate
 
@@ -82,9 +89,9 @@ runtime 要求 `SimulationApp` 是子进程内第一个 Isaac/OpenUSD 入口。b
 
 ```powershell
 $env:OMNI_KIT_ACCEPT_EULA = "YES"
-& F:\scene_factory_isaac_py312\Scripts\python.exe `
+& $IsaacPython `
   tools\run_franka_mug_lift.py `
-  --output F:\scene_factory_runtime\p1_1_franka_mug_lift
+  --output .\runtime-work\p1_1_franka_mug_lift
 ```
 
 状态机固定为
@@ -121,7 +128,7 @@ $env:OMNI_KIT_ACCEPT_EULA = "YES"
 诊断门控改动前、稳定控制配置的完整运行产物：
 
 ```text
-F:\scene_factory_runtime\p1_1_franka_mug_lift_v29\robot_acceptance.json
+.\runtime-work\p1_1_franka_mug_lift_v29\robot_acceptance.json
 ```
 
 关键指标：
