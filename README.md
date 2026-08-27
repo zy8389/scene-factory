@@ -473,6 +473,20 @@ git diff --check
 
 真实 Isaac 验收仍是本地/manual gate；普通 hosted CI 不会安装完整 Isaac Sim。
 
+### 离线 Episode 验证与回放
+
+已导出的 RGB-D episode 可以在普通 Python 环境中检查，不需要启动 Isaac Sim：
+
+```powershell
+scene-factory episode inspect <episode_path>
+scene-factory episode validate <episode_path>
+scene-factory episode replay <episode_path>
+```
+
+`validate` 检查 episode 的文件、媒体、校准、帧同步、状态机和结果一致性。`replay` 是确定性的
+离线轨迹/一致性回放，不会重新运行 Isaac Sim 物理；只有 episode metadata 包含 task snapshot
+时才会重新计算纯 Python task oracle，否则会明确报告 `task_replay=not_available`。
+
 ## 目前边界
 
 - 自然语言层目前是离线关键词到事件配方的确定性路由，接口已保留；下一步可以替换为
