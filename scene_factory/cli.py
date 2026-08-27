@@ -8,9 +8,27 @@ from pathlib import Path
 from .asset_pipeline import AssetNormalizer, CollisionProcessor
 from .asset_validator import validate_asset, validate_usd
 from .dataset import inspect_dataset, reproduce_dataset, validate_dataset
+from .external import ExternalSceneError, external_scene_schema, load_external_scene
 from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
 from .registry import AssetRegistry
+
+
+def _intent_report(document) -> dict[str, object]:
+    intent = document.intent
+    return {
+        **document.to_dict(),
+        "room_type": intent.room_type,
+        "event": intent.event,
+        "description": intent.description,
+        "object_count": len(intent.objects),
+        "relation_count": len(intent.relations),
+        "categories": sorted({item.category for item in intent.objects}),
+        "relation_predicates": sorted({item.predicate for item in intent.relations}),
+        "room_dimensions_m": intent.room_dimensions_m,
+        "clutter_level": intent.clutter_level,
+        "layout_style": intent.layout_style,
+    }
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -26,10 +44,19 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("llm-status", help="Show natural-language parser configuration")
     subparsers.add_parser("llm-test", help="Test the configured LLM with one structured request")
 
+    intent = subparsers.add_parser("intent", help="Validate and inspect external SceneIntent JSON")
+    intent_commands = intent.add_subparsers(dest="intent_command", required=True)
+    intent_validate = intent_commands.add_parser("validate", help="Validate an external SceneIntent")
+    intent_validate.add_argument("path", type=str)
+    intent_inspect = intent_commands.add_parser("inspect", help="Inspect a normalized SceneIntent")
+    intent_inspect.add_argument("path", type=str)
+    intent_commands.add_parser("schema", help="Print the canonical SceneIntent JSON Schema")
+
     build = subparsers.add_parser("build", help="Build one scene")
     source = build.add_mutually_exclusive_group(required=True)
     source.add_argument("--recipe")
     source.add_argument("--prompt")
+    source.add_argument("--intent", help="External SceneIntent JSON path, or - for stdin")
     build.add_argument("--seed", type=int, default=42)
     build.add_argument("--output", type=Path, required=True)
     build.add_argument("--usd", action="store_true", help="Export USD using Isaac Sim pxr")
@@ -38,6 +65,7 @@ def _parser() -> argparse.ArgumentParser:
     source = batch.add_mutually_exclusive_group(required=True)
     source.add_argument("--recipe")
     source.add_argument("--prompt")
+    source.add_argument("--intent", help="External SceneIntent JSON path, or - for stdin")
     batch.add_argument("--count", type=int, required=True)
     batch.add_argument("--seed-start", type=int, default=0)
     batch.add_argument("--output", type=Path, required=True)
@@ -145,6 +173,43 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if report["valid"] else 2
 
         factory = SceneFactory(args.registry, args.recipes)
+        if args.command == "intent":
+            if args.intent_command == "schema":
+                print(
+                    json.dumps(
+                        external_scene_schema(
+                            factory.registry.categories(),
+                            factory.recipes.room_types(),
+                            factory.recipes.events(),
+                        ),
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return 0
+            try:
+                document = load_external_scene(
+                    args.path,
+                    allowed_categories=factory.registry.categories(),
+                    allowed_room_types=factory.recipes.room_types(),
+                    allowed_events=factory.recipes.events(),
+                )
+            except ExternalSceneError as exc:
+                print(f"scene-factory: {exc}", file=sys.stderr)
+                return 2
+            if args.intent_command == "validate":
+                print(
+                    json.dumps(
+                        {"result": "passed", "valid": True, **_intent_report(document)},
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
+                return 0
+            print(json.dumps(_intent_report(document), ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
         if args.command == "list-recipes":
             for name in factory.recipes.names():
                 print(name)
@@ -165,11 +230,22 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "build":
-            result = (
-                factory.build_from_recipe(args.recipe, args.seed)
-                if args.recipe
-                else factory.build_from_prompt(args.prompt, args.seed)
-            )
+            if args.recipe:
+                result = factory.build_from_recipe(args.recipe, args.seed)
+            elif args.prompt is not None:
+                result = factory.build_from_prompt(args.prompt, args.seed)
+            else:
+                document = load_external_scene(
+                    args.intent,
+                    allowed_categories=factory.registry.categories(),
+                    allowed_room_types=factory.recipes.room_types(),
+                    allowed_events=factory.recipes.events(),
+                )
+                result = factory.build_from_intent(
+                    document.intent,
+                    args.seed,
+                    input_source=document.input_source,
+                )
             files = factory.write_result(result, args.output, export_usd=args.usd)
             print(
                 json.dumps(
@@ -185,12 +261,22 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0 if result.valid else 2
 
+        external_document = None
+        if args.intent is not None:
+            external_document = load_external_scene(
+                args.intent,
+                allowed_categories=factory.registry.categories(),
+                allowed_room_types=factory.recipes.room_types(),
+                allowed_events=factory.recipes.events(),
+            )
         manifest = factory.build_batch(
             output_root=args.output,
             count=args.count,
             seed_start=args.seed_start,
             recipe_name=args.recipe,
             prompt=args.prompt,
+            intent=external_document.intent if external_document else None,
+            input_source=external_document.input_source if external_document else None,
             export_usd=args.usd,
             resume=args.resume,
         )
@@ -203,6 +289,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         return 0 if valid_count == len(manifest) else 2
+    except ExternalSceneError as exc:
+        print(f"scene-factory: {exc}", file=sys.stderr)
+        return 2
     except (KeyError, ValueError, OSError, RuntimeError, IsaacBackendUnavailable) as exc:
         print(f"scene-factory: {exc}", file=sys.stderr)
         return 1
