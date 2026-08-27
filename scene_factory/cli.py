@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .asset_pipeline import AssetNormalizer, CollisionProcessor
 from .asset_validator import validate_asset, validate_usd
+from .dataset import inspect_dataset, reproduce_dataset, validate_dataset
 from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
 from .registry import AssetRegistry
@@ -41,6 +42,17 @@ def _parser() -> argparse.ArgumentParser:
     batch.add_argument("--seed-start", type=int, default=0)
     batch.add_argument("--output", type=Path, required=True)
     batch.add_argument("--usd", action="store_true", help="Export USD using Isaac Sim pxr")
+    batch.add_argument("--resume", action="store_true", help="Resume an incomplete dataset")
+
+    dataset = subparsers.add_parser("dataset", help="Inspect and validate generated datasets")
+    dataset_commands = dataset.add_subparsers(dest="dataset_command", required=True)
+    for name, help_text in (
+        ("inspect", "Inspect dataset metadata and manifest"),
+        ("validate", "Validate dataset integrity and completeness"),
+        ("reproduce", "Rebuild recipe scenes and compare fingerprints"),
+    ):
+        command = dataset_commands.add_parser(name, help=help_text)
+        command.add_argument("path", type=Path)
 
     asset = subparsers.add_parser("asset", help="Inspect and validate registered assets")
     asset_commands = asset.add_subparsers(dest="asset_command", required=True)
@@ -120,6 +132,18 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(report, ensure_ascii=False, indent=2))
             return 0 if report["valid"] else 2
 
+        if args.command == "dataset":
+            handler = {
+                "inspect": inspect_dataset,
+                "validate": validate_dataset,
+                "reproduce": reproduce_dataset,
+            }[args.dataset_command]
+            report = handler(args.path)
+            print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+            if args.dataset_command == "inspect":
+                return 0
+            return 0 if report["valid"] else 2
+
         factory = SceneFactory(args.registry, args.recipes)
         if args.command == "list-recipes":
             for name in factory.recipes.names():
@@ -168,6 +192,7 @@ def main(argv: list[str] | None = None) -> int:
             recipe_name=args.recipe,
             prompt=args.prompt,
             export_usd=args.usd,
+            resume=args.resume,
         )
         valid_count = sum(item["valid"] for item in manifest)
         print(
