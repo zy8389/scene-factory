@@ -44,7 +44,7 @@ class AssetValidatorTests(unittest.TestCase):
             self.assertEqual(json.loads(report_file.read_text(encoding="utf-8"))["asset_id"], "bad")
 
     def test_standalone_missing_usd_is_structured(self) -> None:
-        report = validate_usd("F:/does-not-exist/asset.usda")
+        report = validate_usd("missing/asset.usda")
         self.assertFalse(report["valid"])
         self.assertEqual(report["issues"][0]["code"], "missing_usd")
 

@@ -12,7 +12,7 @@ http://127.0.0.1:8765
 不会缺少 `pxr`：
 
 ```powershell
-cd F:\具身智能
+cd <scene-factory-checkout>
 powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart
 ```
 
@@ -27,7 +27,7 @@ powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart
 左侧的 LLM 状态卡会读取 `config/llm.json`。配置模型后，“测试连接”会发送一次真实
 结构化请求；未配置或调用失败时，系统会显示离线关键词模式及降级原因。
 
-生成文件保存在 `F:\scene_factory_runtime\web\<scene_id>`。
+生成文件保存在 `outputs\web\<scene_id>`。
 
 ## 当前语言能力
 

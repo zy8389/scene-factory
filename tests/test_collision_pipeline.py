@@ -18,7 +18,7 @@ class CollisionPipelineTests(unittest.TestCase):
 
     def test_missing_authored_collision_fails(self) -> None:
         report = CollisionProcessor().process(
-            "F:/missing/mug_collision.usda",
+            "missing/mug_collision.usda",
             collision_status="authored",
             collision_enabled=True,
         )

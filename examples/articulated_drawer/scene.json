@@ -1,0 +1,37 @@
+{
+  "scene_id": "example-articulated-drawer",
+  "objects": [
+    {
+      "object_id": "drawer_1",
+      "asset_id": "drawer_asset",
+      "interactions": {
+        "joints": [
+          {
+            "joint_id": "drawer_slide",
+            "joint_type": "prismatic",
+            "position": 0.0,
+            "lower_limit": 0.0,
+            "upper_limit": 0.42
+          }
+        ],
+        "regions": [
+          {
+            "region_id": "drawer_handle",
+            "kind": "handle",
+            "link": "drawer",
+            "controlled_joint": "drawer_slide",
+            "allowed_actions": ["grasp", "pull"]
+          }
+        ],
+        "semantic_states": [
+          {
+            "name": "open",
+            "joint": "drawer_slide",
+            "range": [0.35, 0.42],
+            "target_position": 0.4
+          }
+        ]
+      }
+    }
+  ]
+}

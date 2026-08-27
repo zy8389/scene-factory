@@ -550,7 +550,7 @@ class SceneFactoryTests(unittest.TestCase):
         }
         record = build_asset_record(
             report,
-            source_path="F:/scene_factory_assets/wrapped_table.usd",
+            source_path="assets/wrapped_table.usd",
             mass_kg=18.0,
             friction=0.62,
             support_top=True,

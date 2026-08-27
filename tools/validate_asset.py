@@ -20,7 +20,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--registry", type=Path)
     parser.add_argument("--source-manifest", type=Path)
     parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--work-dir", type=Path, default=Path("F:/scene_factory_runtime/asset_validation"))
+    parser.add_argument("--work-dir", type=Path, default=Path("outputs/asset_validation"))
     parser.add_argument("--profile", default="drop", choices=("drop", "drop_thin_object"))
     parser.add_argument("--collision-profile", default=None)
     parser.add_argument("--mass-kg", type=float, default=None)

@@ -2,10 +2,18 @@
 
 这套流程只处理你已经放在本机的 USD 文件，**不会联网，也不会下载任何资产**。它解决的是“一个模型文件怎样安全进入 SceneFactory”，而不是资产获取。
 
+下面的命令使用占位变量，避免依赖任何个人机器路径：
+
+```powershell
+$AssetRoot = (Resolve-Path ".\asset-work").Path
+$RuntimeRoot = (Resolve-Path ".\runtime-work").Path
+$IsaacPython = "python"
+```
+
 ## 目录建议
 
 ```text
-F:\scene_factory_assets\
+$AssetRoot\
 ├── incoming\       原始 USD，只读保留
 ├── wrapped\        统一为 Z-up、米制、中心原点后的 USD
 ├── reports\        检查和 PhysX 报告
@@ -89,7 +97,7 @@ data/assets/
 在 Isaac Sim Python 环境中运行：
 
 ```powershell
-$Package = "F:\scene_factory_runtime\p0_3b_ycb_mug\package"
+$Package = "$RuntimeRoot\p0_3b_ycb_mug\package"
 & $IsaacPython tools\validate_mug_asset.py "$Package\mug_001.usd" `
   --collision "$Package\mug_001_collision.usd" `
   --asset-id mug_001 --mass-kg 0.3 `
@@ -120,7 +128,7 @@ python tools\fetch_ycb_asset.py `
 回 `data/assets/usd/`；完整的视觉/碰撞转换、材质清理和 wrapper 命令见 README：
 
 ```powershell
-$Runtime = "F:\scene_factory_runtime\p0_3b_ycb_mug"
+$Runtime = "$RuntimeRoot\p0_3b_ycb_mug"
 $Package = "$Runtime\package"
 & $IsaacPython tools\convert_ycb_mug.py `
   "$Package\textured.glb" `
@@ -207,8 +215,8 @@ python -m scene_factory asset inspect `
 
 ```powershell
 python -m scene_factory asset inspect `
-  --usd F:\scene_factory_assets\wrapped\my_mug.usda `
-  --report F:\scene_factory_assets\reports\my_mug_qa.json
+  --usd "$AssetRoot\wrapped\my_mug.usda" `
+  --report "$AssetRoot\reports\my_mug_qa.json"
 ```
 
 报告包含 `valid`、`issues`、路径、元数据检查和 USD 检查结果。USD 检查会验证
@@ -221,11 +229,11 @@ Z-up、米制、default Prim、mesh 数量、碰撞体和 stage 结构。没有 
 在项目根目录执行：
 
 ```powershell
-$IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
+$IsaacPython = "python"
 
 & $IsaacPython tools\prepare_asset.py inspect `
-  F:\scene_factory_assets\incoming\my_mug.usd `
-  --report F:\scene_factory_assets\reports\my_mug_source.json
+  "$AssetRoot\incoming\my_mug.usd" `
+  --report "$AssetRoot\reports\my_mug_source.json"
 ```
 
 报告会记录默认 Prim、坐标轴、单位、包围盒、几何、材质、碰撞体和刚体数量。`warnings` 不一定意味着文件损坏；例如原资产没有碰撞体时，包装步骤可以创建保守的盒状碰撞体。
@@ -234,10 +242,10 @@ $IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
 
 ```powershell
 & $IsaacPython tools\prepare_asset.py wrap `
-  F:\scene_factory_assets\incoming\my_mug.usd `
-  --output F:\scene_factory_assets\wrapped\my_mug.usda `
-  --report F:\scene_factory_assets\reports\my_mug_wrapper.json `
-  --record F:\scene_factory_assets\records\my_mug.json `
+  "$AssetRoot\incoming\my_mug.usd" `
+  --output "$AssetRoot\wrapped\my_mug.usda" `
+  --report "$AssetRoot\reports\my_mug_wrapper.json" `
+  --record "$AssetRoot\records\my_mug.json" `
   --asset-id my_mug `
   --category mug `
   --target-bbox 0.09 0.09 0.11 `
@@ -262,11 +270,11 @@ $IsaacPython = "F:\scene_factory_isaac_py312\Scripts\python.exe"
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\run_asset_acceptance.ps1 `
-  -AssetUsd F:\scene_factory_assets\wrapped\my_mug.usda `
-  -Output F:\scene_factory_assets\reports\my_mug_acceptance `
+  -AssetUsd "$AssetRoot\wrapped\my_mug.usda" `
+  -Output "$AssetRoot\reports\my_mug_acceptance" `
   -MassKg 0.30 `
   -Steps 180 `
-  -Record F:\scene_factory_assets\records\my_mug.json
+  -Record "$AssetRoot\records\my_mug.json"
 ```
 
 脚本会生成单资产跌落场景，在真实 Isaac Sim/PhysX 中运行，并写出 `physx_report.json`。只有报告的 `valid=true` 时，`-Record` 指定的记录才会从 `quarantine` 提升为 `validated`。
@@ -283,13 +291,13 @@ powershell -ExecutionPolicy Bypass -File tools\run_asset_acceptance.ps1 `
 
 ```powershell
 & $IsaacPython tools\create_offline_demo_asset.py `
-  --output F:\scene_factory_runtime\asset_demo\source_mug_cm_yup.usda
+  --output "$RuntimeRoot\asset_demo\source_mug_cm_yup.usda"
 
 & $IsaacPython tools\prepare_asset.py wrap `
-  F:\scene_factory_runtime\asset_demo\source_mug_cm_yup.usda `
-  --output F:\scene_factory_runtime\asset_demo\demo_mug_normalized.usda `
-  --report F:\scene_factory_runtime\asset_demo\wrapper_report.json `
-  --record F:\scene_factory_runtime\asset_demo\asset_record.json `
+  "$RuntimeRoot\asset_demo\source_mug_cm_yup.usda" `
+  --output "$RuntimeRoot\asset_demo\demo_mug_normalized.usda" `
+  --report "$RuntimeRoot\asset_demo\wrapper_report.json" `
+  --record "$RuntimeRoot\asset_demo\asset_record.json" `
   --asset-id demo_mug_normalized `
   --category mug `
   --target-bbox 0.12 0.09 0.11 `
@@ -298,10 +306,10 @@ powershell -ExecutionPolicy Bypass -File tools\run_asset_acceptance.ps1 `
   --license internal-demo
 
 powershell -ExecutionPolicy Bypass -File tools\run_asset_acceptance.ps1 `
-  -AssetUsd F:\scene_factory_runtime\asset_demo\demo_mug_normalized.usda `
-  -Output F:\scene_factory_runtime\asset_demo\acceptance `
+  -AssetUsd "$RuntimeRoot\asset_demo\demo_mug_normalized.usda" `
+  -Output "$RuntimeRoot\asset_demo\acceptance" `
   -MassKg 0.32 `
-  -Record F:\scene_factory_runtime\asset_demo\asset_record.json
+  -Record "$RuntimeRoot\asset_demo\asset_record.json"
 ```
 
 资产记录字段定义见 `schemas/asset_record.schema.json`。

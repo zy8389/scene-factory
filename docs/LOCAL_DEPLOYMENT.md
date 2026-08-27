@@ -17,7 +17,9 @@
 | Isaac Sim/PhysX Headless 验收 | 使用现有 Isaac Sim 6.0.1 | 否 |
 | 批量场景制造 | 可运行 | 否 |
 | 四个 ready YCB 真实资产 | 可运行；仓库已包含固定 revision 与 attribution | 否 |
-| Franka mug-lift manual gate | 可运行；当前真实结果为 grasp failure | 否 |
+| Franka mug-lift manual gate | 已有通过记录；需要官方 Isaac 环境复现 | 否 |
+| Franka pick-and-place gate | 已有通过记录；需要官方 Isaac 环境复现 | 否 |
+| RGB-D trajectory acceptance | environment-blocked；需要官方 Local Assets | 否 |
 
 ## 最简单的启动方式
 
@@ -75,9 +77,9 @@ powershell -ExecutionPolicy Bypass -File tools\local_stack.ps1 -Action Restart -
 ## 本地目录
 
 ```text
-F:\scene_factory_runtime\web          网页生成结果
-F:\scene_factory_runtime\local_stack  PID 状态和服务日志
-F:\scene_factory_runtime\local_demo   离线 USD 演示
+outputs\web          网页生成结果
+outputs\local_stack  PID 状态和服务日志
+outputs\local_demo   离线 USD 演示
 ```
 
 网页只监听 `127.0.0.1`，没有登录认证，也不会暴露到局域网或公网。
