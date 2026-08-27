@@ -3,7 +3,9 @@ from __future__ import annotations
 import math
 import tempfile
 import unittest
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from tools.run_franka_mug_lift import _invalidate_report_on_process_failure
@@ -253,6 +255,71 @@ class RobotRuntimeTests(unittest.TestCase):
             "panda_hand",
         )
         self.assertEqual(_franka_kinematics_frame("nucleus_franka_usd"), "right_gripper")
+
+    def test_isaac_sim_version_uses_distribution_metadata(self) -> None:
+        backend = IsaacSimBackend("scene.usd")
+        with patch(
+            "scene_factory.backends.isaac.import_module",
+            return_value=type("IsaacSim", (), {})(),
+        ), patch(
+            "scene_factory.backends.isaac.distribution_version",
+            return_value="6.0.1.0",
+        ):
+            self.assertEqual(backend.isaac_sim_version, "6.0.1.0")
+
+    def test_isaac_sim_version_reads_package_version_file(self) -> None:
+        backend = IsaacSimBackend("scene.usd")
+        module = type("IsaacSim", (), {"__file__": __file__})()
+        with patch("scene_factory.backends.isaac.import_module", return_value=module), patch(
+            "scene_factory.backends.isaac.distribution_version",
+            side_effect=PackageNotFoundError,
+        ):
+            with tempfile.TemporaryDirectory() as directory:
+                version_path = Path(directory) / "VERSION"
+                version_path.write_text("6.0.1-rc.7\n", encoding="utf-8")
+                module.__file__ = str(Path(directory) / "isaacsim.py")
+                self.assertEqual(backend.isaac_sim_version, "6.0.1-rc.7")
+
+    def test_camera_reference_time_prefers_fresh_official_annotator(self) -> None:
+        fresh = {"referenceTimeNumerator": 2, "referenceTimeDenominator": 60}
+        stale = {"referenceTimeNumerator": 1, "referenceTimeDenominator": 60}
+
+        class FakeAnnotator:
+            @staticmethod
+            def get_data():
+                return fresh
+
+        class FakeCamera:
+            _fabric_time_annotator = FakeAnnotator()
+
+            @staticmethod
+            def get_current_frame(*, clone):
+                return {"rendering_frame": stale}
+
+        backend = IsaacSimBackend("scene.usd")
+        backend._camera = FakeCamera()
+        self.assertEqual(backend._camera_reference_time(), fresh)
+
+    def test_camera_reference_time_rejects_unchanged_marker(self) -> None:
+        backend = IsaacSimBackend("scene.usd")
+        backend._simulation = SimpleNamespace(current_time=2.0 / 60.0)
+        reference_time = {"referenceTimeNumerator": 2, "referenceTimeDenominator": 60}
+
+        self.assertEqual(
+            backend._camera_reference_time_error(reference_time, repr(reference_time)),
+            "camera frame did not advance after simulation step",
+        )
+
+    def test_camera_reference_time_rejects_simulation_time_mismatch(self) -> None:
+        backend = IsaacSimBackend("scene.usd")
+        backend._simulation = SimpleNamespace(current_time=3.0 / 60.0)
+        reference_time = {"referenceTimeNumerator": 2, "referenceTimeDenominator": 60}
+
+        error = backend._camera_reference_time_error(reference_time, None)
+        self.assertIsNotNone(error)
+        self.assertIn("camera reference time does not match simulation time", error)
+        self.assertIn("camera=0.03333333333333333", error)
+        self.assertIn("simulation=0.05", error)
 
     def test_stale_contact_event_cannot_set_current_contact_flag(self) -> None:
         backend = IsaacSimBackend("scene.usd")

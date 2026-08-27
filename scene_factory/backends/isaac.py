@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import sys
 import math
+from importlib.metadata import PackageNotFoundError, version as distribution_version
 from importlib import import_module
+from numbers import Integral
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -211,7 +213,24 @@ class IsaacSimBackend:
             if version:
                 return str(version)
         except (ImportError, ModuleNotFoundError):
+            module = None
+        try:
+            version = distribution_version("isaacsim")
+            if version:
+                return str(version)
+        except PackageNotFoundError:
             pass
+        if module is not None:
+            module_file = getattr(module, "__file__", None)
+            if module_file:
+                version_path = Path(module_file).with_name("VERSION")
+                try:
+                    version = version_path.read_text(encoding="utf-8").strip()
+                except (OSError, UnicodeError):
+                    pass
+                else:
+                    if version:
+                        return version
         return "unknown"
 
     def reset(self, scene: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -338,7 +357,10 @@ class IsaacSimBackend:
         command = self._controller.command(before_positions[target_id])
         ik_success = self._apply_command(command)
         self._last_command = _serialize_command(command)
-        self._simulation.step(render=self._camera is not None or not self.headless)
+        self._simulation.step(
+            render=self._camera is not None or not self.headless,
+            update_fabric=self._camera is not None,
+        )
         self.steps += 1
         self._refresh_grasp_diagnostics()
 
@@ -560,15 +582,11 @@ class IsaacSimBackend:
         )
         self._simulation = SimulationContext(
             physics_dt=self.physics_dt,
-            rendering_dt=self.physics_dt,
+            rendering_dt=0.0 if self.enable_rgbd else self.physics_dt,
             stage_units_in_meters=1.0,
             physics_prim_path="/World/PhysicsScene",
             stage=stage,
         )
-        if self.enable_rgbd:
-            # Render products are asynchronous in headless Kit.  Blocking makes
-            # the captured image correspond to the just-completed physics step.
-            self._simulation.set_block_on_render(True)
         physics_context = self._simulation.get_physics_context()
         physics_context.set_physx_update_transformations_settings(
             update_to_usd=True, update_velocities_to_usd=True
@@ -695,8 +713,7 @@ class IsaacSimBackend:
             except Exception as exc:
                 last_error = f"render graph step failed: {type(exc).__name__}: {exc}"
                 continue
-            frame = self._camera.get_current_frame(clone=True)
-            marker = repr(frame.get("rendering_frame")) if isinstance(frame, dict) else None
+            reference_time = self._camera_reference_time()
             rgb = self._camera.get_rgb(device="cpu")
             depth = self._camera.get_depth(device="cpu")
             if rgb is None or depth is None:
@@ -711,8 +728,12 @@ class IsaacSimBackend:
             if depth.ndim != 2 or depth.shape != (expected_height, expected_width):
                 last_error = f"invalid depth shape: {tuple(depth.shape)}"
                 continue
-            if previous_marker is not None and marker == previous_marker:
-                last_error = "camera frame did not advance after simulation step"
+            if reference_time is None:
+                last_error = "camera reference time is unavailable"
+                continue
+            reference_error = self._camera_reference_time_error(reference_time, previous_marker)
+            if reference_error is not None:
+                last_error = reference_error
                 continue
             finite_depth = np.isfinite(depth)
             if not bool(np.any(finite_depth)):
@@ -730,7 +751,7 @@ class IsaacSimBackend:
             if not np.isfinite(intrinsics).all() or not np.isfinite(extrinsics).all():
                 last_error = "camera calibration contains non-finite values"
                 continue
-            self._last_camera_frame_marker = marker
+            self._last_camera_frame_marker = repr(reference_time)
             return {
                 "status": "ok",
                 "simulation_step": int(self.steps),
@@ -738,7 +759,7 @@ class IsaacSimBackend:
                 "depth": depth,
                 "intrinsics": intrinsics,
                 "extrinsics": extrinsics,
-                "rendering_frame": frame.get("rendering_frame") if isinstance(frame, dict) else None,
+                "rendering_frame": reference_time,
             }
         try:
             render_product = self._camera.get_render_product_path()
@@ -750,6 +771,7 @@ class IsaacSimBackend:
                 f"camera_paused={self._camera.is_paused()}, "
                 f"frame_keys={sorted(frame_state)}, "
                 f"rendering_frame={frame_state.get('rendering_frame')!r}, "
+                f"reference_time={self._camera_reference_time()!r}, "
                 f"world_pose={world_pose!r}, usd_pose={usd_pose!r}"
             )
         except Exception as exc:
@@ -759,28 +781,74 @@ class IsaacSimBackend:
         )
 
     def _run_rgbd_render_step(self) -> None:
-        """Run one asynchronous Replicator render without advancing PhysX."""
-        if self._app is None:
+        """Flush one camera render without advancing PhysX."""
+        if self._app is None or self._simulation is None:
             raise RuntimeError("SimulationApp is not running")
+        # Isaac's camera callback observes the previous post-render annotator
+        # state, so two render-only updates flush RGB-D and ReferenceTime.
+        for _ in range(2):
+            self._simulation.render()
 
-        async def _step() -> None:
-            import omni.replicator.core as rep
-
+    def _camera_reference_time(self) -> dict[str, int] | None:
+        """Read the render product time after its post-render annotators update."""
+        if self._camera is None:
+            return None
+        annotator = getattr(self._camera, "_fabric_time_annotator", None)
+        if annotator is not None:
             try:
-                await rep.orchestrator.step_async(
-                    delta_time=0.0,
-                    pause_timeline=False,
-                    wait_for_render=True,
-                )
-            except TypeError:
-                # Isaac Sim 6.0.1 exposes the same async orchestrator with a
-                # smaller keyword set in some extension builds.
-                await rep.orchestrator.step_async(
-                    delta_time=0.0,
-                    pause_timeline=False,
-                )
+                value = annotator.get_data()
+            except Exception:
+                value = None
+            normalized = self._normalize_reference_time(value)
+            if normalized is not None:
+                return normalized
+        frame = self._camera.get_current_frame(clone=True)
+        value = frame.get("rendering_frame") if isinstance(frame, dict) else None
+        return self._normalize_reference_time(value)
 
-        self._app.run_coroutine(_step(), run_until_complete=True)
+    def _camera_reference_time_error(
+        self,
+        reference_time: dict[str, int],
+        previous_marker: str | None,
+    ) -> str | None:
+        marker = repr(reference_time)
+        if previous_marker is not None and marker == previous_marker:
+            return "camera frame did not advance after simulation step"
+        reference_seconds = (
+            reference_time["referenceTimeNumerator"]
+            / reference_time["referenceTimeDenominator"]
+        )
+        simulation_time = self._simulation.current_time
+        if not math.isclose(
+            reference_seconds,
+            simulation_time,
+            rel_tol=0.0,
+            abs_tol=max(1e-5, self.physics_dt * 0.1),
+        ):
+            return (
+                "camera reference time does not match simulation time: "
+                f"camera={reference_seconds}, simulation={simulation_time}"
+            )
+        return None
+
+    @staticmethod
+    def _normalize_reference_time(value: Any) -> dict[str, int] | None:
+        if not isinstance(value, dict):
+            return None
+        numerator = value.get("referenceTimeNumerator")
+        denominator = value.get("referenceTimeDenominator")
+        if (
+            isinstance(numerator, bool)
+            or isinstance(denominator, bool)
+            or not isinstance(numerator, Integral)
+            or not isinstance(denominator, Integral)
+            or denominator <= 0
+        ):
+            return None
+        return {
+            "referenceTimeNumerator": int(numerator),
+            "referenceTimeDenominator": int(denominator),
+        }
 
     @staticmethod
     def _configure_gripper_material(
