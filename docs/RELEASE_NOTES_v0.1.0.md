@@ -87,9 +87,11 @@ or conformance report does not claim physical feasibility.
 ## Isaac status
 
 Isaac integration remains an independent, environment-specific acceptance gate.
-Real P1-3 Isaac RGB-D acceptance remains environment-blocked. Real articulated
-execution has not been validated. Real robot execution has not been run. Isaac
-Lab integration has not started.
+Reference Isaac Sim 6.0.1 real P1-1, P1-2, and P1-3 acceptance passes locally
+with official Local Assets. This evidence is environment-specific and does not
+claim universal hardware compatibility. Real articulated asset execution has
+not been validated. Real robot execution has not been run. Isaac Lab integration
+has not started.
 
 These limitations do not prevent use of the pure-Python v0.1 SDK for offline
 scene, dataset, planning, and executor-contract workflows.

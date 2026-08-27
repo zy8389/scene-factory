@@ -17,9 +17,9 @@
 | Isaac Sim/PhysX Headless 验收 | 使用现有 Isaac Sim 6.0.1 | 否 |
 | 批量场景制造 | 可运行 | 否 |
 | 四个 ready YCB 真实资产 | 可运行；仓库已包含固定 revision 与 attribution | 否 |
-| Franka mug-lift manual gate | 已有通过记录；需要官方 Isaac 环境复现 | 否 |
-| Franka pick-and-place gate | 已有通过记录；需要官方 Isaac 环境复现 | 否 |
-| RGB-D trajectory acceptance | environment-blocked；需要官方 Local Assets | 否 |
+| Franka mug-lift manual gate | reference Isaac Sim 6.0.1 environment 已通过；其他机器需复现 | 否 |
+| Franka pick-and-place gate | reference Isaac Sim 6.0.1 environment 已通过；其他机器需复现 | 否 |
+| RGB-D trajectory acceptance | reference Isaac Sim 6.0.1 environment 已通过；需要官方 Local Assets | 否 |
 
 ## 最简单的启动方式
 

@@ -13,8 +13,8 @@ acceptance is tracked separately and is not implied by the offline checks.
 | Symbolic planner | yes | no | PASS |
 | Dry-run executor | yes | no | PASS |
 | Executor conformance | yes | no | PASS |
-| Franka real execution | no | yes | environment-blocked |
-| Real RGB-D acceptance | no | yes | environment-blocked |
+| Real Isaac Franka acceptance (P1-1/P1-2) | no | yes | validated on reference Isaac Sim 6.0.1 |
+| Real Isaac RGB-D acceptance (P1-3) | no | yes | validated on reference Isaac Sim 6.0.1 |
 | Isaac Lab | no | yes | not started |
 
 The package declares Python `>=3.12`. The core install has no required runtime
