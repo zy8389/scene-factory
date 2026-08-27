@@ -16,6 +16,12 @@ from .dataset import (
     write_manifest_atomic,
     write_staging_marker,
 )
+from .external import (
+    ENVELOPE_SOURCE_FORMAT,
+    RAW_SOURCE_FORMAT,
+    canonical_intent_sha256,
+    normalize_producer,
+)
 from .intent import SceneIntent
 from .intent_compiler import IntentCompiler
 from .layout import LayoutSolver
@@ -37,6 +43,7 @@ class BuildResult:
     parser_warning: str | None = None
     revision_of: str | None = None
     revision_instruction: str | None = None
+    input_source: dict[str, Any] | None = None
 
     @property
     def valid(self) -> bool:
@@ -111,6 +118,57 @@ class SceneFactory:
         recipe = self.recipes.get(recipe_name)
         scene = self.layout_solver.compile(recipe, seed)
         return BuildResult(recipe, scene, self.validator.validate(scene))
+
+    def build_from_intent(
+        self,
+        intent: SceneIntent,
+        seed: int = 42,
+        *,
+        input_source: dict[str, Any] | None = None,
+    ) -> BuildResult:
+        """Compile one canonical SceneIntent through the normal scene pipeline."""
+        if not isinstance(intent, SceneIntent):
+            raise TypeError("intent must be a SceneIntent")
+        SceneIntent.from_dict(
+            intent.to_dict(),
+            allowed_categories=self.registry.categories(),
+            allowed_room_types=self.recipes.room_types(),
+            allowed_events=self.recipes.events(),
+        )
+        recipe = self.intent_compiler.compile(intent, intent.description)
+        scene = self.layout_solver.compile(
+            recipe,
+            seed,
+            description_override=intent.description,
+        )
+        intent_sha256 = canonical_intent_sha256(intent)
+        source = input_source or {
+            "type": "external_intent",
+            "format": RAW_SOURCE_FORMAT,
+            "producer": {},
+            "intent_sha256": intent_sha256,
+        }
+        if (
+            not isinstance(source, dict)
+            or set(source) != {"type", "format", "producer", "intent_sha256"}
+            or source.get("type") != "external_intent"
+            or source.get("format") not in {RAW_SOURCE_FORMAT, ENVELOPE_SOURCE_FORMAT}
+            or not isinstance(source.get("producer"), dict)
+            or source.get("intent_sha256") != intent_sha256
+        ):
+            raise ValueError("intent input_source is invalid or does not match intent")
+        source = {
+            **source,
+            "producer": normalize_producer(source["producer"]),
+        }
+        return BuildResult(
+            recipe,
+            scene,
+            self.validator.validate(scene),
+            intent=intent,
+            prompt_parser="external_intent",
+            input_source=dict(source),
+        )
 
     def build_from_prompt(self, prompt: str, seed: int) -> BuildResult:
         parser_warning = None
@@ -208,6 +266,7 @@ class SceneFactory:
                 "parser_warning": result.parser_warning,
                 "revision_of": result.revision_of,
                 "revision_instruction": result.revision_instruction,
+                "input_source": result.input_source,
             },
         )
         self._write_json(layout_path, result.scene.to_dict())
@@ -257,18 +316,24 @@ class SceneFactory:
         seed_start: int,
         recipe_name: str | None = None,
         prompt: str | None = None,
+        intent: SceneIntent | None = None,
+        input_source: dict[str, Any] | None = None,
         export_usd: bool = False,
         resume: bool = False,
     ) -> list[dict[str, Any]]:
         if count < 1:
             raise ValueError("count must be positive")
-        if bool(recipe_name) == bool(prompt):
-            raise ValueError("provide exactly one of recipe_name or prompt")
+        if sum(value is not None for value in (recipe_name, prompt, intent)) != 1:
+            raise ValueError("provide exactly one of recipe_name, prompt or intent")
+        if intent is not None and not isinstance(intent, SceneIntent):
+            raise TypeError("intent must be a SceneIntent")
 
         output_root = Path(output_root).expanduser().resolve()
         metadata = make_dataset_metadata(
             recipe_name=recipe_name,
             prompt=prompt,
+            intent=intent,
+            input_source=input_source,
             count=count,
             seed_start=seed_start,
             export_usd=export_usd,
@@ -309,7 +374,9 @@ class SceneFactory:
                 result = (
                     self.build_from_recipe(recipe_name, seed)
                     if recipe_name
-                    else self.build_from_prompt(prompt or "", seed)
+                    else self.build_from_prompt(prompt, seed)
+                    if prompt is not None
+                    else self.build_from_intent(intent, seed, input_source=input_source)
                 )
                 if result.scene.seed != seed:
                     raise RuntimeError(
@@ -381,8 +448,6 @@ class SceneFactory:
     ) -> None:
         keys = (
             "schema_version",
-            "dataset_id",
-            "source",
             "seed_start",
             "count",
             "expected_seed_end",
@@ -390,6 +455,8 @@ class SceneFactory:
             "export_usd",
         )
         mismatches = [key for key in keys if existing.get(key) != expected.get(key)]
+        if existing.get("dataset_id") != expected.get("dataset_id"):
+            mismatches.append("dataset_id")
         if mismatches:
             raise ValueError(f"resume invocation does not match dataset metadata: {mismatches}")
 

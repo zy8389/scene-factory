@@ -46,7 +46,67 @@ def main() -> int:
         raise FileNotFoundError("installed scene-factory CLI wrapper is not available")
     with tempfile.TemporaryDirectory(prefix="scene_factory_installed_dataset_") as directory:
         dataset = str(Path(directory) / "dataset")
+        intent_path = Path(directory) / "intent.json"
+        intent_path.write_text(
+            json.dumps(
+                {
+                    "room_type": "living_room",
+                    "event": "recent_snacking",
+                    "description": "A mug on the coffee table.",
+                    "objects": [
+                        {
+                            "object_id": "sofa_1",
+                            "category": "sofa",
+                            "dynamic": False,
+                            "support_hint": None,
+                            "attributes": [],
+                            "state": [],
+                        },
+                        {
+                            "object_id": "coffee_table_1",
+                            "category": "coffee_table",
+                            "dynamic": False,
+                            "support_hint": None,
+                            "attributes": [],
+                            "state": [],
+                        },
+                        {
+                            "object_id": "mug_1",
+                            "category": "mug",
+                            "dynamic": True,
+                            "support_hint": "coffee_table_1",
+                            "attributes": [],
+                            "state": [],
+                        },
+                    ],
+                    "relations": [
+                        {
+                            "subject": "mug_1",
+                            "predicate": "on",
+                            "target": "coffee_table_1",
+                        }
+                    ],
+                    "room_dimensions_m": None,
+                    "clutter_level": 0.5,
+                    "layout_style": "casual",
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
         commands = [
+            [cli, "intent", "schema"],
+            [cli, "intent", "validate", str(intent_path)],
+            [
+                cli,
+                "build",
+                "--intent",
+                str(intent_path),
+                "--seed",
+                "77",
+                "--output",
+                str(Path(directory) / "intent-scene"),
+            ],
             [
                 cli,
                 "batch",
@@ -59,9 +119,23 @@ def main() -> int:
                 "--output",
                 dataset,
             ],
+            [
+                cli,
+                "batch",
+                "--intent",
+                str(intent_path),
+                "--count",
+                "2",
+                "--seed-start",
+                "77",
+                "--output",
+                str(Path(directory) / "intent-dataset"),
+            ],
             [cli, "dataset", "inspect", dataset],
             [cli, "dataset", "validate", dataset],
             [cli, "dataset", "reproduce", dataset],
+            [cli, "dataset", "validate", str(Path(directory) / "intent-dataset")],
+            [cli, "dataset", "reproduce", str(Path(directory) / "intent-dataset")],
         ]
         for command in commands:
             completed = subprocess.run(

@@ -88,6 +88,31 @@ scene-factory batch `
   --resume
 ```
 
+外部程序也可以提交版本化的 `SceneIntent` JSON。raw intent 和
+`scene_factory.external_scene.v1` envelope 都会先经过严格校验，再进入同一套
+`IntentCompiler`、布局和场景验证流程；producer 信息只记录 provenance，不参与
+scene identity。输入可以来自文件，也可以使用 `-` 从 stdin 读取：
+
+```powershell
+scene-factory intent validate examples\scene_intent.json
+scene-factory intent inspect examples\scene_intent.json
+scene-factory intent schema
+
+scene-factory build `
+  --intent examples\scene_intent.json `
+  --seed 42 `
+  --output outputs\external-scene
+
+scene-factory batch `
+  --intent examples\scene_intent.json `
+  --count 100 `
+  --seed-start 10000 `
+  --output outputs\external-dataset
+```
+
+`dataset reproduce` 对 intent dataset 使用内嵌的 normalized `SceneIntent` snapshot
+离线重建，不重新调用外部 generator、网络服务或 Isaac Sim。
+
 也可以构建并安装 wheel。安装包把 `recipes/`、运行时资产注册表/USD/collision 和
 `web/` 放入 `share/scene-factory`；`SCENE_FACTORY_HOME` 可覆盖该数据根：
 

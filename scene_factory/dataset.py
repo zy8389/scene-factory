@@ -10,6 +10,17 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from .external import (
+    ENVELOPE_SOURCE_FORMAT,
+    EXTERNAL_SCHEMA_VERSION,
+    RAW_SOURCE_FORMAT,
+    ExternalSceneError,
+    adapt_external_scene,
+    canonical_intent_sha256,
+    normalize_producer,
+)
+from .intent import SceneIntent
+
 
 DATASET_SCHEMA_VERSION = "scene_factory.dataset.v1"
 SCENE_SCHEMA_VERSION = "scene_factory.dataset_scene.v1"
@@ -112,8 +123,15 @@ def dataset_identity(
     seed_start: int,
     export_usd: bool,
 ) -> str:
+    if source.get("type") == "intent":
+        identity_source: Mapping[str, Any] = {
+            "type": "intent",
+            "intent": source.get("intent"),
+        }
+    else:
+        identity_source = source
     identity = {
-        "source": dict(source),
+        "source": dict(identity_source),
         "count": count,
         "seed_start": seed_start,
         "export_usd": export_usd,
@@ -125,13 +143,15 @@ def make_dataset_metadata(
     *,
     recipe_name: str | None,
     prompt: str | None,
+    intent: SceneIntent | None = None,
+    input_source: Mapping[str, Any] | None = None,
     count: int,
     seed_start: int,
     export_usd: bool,
     status: str = "in_progress",
 ) -> dict[str, Any]:
-    if bool(recipe_name) == bool(prompt):
-        raise DatasetError("provide exactly one of recipe_name or prompt")
+    if sum(value is not None for value in (recipe_name, prompt, intent)) != 1:
+        raise DatasetError("provide exactly one of recipe_name, prompt or intent")
     if isinstance(count, bool) or not isinstance(count, int) or count < 1:
         raise DatasetError("count must be a positive integer")
     if isinstance(seed_start, bool) or not isinstance(seed_start, int):
@@ -140,14 +160,45 @@ def make_dataset_metadata(
         raise DatasetError("export_usd must be boolean")
     if status not in {"in_progress", "incomplete", "complete"}:
         raise DatasetError("invalid dataset status")
-    if recipe_name is not None and not isinstance(recipe_name, str):
-        raise DatasetError("recipe_name must be a string")
-    if prompt is not None and not isinstance(prompt, str):
-        raise DatasetError("prompt must be a string")
-    source: dict[str, Any] = {"type": "recipe", "recipe": recipe_name} if recipe_name else {
-        "type": "prompt",
-        "prompt": prompt,
-    }
+    if recipe_name is not None:
+        if not isinstance(recipe_name, str) or not recipe_name.strip():
+            raise DatasetError("recipe_name must be a non-empty string")
+        source: dict[str, Any] = {"type": "recipe", "recipe": recipe_name}
+    elif prompt is not None:
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise DatasetError("prompt must be a non-empty string")
+        source = {"type": "prompt", "prompt": prompt}
+    else:
+        if not isinstance(intent, SceneIntent):
+            raise DatasetError("intent must be a SceneIntent")
+        intent_payload = intent.to_dict()
+        intent_sha256 = canonical_intent_sha256(intent)
+        source_metadata = dict(input_source or {})
+        if source_metadata:
+            if source_metadata.get("type") != "external_intent":
+                raise DatasetError("intent input_source.type must be external_intent")
+            source_format = source_metadata.get("format")
+            producer = source_metadata.get("producer")
+            if source_metadata.get("intent_sha256") != intent_sha256:
+                raise DatasetError("intent input_source hash does not match normalized intent")
+        else:
+            source_format = RAW_SOURCE_FORMAT
+            producer = {}
+        if source_format not in {RAW_SOURCE_FORMAT, ENVELOPE_SOURCE_FORMAT}:
+            raise DatasetError("intent input_source.format is unsupported")
+        if not isinstance(producer, dict):
+            raise DatasetError("intent input_source.producer must be an object")
+        try:
+            producer = normalize_producer(producer)
+        except ValueError as exc:
+            raise DatasetError(str(exc)) from exc
+        source = {
+            "type": "intent",
+            "format": source_format,
+            "intent_sha256": intent_sha256,
+            "intent": intent_payload,
+            "producer": producer,
+        }
     identity = dataset_identity(
         source=source,
         count=count,
@@ -276,8 +327,8 @@ def _validate_metadata(metadata: Any) -> list[str]:
     if metadata.get("schema_version") != DATASET_SCHEMA_VERSION:
         errors.append("dataset.json has an unsupported schema_version")
     source = metadata.get("source")
-    if not isinstance(source, dict) or source.get("type") not in {"recipe", "prompt"}:
-        errors.append("dataset.json source must be a recipe or prompt object")
+    if not isinstance(source, dict) or source.get("type") not in {"recipe", "prompt", "intent"}:
+        errors.append("dataset.json source must be a recipe, prompt or intent object")
     elif source["type"] == "recipe" and (
         not isinstance(source.get("recipe"), str) or not source.get("recipe", "").strip()
     ):
@@ -286,6 +337,32 @@ def _validate_metadata(metadata: Any) -> list[str]:
         not isinstance(source.get("prompt"), str) or not source.get("prompt", "").strip()
     ):
         errors.append("dataset.json prompt source requires a prompt string")
+    elif source["type"] == "intent":
+        allowed_source_fields = {"type", "format", "intent_sha256", "intent", "producer"}
+        unknown = sorted(set(source) - allowed_source_fields)
+        if unknown:
+            errors.append(
+                f"dataset.json intent source contains unsupported fields: {', '.join(unknown)}"
+            )
+        if source.get("format") not in {RAW_SOURCE_FORMAT, ENVELOPE_SOURCE_FORMAT}:
+            errors.append("dataset.json intent source has an unsupported format")
+        producer = source.get("producer")
+        intent_payload = source.get("intent")
+        try:
+            document = adapt_external_scene(
+                {
+                    "schema_version": EXTERNAL_SCHEMA_VERSION,
+                    "producer": producer,
+                    "intent": intent_payload,
+                }
+            )
+            if source.get("intent_sha256") != document.canonical_sha256:
+                errors.append("dataset.json intent source hash does not match intent")
+        except (ExternalSceneError, TypeError, ValueError) as exc:
+            errors.append(f"dataset.json intent source is invalid: {exc}")
+        intent_hash = source.get("intent_sha256")
+        if not isinstance(intent_hash, str) or not _SHA256_RE.fullmatch(intent_hash):
+            errors.append("dataset.json intent source intent_sha256 is invalid")
     count = metadata.get("count")
     seed_start = metadata.get("seed_start")
     if isinstance(count, bool) or not isinstance(count, int) or count < 1:
@@ -309,12 +386,15 @@ def _validate_metadata(metadata: Any) -> list[str]:
         errors.append("complete dataset cannot retain a generation_error")
     expected_identity = None
     if isinstance(source, dict) and isinstance(count, int) and isinstance(seed_start, int):
-        expected_identity = dataset_identity(
-            source=source,
-            count=count,
-            seed_start=seed_start,
-            export_usd=bool(metadata.get("export_usd")),
-        )
+        try:
+            expected_identity = dataset_identity(
+                source=source,
+                count=count,
+                seed_start=seed_start,
+                export_usd=bool(metadata.get("export_usd")),
+            )
+        except (TypeError, ValueError):
+            errors.append("dataset.json source is not canonically serializable")
     if metadata.get("dataset_id") != expected_identity:
         errors.append("dataset.json dataset_id does not match deterministic source metadata")
     return errors
@@ -329,7 +409,13 @@ def _semantic_scene_payload(paths: Mapping[str, Path]) -> dict[str, Any]:
     scene_spec = {
         key: value
         for key, value in scene_spec.items()
-        if key not in {"prompt_parser", "parser_warning", "revision_of", "revision_instruction"}
+        if key not in {
+            "prompt_parser",
+            "parser_warning",
+            "revision_of",
+            "revision_instruction",
+            "input_source",
+        }
     }
     payload: dict[str, Any] = {
         "scene_spec": scene_spec,
@@ -678,6 +764,23 @@ def _reproduction_build(factory: Any, source: Mapping[str, Any], seed: int) -> A
 
     if source["type"] == "recipe":
         return factory.build_from_recipe(source["recipe"], seed)
+    if source["type"] == "intent":
+        intent = SceneIntent.from_dict(
+            source["intent"],
+            allowed_categories=factory.registry.categories(),
+            allowed_room_types=factory.recipes.room_types(),
+            allowed_events=factory.recipes.events(),
+        )
+        return factory.build_from_intent(
+            intent,
+            seed,
+            input_source={
+                "type": "external_intent",
+                "format": source["format"],
+                "producer": dict(source["producer"]),
+                "intent_sha256": source["intent_sha256"],
+            },
+        )
     recipe = factory.recipes.match_prompt(source["prompt"])
     scene = factory.layout_solver.compile(recipe, seed, description_override=source["prompt"])
     return BuildResult(recipe, scene, factory.validator.validate(scene), prompt_parser="keyword")
