@@ -18,7 +18,10 @@ REQUIRED_FILES = (
     "THIRD_PARTY_NOTICES.md",
     "docs/ARCHITECTURE.md",
     "docs/COMPATIBILITY.md",
+    "docs/API_SURFACE_v0.1.md",
+    "docs/CLI_REFERENCE.md",
     "docs/PUBLIC_API.md",
+    "docs/RELEASE_NOTES_v0.1.0.md",
     "docs/SCHEMA_POLICY.md",
     "examples/basic_scene/README.md",
     "examples/external_intent/README.md",
@@ -26,6 +29,7 @@ REQUIRED_FILES = (
     "examples/deterministic_dataset/README.md",
     "examples/articulated_drawer/README.md",
     "examples/articulated_drawer/scene.json",
+    "tools/release_artifacts.py",
     "tools/release_smoke.py",
 )
 PERSONAL_PATH_PATTERNS = (
@@ -125,8 +129,35 @@ def _check_attribution(failures: list[str]) -> None:
         for key in ("asset_id", "source_url", "license", "source_revision"):
             if not payload.get(key):
                 failures.append(f"source manifest lacks {key}: {manifest.relative_to(ROOT)}")
-        if payload.get("asset_id") not in notices:
-            failures.append(f"asset is missing from third-party notices: {payload.get('asset_id')}")
+            if payload.get("asset_id") not in notices:
+                failures.append(f"asset is missing from third-party notices: {payload.get('asset_id')}")
+
+
+def _check_release_documents(failures: list[str]) -> None:
+    notes_path = ROOT / "docs" / "RELEASE_NOTES_v0.1.0.md"
+    changelog_path = ROOT / "CHANGELOG.md"
+    try:
+        notes = _read_text(notes_path)
+        changelog = _read_text(changelog_path)
+    except (OSError, UnicodeDecodeError) as exc:
+        failures.append(f"cannot read release document: {exc}")
+        return
+    normalized_notes = " ".join(notes.split())
+    required_notes = (
+        "early developer release",
+        "Real P1-3 Isaac RGB-D acceptance remains environment-blocked.",
+        "Real articulated execution has not been validated.",
+        "Real robot execution has not been run.",
+        "Isaac Lab integration has not started.",
+    )
+    for phrase in required_notes:
+        if phrase not in normalized_notes:
+            failures.append(f"release notes lack required disclosure: {phrase}")
+    for phrase in ("production ready", "fully validated Isaac manipulation", "real robot ready"):
+        if phrase.lower() in notes.lower():
+            failures.append(f"release notes overclaim unsupported status: {phrase}")
+    if "## 0.1.0 - Unreleased" not in changelog:
+        failures.append("changelog must keep 0.1.0 explicitly unreleased")
 
 
 def _check_links(failures: list[str], paths: list[Path]) -> None:
@@ -183,6 +214,7 @@ def run() -> dict[str, object]:
     _check_schemas(failures)
     _check_resources(failures)
     _check_attribution(failures)
+    _check_release_documents(failures)
     _check_links(failures, [ROOT / "README.md", *(ROOT / "docs").glob("*.md"), *(ROOT / "examples").glob("**/*.md")])
     _check_hygiene(failures, tracked)
     checks = {
