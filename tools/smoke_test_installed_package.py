@@ -10,19 +10,27 @@ from pathlib import Path
 
 from scene_factory import ArticulationJoint
 from scene_factory.factory import SceneFactory
-from scene_factory.paths import default_recipes_dir, default_registry_path, default_web_dir
+from scene_factory.paths import (
+    default_recipes_dir,
+    default_registry_path,
+    default_schemas_dir,
+    default_web_dir,
+)
 
 
 def main() -> int:
     registry = default_registry_path()
     recipes = default_recipes_dir()
     web = default_web_dir()
+    schemas = default_schemas_dir()
     required = [
         registry,
         recipes / "kitchen_after_cooking.json",
         recipes / "kitchen_franka_mug_lift.json",
         recipes / "kitchen_franka_mug_pick_place.json",
         web / "index.html",
+        schemas / "interaction_plan.schema.json",
+        schemas / "execution_trace.schema.json",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -109,6 +117,7 @@ def main() -> int:
         )
         planning_scene_path = Path(directory) / "articulated-layout.json"
         planning_plan_path = Path(directory) / "articulated-plan.json"
+        execution_trace_path = Path(directory) / "execution-trace.json"
         planning_scene_path.write_text(
             json.dumps(
                 {
@@ -226,6 +235,30 @@ def main() -> int:
                 "--plan",
                 str(planning_plan_path),
             ],
+            [
+                cli,
+                "task",
+                "execute",
+                "--scene",
+                str(planning_scene_path),
+                "--plan",
+                str(planning_plan_path),
+                "--executor",
+                "dry-run",
+                "--output",
+                str(execution_trace_path),
+            ],
+            [
+                cli,
+                "task",
+                "execution-validate",
+                "--scene",
+                str(planning_scene_path),
+                "--plan",
+                str(planning_plan_path),
+                "--trace",
+                str(execution_trace_path),
+            ],
         ]
         for command in commands:
             completed = subprocess.run(
@@ -240,6 +273,8 @@ def main() -> int:
                     f"installed CLI failed ({completed.returncode}): {' '.join(command)}\n"
                     f"stdout={completed.stdout}\nstderr={completed.stderr}"
                 )
+        if not execution_trace_path.is_file():
+            raise RuntimeError("installed execution CLI did not write its trace output")
     print(
         json.dumps(
             {
@@ -247,6 +282,7 @@ def main() -> int:
                 "registry": str(registry),
                 "recipes": str(recipes),
                 "web": str(web),
+                "schemas": str(schemas),
                 "scene_id": result.scene.scene_id,
             },
             indent=2,

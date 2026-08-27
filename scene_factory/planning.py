@@ -259,6 +259,12 @@ class InteractionWorldState:
     holding: tuple[str, str] | None = None
     approached_region: tuple[str, str] | None = None
 
+    @classmethod
+    def from_dict(cls, raw: Mapping[str, Any]) -> "InteractionWorldState":
+        """Parse a serialized symbolic world state."""
+
+        return _world_from_dict(raw, "world_state")
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "joint_positions": {
@@ -1011,7 +1017,7 @@ def _require_region(scene: _SceneModel, action: InteractionAction) -> _Region:
 
 def _apply_action(
     scene: _SceneModel,
-    goal: _ResolvedGoal,
+    goal: _ResolvedGoal | None,
     world: InteractionWorldState,
     action: InteractionAction,
 ) -> InteractionWorldState:
@@ -1048,7 +1054,9 @@ def _apply_action(
         )
     if region.controlled_joint != action.joint_id:
         raise PlanValidationError("wrong_controlled_joint", "action joint does not match region controlled_joint")
-    if action.object_id != goal.state.object_id or action.joint_id != goal.state.joint_id:
+    if goal is not None and (
+        action.object_id != goal.state.object_id or action.joint_id != goal.state.joint_id
+    ):
         raise PlanValidationError("unknown_joint", "single-goal plan must actuate the goal joint")
     joint = scene.joints.get((action.object_id, action.joint_id or ""))
     if joint is None:
@@ -1058,7 +1066,7 @@ def _apply_action(
     target = action.target_position
     if not joint.lower_limit <= target <= joint.upper_limit:
         raise PlanValidationError("target_outside_limits", "target_position is outside joint limits")
-    if not goal.state.state_range[0] <= target <= goal.state.state_range[1]:
+    if goal is not None and not goal.state.state_range[0] <= target <= goal.state.state_range[1]:
         raise PlanValidationError("target_outside_semantic_range", "target_position is outside the goal state range")
     current = world.joint_positions[action.object_id][joint.joint_id]
     if action.action == "pull" and (joint.joint_type != "prismatic" or target <= current):
@@ -1081,6 +1089,32 @@ def _apply_action(
     return InteractionWorldState(updated, world.holding, world.approached_region)
 
 
+def apply_symbolic_interaction_action(
+    scene: Mapping[str, Any] | str | Path | Any | _SceneModel,
+    world: InteractionWorldState,
+    action: InteractionAction,
+    *,
+    goal: Mapping[str, Any] | _ResolvedGoal | None = None,
+) -> InteractionWorldState:
+    """Apply one shared symbolic transition for replay and execution adapters.
+
+    A goal is supplied by plan validation/replay so semantic state-range checks
+    remain active.  A dry-run executor may omit it because its orchestrator
+    validates the complete plan before dispatching any command.
+    """
+
+    scene_model = scene if isinstance(scene, _SceneModel) else _SceneModel.from_payload(
+        _coerce_mapping(scene, "scene")
+    )
+    if not isinstance(world, InteractionWorldState):
+        raise PlanValidationError("malformed_world_state", "world must be an InteractionWorldState")
+    if goal is None or isinstance(goal, _ResolvedGoal):
+        resolved_goal = goal
+    else:
+        resolved_goal = _resolve_goal(scene_model, goal)
+    return _apply_action(scene_model, resolved_goal, world, action)
+
+
 def _simulate_steps(
     scene: _SceneModel,
     goal: _ResolvedGoal,
@@ -1098,7 +1132,7 @@ def _simulate_steps(
         if released:
             raise PlanValidationError("steps_after_release", "no action is allowed after release")
         before = world.to_dict()
-        world = _apply_action(scene, goal, world, action)
+        world = apply_symbolic_interaction_action(scene, world, action, goal=goal)
         if action.action == "release":
             released = True
         if capture_trace:
