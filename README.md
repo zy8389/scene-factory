@@ -58,13 +58,35 @@ outputs/demo/
 ```powershell
 python -m scene_factory batch `
   --recipe living_room_recent_snacking `
-  --count 1000 `
+  --count 100 `
   --seed-start 10000 `
   --output outputs\living-room
 ```
 
 每个场景都有由配方、描述和 seed 决定的稳定 `scene_id`。批次根目录的
-`manifest.jsonl` 可直接交给训练或数据管线。
+`dataset.json` 和 `manifest.jsonl` 构成可校验、可恢复的数据集；manifest 中的文件引用
+始终是相对于数据集根目录的可移植路径，并带有 SHA-256 与语义 fingerprint。
+
+数据集可以离线检查、验证和复现。`reproduce` 会重新编译配方并比较每个场景的
+fingerprint，不启动 Isaac Sim，也不调用网络或外部 LLM：
+
+```powershell
+scene-factory dataset inspect outputs\living-room
+scene-factory dataset validate outputs\living-room
+scene-factory dataset reproduce outputs\living-room
+```
+
+批量生成中断后，只能使用完全相同的来源、seed 范围和数量恢复缺失场景；已有场景不会
+被覆盖：
+
+```powershell
+scene-factory batch `
+  --recipe living_room_recent_snacking `
+  --count 100 `
+  --seed-start 10000 `
+  --output outputs\living-room `
+  --resume
+```
 
 也可以构建并安装 wheel。安装包把 `recipes/`、运行时资产注册表/USD/collision 和
 `web/` 放入 `share/scene-factory`；`SCENE_FACTORY_HOME` 可覆盖该数据根：

@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .dataset import (
+    clean_known_staging,
+    load_dataset_snapshot,
+    make_dataset_metadata,
+    make_manifest_record,
+    update_dataset_metadata,
+    write_json_atomic,
+    write_manifest_atomic,
+    write_staging_marker,
+)
 from .intent import SceneIntent
 from .intent_compiler import IntentCompiler
 from .layout import LayoutSolver
@@ -247,42 +258,140 @@ class SceneFactory:
         recipe_name: str | None = None,
         prompt: str | None = None,
         export_usd: bool = False,
+        resume: bool = False,
     ) -> list[dict[str, Any]]:
         if count < 1:
             raise ValueError("count must be positive")
         if bool(recipe_name) == bool(prompt):
             raise ValueError("provide exactly one of recipe_name or prompt")
 
-        output_root = Path(output_root)
-        output_root.mkdir(parents=True, exist_ok=True)
-        manifest: list[dict[str, Any]] = []
+        output_root = Path(output_root).expanduser().resolve()
+        metadata = make_dataset_metadata(
+            recipe_name=recipe_name,
+            prompt=prompt,
+            count=count,
+            seed_start=seed_start,
+            export_usd=export_usd,
+        )
+        if resume:
+            if not output_root.is_dir() or output_root.is_symlink():
+                raise FileNotFoundError(f"cannot resume missing dataset root: {output_root}")
+            snapshot = load_dataset_snapshot(output_root, allow_incomplete=True)
+            self._assert_resume_invocation(snapshot.metadata, metadata)
+            clean_known_staging(
+                output_root,
+                metadata["dataset_id"],
+                seed_start=metadata["seed_start"],
+                count=metadata["count"],
+            )
+            manifest = [dict(record) for record in snapshot.records]
+            metadata = dict(snapshot.metadata)
+        else:
+            if output_root.exists():
+                if not output_root.is_dir():
+                    raise FileExistsError(f"batch output is not a directory: {output_root}")
+                if any(output_root.iterdir()):
+                    raise FileExistsError(
+                        f"batch output already exists and is not empty: {output_root}; use --resume"
+                    )
+            output_root.mkdir(parents=True, exist_ok=True)
+            manifest = []
+            write_json_atomic(output_root / "dataset.json", metadata)
+            write_manifest_atomic(output_root / "manifest.jsonl", manifest)
 
+        existing_seeds = {record["seed"] for record in manifest}
+        staging_root = output_root / ".staging"
         for offset in range(count):
             seed = seed_start + offset
-            result = (
-                self.build_from_recipe(recipe_name, seed)
-                if recipe_name
-                else self.build_from_prompt(prompt or "", seed)
-            )
-            scene_dir = output_root / result.scene.scene_id
-            files = self.write_result(result, scene_dir, export_usd=export_usd)
-            manifest.append(
-                {
-                    "scene_id": result.scene.scene_id,
-                    "seed": seed,
-                    "recipe": result.scene.recipe_name,
-                    "valid": result.valid,
-                    "prompt_parser": result.prompt_parser,
-                    "parser_warning": result.parser_warning,
-                    "files": files,
-                }
-            )
+            if seed in existing_seeds:
+                continue
+            try:
+                result = (
+                    self.build_from_recipe(recipe_name, seed)
+                    if recipe_name
+                    else self.build_from_prompt(prompt or "", seed)
+                )
+                if result.scene.seed != seed:
+                    raise RuntimeError(
+                        f"build result seed mismatch: expected={seed} actual={result.scene.seed}"
+                    )
+                scene_id = result.scene.scene_id
+                if (
+                    not isinstance(scene_id, str)
+                    or not scene_id
+                    or scene_id in {".", ".."}
+                    or "/" in scene_id
+                    or "\\" in scene_id
+                ):
+                    raise ValueError(f"invalid generated scene_id: {scene_id!r}")
+                scene_dir = output_root / scene_id
+                if scene_dir.exists() or scene_dir.is_symlink():
+                    raise FileExistsError(f"scene directory already exists: {scene_dir}")
+                staging_root.mkdir(parents=True, exist_ok=True)
+                stage_dir = staging_root / scene_id
+                if stage_dir.exists() or stage_dir.is_symlink():
+                    raise FileExistsError(f"staging directory already exists: {stage_dir}")
+                stage_dir.mkdir()
+                write_staging_marker(
+                    stage_dir,
+                    dataset_key=metadata["dataset_id"],
+                    scene_id=scene_id,
+                    seed=seed,
+                )
+                files = self.write_result(result, stage_dir, export_usd=export_usd)
+                record = make_manifest_record(result, files, output_root, scene_id)
+                marker = stage_dir / ".scene_factory_staging.json"
+                if not marker.is_file():
+                    raise RuntimeError("staging marker disappeared before scene commit")
+                marker.unlink()
+                os.rename(stage_dir, scene_dir)
+                manifest.append(record)
+                manifest.sort(key=lambda item: item["seed"])
+                write_manifest_atomic(output_root / "manifest.jsonl", manifest)
+                metadata = update_dataset_metadata(
+                    metadata, manifest, status="in_progress", generation_error=None
+                )
+                write_json_atomic(output_root / "dataset.json", metadata)
+                existing_seeds.add(seed)
+            except Exception as exc:
+                metadata = update_dataset_metadata(
+                    metadata,
+                    manifest,
+                    status="incomplete",
+                    generation_error=type(exc).__name__,
+                )
+                try:
+                    write_json_atomic(output_root / "dataset.json", metadata)
+                except OSError:
+                    pass
+                raise
 
-        manifest_path = output_root / "manifest.jsonl"
-        with manifest_path.open("w", encoding="utf-8") as handle:
-            for item in manifest:
-                handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
+        try:
+            staging_root.rmdir()
+        except OSError:
+            pass
+        metadata = update_dataset_metadata(metadata, manifest, status="complete")
+        write_manifest_atomic(output_root / "manifest.jsonl", manifest)
+        write_json_atomic(output_root / "dataset.json", metadata)
         return manifest
+
+    @staticmethod
+    def _assert_resume_invocation(
+        existing: dict[str, Any], expected: dict[str, Any]
+    ) -> None:
+        keys = (
+            "schema_version",
+            "dataset_id",
+            "source",
+            "seed_start",
+            "count",
+            "expected_seed_end",
+            "manifest",
+            "export_usd",
+        )
+        mismatches = [key for key in keys if existing.get(key) != expected.get(key)]
+        if mismatches:
+            raise ValueError(f"resume invocation does not match dataset metadata: {mismatches}")
 
     @staticmethod
     def _write_json(path: Path, payload: dict[str, Any]) -> None:
