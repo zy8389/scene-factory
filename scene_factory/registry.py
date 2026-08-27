@@ -9,7 +9,16 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from .models import AssetRecord, SupportSurface
+from .models import (
+    AssetRecord,
+    ArticulationJoint,
+    InteriorRegion,
+    InteractionRegion,
+    SemanticState,
+    SupportSurface,
+    validate_articulation_contract,
+    validate_support_surface_links,
+)
 
 
 _VALID_STATUSES = {
@@ -91,10 +100,19 @@ class AssetMetadata:
     last_validation: str | None = None
     failure_reason: str | None = None
     physics_parameters_source: str = "project_default"
+    articulations: tuple[ArticulationJoint, ...] = ()
+    interaction_regions: tuple[InteractionRegion, ...] = ()
+    interior_regions: tuple[InteriorRegion, ...] = ()
+    semantic_states: tuple[SemanticState, ...] = ()
 
     @property
     def hash(self) -> str | None:
         return self.asset_hash
+
+    @property
+    def joints(self) -> tuple[ArticulationJoint, ...]:
+        """Compatibility alias for articulated joint metadata."""
+        return self.articulations
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "AssetMetadata":
@@ -132,6 +150,16 @@ class AssetMetadata:
                 raise ValueError(f"asset {label} must be finite")
         bbox = record.bbox_m if "bbox_m" in raw else None
         surfaces = record.metadata_support_surface or record.support_surfaces
+        validate_articulation_contract(
+            record.articulations,
+            record.interaction_regions,
+            record.interior_regions,
+            record.semantic_states,
+        )
+        validate_support_surface_links(
+            record.metadata_support_surface or record.support_surfaces,
+            record.articulations,
+        )
         return cls(
             asset_id=record.asset_id,
             name=str(raw.get("name", record.asset_id)),
@@ -154,6 +182,10 @@ class AssetMetadata:
             rigid_body=bool(raw.get("rigid_body", True)),
             collision_enabled=bool(raw.get("collision_enabled", True)),
             support_surface=tuple(surfaces),
+            articulations=record.articulations,
+            interaction_regions=record.interaction_regions,
+            interior_regions=record.interior_regions,
+            semantic_states=record.semantic_states,
             grasp_region=raw.get("grasp_region"),
             status=status,
             bbox_m=bbox,
@@ -173,6 +205,16 @@ class AssetMetadata:
 
     @classmethod
     def from_record(cls, record: AssetRecord) -> "AssetMetadata":
+        validate_articulation_contract(
+            record.articulations,
+            record.interaction_regions,
+            record.interior_regions,
+            record.semantic_states,
+        )
+        validate_support_surface_links(
+            record.metadata_support_surface or record.support_surfaces,
+            record.articulations,
+        )
         return cls(
             asset_id=record.asset_id,
             name=record.name or record.asset_id,
@@ -202,6 +244,10 @@ class AssetMetadata:
             rigid_body=record.rigid_body,
             collision_enabled=record.collision_enabled,
             support_surface=record.metadata_support_surface or record.support_surfaces,
+            articulations=record.articulations,
+            interaction_regions=record.interaction_regions,
+            interior_regions=record.interior_regions,
+            semantic_states=record.semantic_states,
             grasp_region=record.grasp_region,
             status=record.status,
             bbox_m=record.bbox_m,
@@ -231,6 +277,10 @@ class AssetMetadata:
             mass_kg=self.mass if self.mass is not None else 1.0,
             friction=self.friction if self.friction is not None else 0.5,
             support_surfaces=self.support_surface,
+            articulations=self.articulations,
+            interaction_regions=self.interaction_regions,
+            interior_regions=self.interior_regions,
+            semantic_states=self.semantic_states,
             source_path=self.usd_path,
             source_type=self.source_type,
             collision_mode=self.collision_mode,
@@ -288,6 +338,14 @@ class AssetMetadata:
             "collision_mode": self.collision_mode,
             "tags": list(self.tags),
         }
+        if self.articulations:
+            payload["articulations"] = [asdict(item) for item in self.articulations]
+        if self.interaction_regions:
+            payload["interaction_regions"] = [asdict(item) for item in self.interaction_regions]
+        if self.interior_regions:
+            payload["interior_regions"] = [asdict(item) for item in self.interior_regions]
+        if self.semantic_states:
+            payload["semantic_states"] = [asdict(item) for item in self.semantic_states]
         if self.batch_id is not None:
             payload["batch_id"] = self.batch_id
         if self.last_validation is not None:
@@ -318,6 +376,16 @@ class AssetRegistry:
         for asset in assets:
             if asset.asset_id in self._by_id:
                 raise ValueError(f"duplicate asset ID: {asset.asset_id}")
+            validate_articulation_contract(
+                asset.articulations,
+                asset.interaction_regions,
+                asset.interior_regions,
+                asset.semantic_states,
+            )
+            validate_support_surface_links(
+                asset.metadata_support_surface or asset.support_surfaces,
+                asset.articulations,
+            )
             self._by_id[asset.asset_id] = asset
             self._metadata[asset.asset_id] = metadata_by_id.get(
                 asset.asset_id, AssetMetadata.from_record(asset)

@@ -26,6 +26,26 @@
       "type": "array",
       "items": {"$ref": "#/$defs/supportSurface"}
     },
+    "articulations": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/articulationJoint"}
+    },
+    "interaction_regions": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/interactionRegion"}
+    },
+    "interior_regions": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/interiorRegion"}
+    },
+    "semantic_states": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/semanticState"}
+    },
     "source_path": {"type": ["string", "null"]},
     "usd_path": {"type": ["string", "null"]},
     "collision_path": {"type": ["string", "null"]},
@@ -96,7 +116,70 @@
       "properties": {
         "name": {"type": "string", "minLength": 1},
         "center": {"$ref": "#/$defs/vec3"},
-        "size": {"$ref": "#/$defs/vec2Positive"}
+        "size": {"$ref": "#/$defs/vec2Positive"},
+        "link": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "articulationJoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["joint_id", "joint_type", "parent", "child", "axis", "lower_limit", "upper_limit", "default_position"],
+      "properties": {
+        "joint_id": {"type": "string", "minLength": 1},
+        "joint_type": {"enum": ["revolute", "prismatic"]},
+        "parent": {"type": "string", "minLength": 1},
+        "child": {"type": "string", "minLength": 1},
+        "axis": {"$ref": "#/$defs/vec3"},
+        "lower_limit": {"type": "number"},
+        "upper_limit": {"type": "number"},
+        "default_position": {"type": "number"}
+      }
+    },
+    "interactionRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "kind", "link", "center", "size", "approach_axis", "allowed_actions"],
+      "properties": {
+        "region_id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["handle", "grasp", "push", "pull", "button"]},
+        "link": {"type": "string", "minLength": 1},
+        "center": {"$ref": "#/$defs/vec3"},
+        "size": {"$ref": "#/$defs/vec3Positive"},
+        "approach_axis": {"$ref": "#/$defs/vec3"},
+        "allowed_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["grasp", "pull", "push", "rotate", "lift"]}
+        },
+        "controlled_joint": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "interiorRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["region_id", "link", "center", "size"],
+      "properties": {
+        "region_id": {"type": "string", "minLength": 1},
+        "link": {"type": "string", "minLength": 1},
+        "center": {"$ref": "#/$defs/vec3"},
+        "size": {"$ref": "#/$defs/vec3Positive"}
+      }
+    },
+    "semanticState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "joint", "range"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "joint": {"type": "string", "minLength": 1},
+        "range": {
+          "type": "array",
+          "prefixItems": [{"type": "number"}, {"type": "number"}],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "target_position": {"type": ["number", "null"]}
       }
     }
   }

@@ -92,7 +92,8 @@
           "maxItems": 4
         },
         "edge_bias": {"type": "boolean"},
-        "relations": {"type": "array", "items": {"$ref": "#/$defs/relation"}}
+        "relations": {"type": "array", "items": {"$ref": "#/$defs/relation"}},
+        "state": {"type": "array", "items": {"type": "string"}}
       },
       "anyOf": [{"required": ["fixed_pose"]}, {"required": ["support"]}]
     }

@@ -15,11 +15,13 @@ from .external import (
     normalize_producer,
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
+from .models import ArticulationJoint, InteriorRegion, InteractionRegion, SemanticState
 
 __all__ = [
     "AssetLoader",
     "AssetMetadata",
     "AssetRegistry",
+    "ArticulationJoint",
     "AssetNormalizer",
     "AssetValidator",
     "BuildResult",
@@ -30,6 +32,9 @@ __all__ = [
     "ENVELOPE_SOURCE_FORMAT",
     "EXTERNAL_SCHEMA_VERSION",
     "SceneFactory",
+    "InteractionRegion",
+    "InteriorRegion",
+    "SemanticState",
     "adapt_external_scene",
     "external_scene_schema",
     "inspect_dataset",

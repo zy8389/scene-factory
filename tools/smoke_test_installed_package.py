@@ -8,6 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from scene_factory import ArticulationJoint
 from scene_factory.factory import SceneFactory
 from scene_factory.paths import default_recipes_dir, default_registry_path, default_web_dir
 
@@ -35,6 +36,18 @@ def main() -> int:
     pick_place = factory.build_from_recipe("kitchen_franka_mug_pick_place", 77)
     if not pick_place.valid:
         raise RuntimeError("installed SceneFactory failed the pick-and-place recipe smoke test")
+    joint = ArticulationJoint(
+        joint_id="smoke_slide",
+        joint_type="prismatic",
+        parent="body",
+        child="drawer",
+        axis=(2.0, 0.0, 0.0),
+        lower_limit=0.0,
+        upper_limit=0.4,
+        default_position=0.0,
+    )
+    if joint.axis != (1.0, 0.0, 0.0):
+        raise RuntimeError("installed articulation metadata API failed axis normalization")
     cli = shutil.which("scene-factory")
     if cli is None:
         candidate = Path(sys.executable).with_name("scene-factory")
@@ -97,6 +110,7 @@ def main() -> int:
         commands = [
             [cli, "intent", "schema"],
             [cli, "intent", "validate", str(intent_path)],
+            [cli, "asset", "inspect", "--asset-id", "mug_blue"],
             [
                 cli,
                 "build",

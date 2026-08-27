@@ -11,6 +11,7 @@ from .dataset import inspect_dataset, reproduce_dataset, validate_dataset
 from .external import ExternalSceneError, external_scene_schema, load_external_scene
 from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
+from .paths import default_registry_path
 from .registry import AssetRegistry
 
 
@@ -147,13 +148,7 @@ def main(argv: list[str] | None = None) -> int:
             report_path = args.report
             if args.asset_id:
                 registry_path = args.asset_registry or args.registry
-                default_registry = (
-                    Path(__file__).resolve().parents[1]
-                    / "data"
-                    / "assets"
-                    / "registry.jsonl"
-                )
-                registry = AssetRegistry.load(registry_path or default_registry)
+                registry = AssetRegistry.load(registry_path or default_registry_path())
                 report = validate_asset(args.asset_id, registry, report_path=report_path)
             else:
                 report = validate_usd(args.usd, report_path=report_path)

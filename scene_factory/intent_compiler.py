@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from collections import defaultdict
+from dataclasses import replace
 
 from .intent import IntentObject, SceneIntent
 from .models import ObjectRequest, Relation, SceneRecipe
@@ -51,6 +52,7 @@ class IntentCompiler:
 
         aliases: dict[str, str] = {}
         used_ids = {request.object_id for request in fixed}
+        fixed_state_overrides: dict[str, tuple[str, ...]] = {}
         dynamic_intents: list[tuple[IntentObject, str]] = []
         fixture_index: dict[str, int] = defaultdict(int)
         for item in intent.objects:
@@ -58,6 +60,8 @@ class IntentCompiler:
             if fixtures:
                 index = min(fixture_index[item.category], len(fixtures) - 1)
                 aliases[item.object_id] = fixtures[index].object_id
+                if item.state:
+                    fixed_state_overrides[fixtures[index].object_id] = item.state
                 fixture_index[item.category] += 1
                 continue
             object_id = self._unique_id(item.object_id, used_ids)
@@ -84,7 +88,10 @@ class IntentCompiler:
                 relations_by_subject,
             )
 
-        requests: list[ObjectRequest] = list(fixed)
+        requests: list[ObjectRequest] = [
+            replace(request, state=fixed_state_overrides.get(request.object_id, request.state))
+            for request in fixed
+        ]
         yaw_amplitude = min(90.0, 12.0 + 68.0 * intent.clutter_level)
         for item, object_id in dynamic_intents:
             object_yaw = min(yaw_amplitude, self.YAW_LIMITS.get(item.category, 90.0))
@@ -122,6 +129,7 @@ class IntentCompiler:
                         or intent.layout_style.lower() in {"edge_clutter", "边缘堆放"}
                     ),
                     relations=tuple(compiled_relations),
+                    state=item.state,
                 )
             )
 

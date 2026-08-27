@@ -43,6 +43,13 @@ def _metadata_checks(
         "collision_enabled": metadata.collision_enabled,
         "collision_status": metadata.collision_status,
         "support_surface_count": len(metadata.support_surface),
+        "articulated": bool(metadata.articulations),
+        "joint_count": len(metadata.articulations),
+        "joint_ids": [item.joint_id for item in metadata.articulations],
+        "joint_types": [item.joint_type for item in metadata.articulations],
+        "interaction_region_count": len(metadata.interaction_regions),
+        "semantic_state_names": [item.name for item in metadata.semantic_states],
+        "interior_region_count": len(metadata.interior_regions),
     }
     if (
         metadata.mass is None
