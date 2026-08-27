@@ -12,6 +12,12 @@ from .external import ExternalSceneError, external_scene_schema, load_external_s
 from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
 from .paths import default_registry_path
+from .planning import (
+    plan_interaction,
+    replay_interaction_plan,
+    validate_interaction_plan,
+    write_plan_atomic,
+)
 from .registry import AssetRegistry
 
 
@@ -82,6 +88,29 @@ def _parser() -> argparse.ArgumentParser:
     ):
         command = dataset_commands.add_parser(name, help=help_text)
         command.add_argument("path", type=Path)
+
+    task = subparsers.add_parser(
+        "task", help="Plan and replay deterministic symbolic interaction tasks"
+    )
+    task_commands = task.add_subparsers(dest="task_command", required=True)
+    task_plan = task_commands.add_parser(
+        "plan", help="Generate a symbolic articulation interaction plan"
+    )
+    task_plan.add_argument("scene_pos", nargs="?", type=Path)
+    task_plan.add_argument("--scene", dest="scene", type=Path)
+    task_plan.add_argument("--object", dest="object_id")
+    task_plan.add_argument("--state")
+    task_plan.add_argument("--joint-id", dest="joint_id")
+    task_plan.add_argument("--output", type=Path)
+    for task_name, help_text in (
+        ("validate", "Validate a symbolic interaction plan"),
+        ("replay", "Replay a symbolic interaction plan offline"),
+    ):
+        command = task_commands.add_parser(task_name, help=help_text)
+        command.add_argument("scene_pos", nargs="?", type=Path)
+        command.add_argument("--scene", dest="scene", type=Path)
+        command.add_argument("plan_pos", nargs="?", type=Path)
+        command.add_argument("--plan", dest="plan", type=Path)
 
     asset = subparsers.add_parser("asset", help="Inspect and validate registered assets")
     asset_commands = asset.add_subparsers(dest="asset_command", required=True)
@@ -166,6 +195,33 @@ def main(argv: list[str] | None = None) -> int:
             if args.dataset_command == "inspect":
                 return 0
             return 0 if report["valid"] else 2
+
+        if args.command == "task":
+            scene_path = args.scene or args.scene_pos
+            if scene_path is None:
+                raise ValueError("task command requires --scene layout.json")
+            if args.task_command == "plan":
+                result = plan_interaction(
+                    scene_path,
+                    object_id=args.object_id,
+                    state=args.state,
+                    joint_id=args.joint_id,
+                )
+                if result.valid and args.output is not None and result.plan is not None:
+                    write_plan_atomic(args.output, result.plan)
+                print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if result.valid else 2
+            plan_path = args.plan or args.plan_pos
+            if plan_path is None:
+                raise ValueError(f"task {args.task_command} command requires --plan plan.json")
+            handler = (
+                validate_interaction_plan
+                if args.task_command == "validate"
+                else replay_interaction_plan
+            )
+            result = handler(scene_path, plan_path)
+            print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+            return 0 if result.valid else 2
 
         factory = SceneFactory(args.registry, args.recipes)
         if args.command == "intent":

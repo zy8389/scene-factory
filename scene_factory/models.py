@@ -402,7 +402,13 @@ def build_interaction_snapshot(
         resolved_states.append({"name": state.name, "joint": state.joint, "position": position})
     return {
         "joints": [
-            {"joint_id": item.joint_id, "position": resolved_positions[item.joint_id]}
+            {
+                "joint_id": item.joint_id,
+                "joint_type": item.joint_type,
+                "position": resolved_positions[item.joint_id],
+                "lower_limit": item.lower_limit,
+                "upper_limit": item.upper_limit,
+            }
             for item in articulations
         ],
         "regions": [
@@ -411,10 +417,27 @@ def build_interaction_snapshot(
                 "kind": item.kind,
                 "link": item.link,
                 "controlled_joint": item.controlled_joint,
+                "center": list(item.center),
+                "size": list(item.size),
+                "approach_axis": list(item.approach_axis),
+                "allowed_actions": list(item.allowed_actions),
             }
             for item in interaction_regions
         ],
         "states": resolved_states,
+        "semantic_states": [
+            {
+                "name": item.name,
+                "joint": item.joint,
+                "range": list(item.range),
+                "target_position": (
+                    item.target_position
+                    if item.target_position is not None
+                    else (item.range[0] + item.range[1]) / 2.0
+                ),
+            }
+            for item in semantic_states
+        ],
         "interior_regions": [
             {"region_id": item.region_id, "link": item.link}
             for item in interior_regions

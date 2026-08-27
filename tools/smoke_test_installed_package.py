@@ -107,6 +107,51 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
+        planning_scene_path = Path(directory) / "articulated-layout.json"
+        planning_plan_path = Path(directory) / "articulated-plan.json"
+        planning_scene_path.write_text(
+            json.dumps(
+                {
+                    "scene_id": "installed-articulated-smoke",
+                    "objects": [
+                        {
+                            "object_id": "drawer_1",
+                            "asset_id": "drawer_asset",
+                            "interactions": {
+                                "joints": [
+                                    {
+                                        "joint_id": "drawer_slide",
+                                        "joint_type": "prismatic",
+                                        "position": 0.0,
+                                        "lower_limit": 0.0,
+                                        "upper_limit": 0.42,
+                                    }
+                                ],
+                                "regions": [
+                                    {
+                                        "region_id": "drawer_handle",
+                                        "kind": "handle",
+                                        "link": "drawer",
+                                        "controlled_joint": "drawer_slide",
+                                        "allowed_actions": ["grasp", "pull"],
+                                    }
+                                ],
+                                "semantic_states": [
+                                    {
+                                        "name": "open",
+                                        "joint": "drawer_slide",
+                                        "range": [0.35, 0.42],
+                                        "target_position": 0.4,
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
         commands = [
             [cli, "intent", "schema"],
             [cli, "intent", "validate", str(intent_path)],
@@ -150,6 +195,37 @@ def main() -> int:
             [cli, "dataset", "reproduce", dataset],
             [cli, "dataset", "validate", str(Path(directory) / "intent-dataset")],
             [cli, "dataset", "reproduce", str(Path(directory) / "intent-dataset")],
+            [
+                cli,
+                "task",
+                "plan",
+                "--scene",
+                str(planning_scene_path),
+                "--object",
+                "drawer_1",
+                "--state",
+                "open",
+                "--output",
+                str(planning_plan_path),
+            ],
+            [
+                cli,
+                "task",
+                "validate",
+                "--scene",
+                str(planning_scene_path),
+                "--plan",
+                str(planning_plan_path),
+            ],
+            [
+                cli,
+                "task",
+                "replay",
+                "--scene",
+                str(planning_scene_path),
+                "--plan",
+                str(planning_plan_path),
+            ],
         ]
         for command in commands:
             completed = subprocess.run(

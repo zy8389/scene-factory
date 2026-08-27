@@ -16,6 +16,19 @@ from .external import (
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
 from .models import ArticulationJoint, InteriorRegion, InteractionRegion, SemanticState
+from .planning import (
+    InteractionAction,
+    InteractionPlan,
+    InteractionPlanningResult,
+    InteractionWorldState,
+    PLAN_SCHEMA_VERSION,
+    PLANNER_VERSION,
+    SUPPORTED_ACTIONS,
+    plan_interaction,
+    replay_interaction_plan,
+    synthesize_articulation_task,
+    validate_interaction_plan,
+)
 
 __all__ = [
     "AssetLoader",
@@ -35,13 +48,24 @@ __all__ = [
     "InteractionRegion",
     "InteriorRegion",
     "SemanticState",
+    "InteractionAction",
+    "InteractionPlan",
+    "InteractionPlanningResult",
+    "InteractionWorldState",
+    "PLAN_SCHEMA_VERSION",
+    "PLANNER_VERSION",
+    "SUPPORTED_ACTIONS",
     "adapt_external_scene",
     "external_scene_schema",
     "inspect_dataset",
     "load_external_scene",
     "normalize_producer",
+    "plan_interaction",
+    "replay_interaction_plan",
     "reproduce_dataset",
+    "synthesize_articulation_task",
     "validate_asset",
+    "validate_interaction_plan",
     "validate_dataset",
     "validate_usd",
 ]
