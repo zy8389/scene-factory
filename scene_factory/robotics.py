@@ -23,6 +23,22 @@ class MugLiftPhase(str, Enum):
     FAILED = "FAILED"
 
 
+# The offline episode validator consumes the same transition contract as the
+# runtime controller.  A phase may be repeated for multiple simulation steps,
+# but it may only advance along one of these edges.
+MUG_LIFT_PHASE_TRANSITIONS: dict[MugLiftPhase, tuple[MugLiftPhase, ...]] = {
+    MugLiftPhase.PRE_GRASP: (MugLiftPhase.APPROACH,),
+    MugLiftPhase.APPROACH: (MugLiftPhase.GRASP,),
+    MugLiftPhase.GRASP: (MugLiftPhase.VERIFY_GRASP,),
+    MugLiftPhase.VERIFY_GRASP: (MugLiftPhase.LIFT,),
+    MugLiftPhase.LIFT: (MugLiftPhase.TRANSFER, MugLiftPhase.DONE),
+    MugLiftPhase.TRANSFER: (MugLiftPhase.LOWER,),
+    MugLiftPhase.LOWER: (MugLiftPhase.RELEASE,),
+    MugLiftPhase.RELEASE: (MugLiftPhase.VERIFY_PLACE,),
+    MugLiftPhase.VERIFY_PLACE: (MugLiftPhase.DONE,),
+}
+
+
 @dataclass(frozen=True)
 class MugLiftCommand:
     phase: MugLiftPhase
@@ -380,22 +396,10 @@ class MugLiftController:
                 self.place_status = "failed"
 
     def _next_phase(self) -> None:
-        transitions = {
-            MugLiftPhase.PRE_GRASP: MugLiftPhase.APPROACH,
-            MugLiftPhase.APPROACH: MugLiftPhase.GRASP,
-            MugLiftPhase.GRASP: MugLiftPhase.VERIFY_GRASP,
-            MugLiftPhase.VERIFY_GRASP: MugLiftPhase.LIFT,
-        }
-        if self.task_mode == "pick_place":
-            transitions.update(
-                {
-                    MugLiftPhase.LIFT: MugLiftPhase.TRANSFER,
-                    MugLiftPhase.TRANSFER: MugLiftPhase.LOWER,
-                    MugLiftPhase.LOWER: MugLiftPhase.RELEASE,
-                    MugLiftPhase.RELEASE: MugLiftPhase.VERIFY_PLACE,
-                }
-            )
-        self.phase = transitions[self.phase]
+        next_phases = MUG_LIFT_PHASE_TRANSITIONS[self.phase]
+        if self.task_mode == "lift" and self.phase == MugLiftPhase.LIFT:
+            next_phases = (MugLiftPhase.DONE,)
+        self.phase = next_phases[0]
         self.phase_steps = 0
 
     @staticmethod

@@ -15,7 +15,20 @@ from .external import (
     normalize_producer,
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
-from .trajectory import DatasetError, Episode, EpisodeFrame, EpisodeRecorder, load_episode
+from .trajectory import (
+    DatasetError,
+    Episode,
+    EpisodeFrame,
+    EpisodeInspectionResult,
+    EpisodeOperationResult,
+    EpisodeRecorder,
+    EpisodeReplayResult,
+    EpisodeValidationResult,
+    inspect_episode,
+    load_episode,
+    replay_episode,
+    validate_episode,
+)
 from .models import ArticulationJoint, InteriorRegion, InteractionRegion, SemanticState
 from .planning import (
     InteractionAction,
@@ -108,8 +121,15 @@ __all__ = [
     "DatasetError",
     "Episode",
     "EpisodeFrame",
+    "EpisodeInspectionResult",
+    "EpisodeOperationResult",
     "EpisodeRecorder",
+    "EpisodeReplayResult",
+    "EpisodeValidationResult",
+    "inspect_episode",
     "load_episode",
+    "replay_episode",
+    "validate_episode",
     "EXECUTION_COMMAND_SCHEMA_VERSION",
     "EXECUTION_TRACE_SCHEMA_VERSION",
     "DryRunInteractionExecutor",
