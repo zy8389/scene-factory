@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import os
 import sys
+import math
+from importlib.metadata import PackageNotFoundError, version as distribution_version
 from importlib import import_module
+from numbers import Integral
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from ..exporters.isaac_usd import IsaacBackendUnavailable
 from ..robotics import (
@@ -68,6 +72,9 @@ def build_observation(
     pick_status: str = "not_run",
     place_status: str = "not_run",
     released: bool = False,
+    joint_velocities: list[float] | None = None,
+    action: dict[str, Any] | None = None,
+    timestamp: float | None = None,
 ) -> dict[str, Any]:
     return {
         "language_instruction": instruction,
@@ -78,6 +85,7 @@ def build_observation(
         "robot": {
             "name": "franka",
             "joint_positions": [float(value) for value in joint_positions],
+            "joint_velocities": [float(value) for value in (joint_velocities or [])],
             "end_effector_pose": {
                 "position": [float(value) for value in end_effector_position],
                 "orientation_wxyz": [float(value) for value in end_effector_orientation],
@@ -98,6 +106,7 @@ def build_observation(
             "pick_status": pick_status,
             "place_status": place_status,
             "released": bool(released),
+            "action": action,
             "ik_target_joint_positions": ik_target_joint_positions or [],
             "applied_joint_position_targets": applied_joint_position_targets or [],
             "phase": phase,
@@ -108,6 +117,8 @@ def build_observation(
         },
         "task_success": bool(task_success),
         "simulation_step": int(simulation_step),
+        "timestamp": float(timestamp if timestamp is not None else simulation_step),
+        "action": action,
     }
 
 
@@ -121,11 +132,13 @@ class IsaacSimBackend:
         headless: bool = True,
         max_steps: int = 720,
         physics_dt: float = 1.0 / 60.0,
+        enable_rgbd: bool = False,
     ) -> None:
         self.usd_path = Path(usd_path).expanduser().resolve()
         self.headless = headless
         self.max_steps = max_steps
         self.physics_dt = physics_dt
+        self.enable_rgbd = enable_rgbd
         self.scene: dict[str, Any] | None = None
         self.steps = 0
         self._app = None
@@ -144,6 +157,7 @@ class IsaacSimBackend:
         self._material_diagnostics: dict[str, Any] = {}
         self._finger_gripper_config: dict[str, Any] = {}
         self._robot_asset_source: str | None = None
+        self._asset_root_diagnostics = _empty_asset_root_diagnostics()
         self._hand_root_path: str | None = None
         self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         self._last_ik_target_joint_positions: list[float] | None = None
@@ -163,6 +177,10 @@ class IsaacSimBackend:
             "/World/Robot/panda_rightfinger",
         )
         self._target_root_path: str | None = None
+        self._last_command: dict[str, Any] | None = None
+        self._camera = None
+        self._camera_config: dict[str, Any] = {}
+        self._last_camera_frame_marker: str | None = None
 
     @property
     def runtime_summary(self) -> dict[str, Any]:
@@ -179,7 +197,41 @@ class IsaacSimBackend:
             "place_status": controller.place_status if controller else "not_run",
             "released": controller.released if controller else False,
             "robot_asset_source": self._robot_asset_source,
+            "action": self._last_command,
+            **self._asset_root_diagnostics,
         }
+
+    @property
+    def camera_config(self) -> dict[str, Any]:
+        return dict(self._camera_config)
+
+    @property
+    def isaac_sim_version(self) -> str:
+        try:
+            module = import_module("isaacsim")
+            version = getattr(module, "__version__", None)
+            if version:
+                return str(version)
+        except (ImportError, ModuleNotFoundError):
+            module = None
+        try:
+            version = distribution_version("isaacsim")
+            if version:
+                return str(version)
+        except PackageNotFoundError:
+            pass
+        if module is not None:
+            module_file = getattr(module, "__file__", None)
+            if module_file:
+                version_path = Path(module_file).with_name("VERSION")
+                try:
+                    version = version_path.read_text(encoding="utf-8").strip()
+                except (OSError, UnicodeError):
+                    pass
+                else:
+                    if version:
+                        return version
+        return "unknown"
 
     def reset(self, scene: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         self.close()
@@ -203,14 +255,14 @@ class IsaacSimBackend:
                 {
                     "headless": self.headless,
                     "hide_ui": self.headless,
-                    "renderer": "Minimal",
+                    "renderer": "RayTracedLighting" if self.enable_rgbd else "Minimal",
                     "minimal_shading_mode": 4,
                     "anti_aliasing": 0,
                     "multi_gpu": False,
                     "max_gpu_count": 1,
                     "width": 640,
                     "height": 480,
-                    "disable_viewport_updates": self.headless,
+                    "disable_viewport_updates": self.headless and not self.enable_rgbd,
                     "fast_shutdown": True,
                     "open_usd": self.usd_path.as_posix(),
                 }
@@ -304,7 +356,11 @@ class IsaacSimBackend:
         before_positions = self._read_object_positions()
         command = self._controller.command(before_positions[target_id])
         ik_success = self._apply_command(command)
-        self._simulation.step(render=not self.headless)
+        self._last_command = _serialize_command(command)
+        self._simulation.step(
+            render=self._camera is not None or not self.headless,
+            update_fabric=self._camera is not None,
+        )
         self.steps += 1
         self._refresh_grasp_diagnostics()
 
@@ -370,8 +426,15 @@ class IsaacSimBackend:
 
     def close(self) -> None:
         simulation, app = self._simulation, self._app
+        camera = self._camera
         self._simulation = None
         self._app = None
+        self._camera = None
+        if camera is not None:
+            try:
+                camera.destroy()
+            except Exception:
+                pass
         if self._contact_subscription is not None:
             try:
                 if hasattr(self._contact_subscription, "unsubscribe"):
@@ -408,6 +471,7 @@ class IsaacSimBackend:
         self._material_diagnostics = {}
         self._finger_gripper_config = {}
         self._robot_asset_source = None
+        self._asset_root_diagnostics = _empty_asset_root_diagnostics()
         self._hand_root_path = None
         self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         self._last_ik_target_joint_positions = None
@@ -427,6 +491,10 @@ class IsaacSimBackend:
             "/World/Robot/panda_rightfinger",
         )
         self._target_root_path = None
+        self._last_command = None
+        self._camera = None
+        self._camera_config = {}
+        self._last_camera_frame_marker = None
 
     def _initialize_runtime(self) -> None:
         try:
@@ -464,16 +532,27 @@ class IsaacSimBackend:
         self._target_root_path = str(self._object_prims[target_id].GetPath())
 
         robot_prim_path = "/World/Robot"
+        self._asset_root_diagnostics = _empty_asset_root_diagnostics()
         robot_usd, self._robot_asset_source = _resolve_franka_usd(
             get_assets_root_path,
             self.usd_path.parent,
+            self._asset_root_diagnostics,
         )
-        add_reference_to_stage(usd_path=robot_usd, prim_path=robot_prim_path)
-        stage.Load(robot_prim_path)
-        self._app.update()
-        self._finger_root_paths, self._hand_root_path = _resolve_franka_link_paths(
-            stage, robot_prim_path
-        )
+        try:
+            add_reference_to_stage(usd_path=robot_usd, prim_path=robot_prim_path)
+            stage.Load(robot_prim_path)
+            self._app.update()
+            self._finger_root_paths, self._hand_root_path = _resolve_franka_link_paths(
+                stage, robot_prim_path
+            )
+        except Exception as exc:
+            self._asset_root_diagnostics["franka_usd_accessible"] = False
+            self._asset_root_diagnostics["asset_root_error"] = _asset_error(
+                exc, self._asset_root_diagnostics.get("franka_usd")
+            )
+            raise
+        else:
+            self._asset_root_diagnostics["franka_usd_accessible"] = True
         self._kinematics_frame = _franka_kinematics_frame(self._robot_asset_source)
         if self._robot_asset_source == "isaacsim_bundled_franka_urdf":
             _configure_bundled_franka_drives(stage, robot_prim_path, UsdPhysics)
@@ -503,7 +582,7 @@ class IsaacSimBackend:
         )
         self._simulation = SimulationContext(
             physics_dt=self.physics_dt,
-            rendering_dt=self.physics_dt,
+            rendering_dt=0.0 if self.enable_rgbd else self.physics_dt,
             stage_units_in_meters=1.0,
             physics_prim_path="/World/PhysicsScene",
             stage=stage,
@@ -572,8 +651,9 @@ class IsaacSimBackend:
             base_position, base_orientation
         )
         self._initialize_contact_reporting(stage)
+        self._initialize_rgbd_camera()
         for _ in range(10):
-            self._simulation.step(render=False)
+            self._simulation.step(render=self._camera is not None)
         actual_base_position, _ = self._robot.get_world_pose()
         if np.linalg.norm(actual_base_position - base_position) > 0.01:
             raise RuntimeError(
@@ -583,6 +663,192 @@ class IsaacSimBackend:
 
         self._material_diagnostics = self._read_material_diagnostics()
         self._refresh_grasp_diagnostics()
+
+    def _initialize_rgbd_camera(self) -> None:
+        if not self.enable_rgbd:
+            return
+        config = _rgbd_camera_config((self.scene or {}).get("task", {}))
+        if config is None:
+            return
+        try:
+            import numpy as np
+            from isaacsim.sensors.camera import Camera
+
+            camera = Camera(
+                prim_path=config["prim_path"],
+                name=config["name"],
+                frequency=config["frequency_hz"],
+                resolution=tuple(config["resolution"]),
+                position=np.asarray(config["position"], dtype=float),
+                orientation=np.asarray(config["orientation_wxyz"], dtype=float),
+            )
+            camera.initialize(self._simulation.physics_sim_view)
+            camera.add_distance_to_image_plane_to_frame()
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            AttributeError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise IsaacBackendUnavailable(
+                f"Isaac Sim RGB-D camera initialization failed: {type(exc).__name__}: {exc}"
+            ) from exc
+        self._camera = camera
+        self._camera_config = config
+        self._last_camera_frame_marker = None
+
+    def capture_rgbd_observation(self) -> dict[str, Any]:
+        """Capture RGB-D and calibration for the current backend simulation step."""
+        if self._camera is None or self._app is None:
+            raise RuntimeError("RGB-D camera is not configured; reset a sensor-enabled scene first")
+        import numpy as np
+
+        previous_marker = self._last_camera_frame_marker
+        last_error = "camera returned no valid frame"
+        for _ in range(12):
+            try:
+                self._run_rgbd_render_step()
+            except Exception as exc:
+                last_error = f"render graph step failed: {type(exc).__name__}: {exc}"
+                continue
+            reference_time = self._camera_reference_time()
+            rgb = self._camera.get_rgb(device="cpu")
+            depth = self._camera.get_depth(device="cpu")
+            if rgb is None or depth is None:
+                last_error = "camera RGB-D annotators returned no data"
+                continue
+            rgb = np.asarray(rgb).copy()
+            depth = np.asarray(depth).copy()
+            expected_width, expected_height = self._camera.get_resolution()
+            if rgb.ndim != 3 or rgb.shape != (expected_height, expected_width, 3):
+                last_error = f"invalid RGB shape: {tuple(rgb.shape)}"
+                continue
+            if depth.ndim != 2 or depth.shape != (expected_height, expected_width):
+                last_error = f"invalid depth shape: {tuple(depth.shape)}"
+                continue
+            if reference_time is None:
+                last_error = "camera reference time is unavailable"
+                continue
+            reference_error = self._camera_reference_time_error(reference_time, previous_marker)
+            if reference_error is not None:
+                last_error = reference_error
+                continue
+            finite_depth = np.isfinite(depth)
+            if not bool(np.any(finite_depth)):
+                last_error = (
+                    "depth frame contains no finite values; "
+                    f"rgb_min={float(np.min(rgb))}, rgb_max={float(np.max(rgb))}, "
+                    f"depth_min={float(np.min(depth))}, depth_max={float(np.max(depth))}"
+                )
+                continue
+            intrinsics = np.asarray(
+                self._camera.get_intrinsics_matrix(device="cpu"), dtype=float
+            )
+            position, orientation = self._camera.get_world_pose(camera_axes="world")
+            extrinsics = _camera_world_matrix(position, orientation)
+            if not np.isfinite(intrinsics).all() or not np.isfinite(extrinsics).all():
+                last_error = "camera calibration contains non-finite values"
+                continue
+            self._last_camera_frame_marker = repr(reference_time)
+            return {
+                "status": "ok",
+                "simulation_step": int(self.steps),
+                "rgb": rgb,
+                "depth": depth,
+                "intrinsics": intrinsics,
+                "extrinsics": extrinsics,
+                "rendering_frame": reference_time,
+            }
+        try:
+            render_product = self._camera.get_render_product_path()
+            frame_state = self._camera.get_current_frame(clone=True)
+            world_pose = self._camera.get_world_pose(camera_axes="world")
+            usd_pose = self._camera.get_world_pose(camera_axes="usd")
+            diagnostics = (
+                f"render_product={render_product!r}, "
+                f"camera_paused={self._camera.is_paused()}, "
+                f"frame_keys={sorted(frame_state)}, "
+                f"rendering_frame={frame_state.get('rendering_frame')!r}, "
+                f"reference_time={self._camera_reference_time()!r}, "
+                f"world_pose={world_pose!r}, usd_pose={usd_pose!r}"
+            )
+        except Exception as exc:
+            diagnostics = f"camera diagnostics unavailable: {type(exc).__name__}: {exc}"
+        raise RuntimeError(
+            f"RGB-D capture failed at simulation step {self.steps}: {last_error}; {diagnostics}"
+        )
+
+    def _run_rgbd_render_step(self) -> None:
+        """Flush one camera render without advancing PhysX."""
+        if self._app is None or self._simulation is None:
+            raise RuntimeError("SimulationApp is not running")
+        # Isaac's camera callback observes the previous post-render annotator
+        # state, so two render-only updates flush RGB-D and ReferenceTime.
+        for _ in range(2):
+            self._simulation.render()
+
+    def _camera_reference_time(self) -> dict[str, int] | None:
+        """Read the render product time after its post-render annotators update."""
+        if self._camera is None:
+            return None
+        annotator = getattr(self._camera, "_fabric_time_annotator", None)
+        if annotator is not None:
+            try:
+                value = annotator.get_data()
+            except Exception:
+                value = None
+            normalized = self._normalize_reference_time(value)
+            if normalized is not None:
+                return normalized
+        frame = self._camera.get_current_frame(clone=True)
+        value = frame.get("rendering_frame") if isinstance(frame, dict) else None
+        return self._normalize_reference_time(value)
+
+    def _camera_reference_time_error(
+        self,
+        reference_time: dict[str, int],
+        previous_marker: str | None,
+    ) -> str | None:
+        marker = repr(reference_time)
+        if previous_marker is not None and marker == previous_marker:
+            return "camera frame did not advance after simulation step"
+        reference_seconds = (
+            reference_time["referenceTimeNumerator"]
+            / reference_time["referenceTimeDenominator"]
+        )
+        simulation_time = self._simulation.current_time
+        if not math.isclose(
+            reference_seconds,
+            simulation_time,
+            rel_tol=0.0,
+            abs_tol=max(1e-5, self.physics_dt * 0.1),
+        ):
+            return (
+                "camera reference time does not match simulation time: "
+                f"camera={reference_seconds}, simulation={simulation_time}"
+            )
+        return None
+
+    @staticmethod
+    def _normalize_reference_time(value: Any) -> dict[str, int] | None:
+        if not isinstance(value, dict):
+            return None
+        numerator = value.get("referenceTimeNumerator")
+        denominator = value.get("referenceTimeDenominator")
+        if (
+            isinstance(numerator, bool)
+            or isinstance(denominator, bool)
+            or not isinstance(numerator, Integral)
+            or not isinstance(denominator, Integral)
+            or denominator <= 0
+        ):
+            return None
+        return {
+            "referenceTimeNumerator": int(numerator),
+            "referenceTimeDenominator": int(denominator),
+        }
 
     @staticmethod
     def _configure_gripper_material(
@@ -877,6 +1143,7 @@ class IsaacSimBackend:
     ) -> dict[str, Any]:
         positions = positions or self._read_object_positions()
         joint_positions = self._robot.get_joint_positions()
+        joint_velocities = self._robot.get_joint_velocities()
         ee_position, ee_orientation = self._end_effector_pose()
         orientation_error = self._orientation_error(ee_orientation)
         finger_paths = {
@@ -906,6 +1173,9 @@ class IsaacSimBackend:
             pick_status=controller.pick_status if controller else "not_run",
             place_status=controller.place_status if controller else "not_run",
             released=controller.released if controller else False,
+            joint_velocities=[float(value) for value in joint_velocities],
+            action=self._last_command,
+            timestamp=self.steps * self.physics_dt,
         )
 
     def _task_evidence(self) -> dict[str, Any]:
@@ -1012,17 +1282,44 @@ class IsaacSimBackend:
         return result
 
 
-def _resolve_franka_usd(get_assets_root_path, cache_parent: Path) -> tuple[str, str]:
+def _resolve_franka_usd(
+    get_assets_root_path,
+    cache_parent: Path,
+    diagnostics: dict[str, Any] | None = None,
+) -> tuple[str, str]:
     """Resolve a real Franka asset without requiring a reachable Nucleus server."""
+    diagnostics = diagnostics if diagnostics is not None else _empty_asset_root_diagnostics()
+    diagnostics.update(_empty_asset_root_diagnostics())
     try:
         assets_root = get_assets_root_path()
-    except (OSError, RuntimeError):
+    except Exception as exc:
+        diagnostics["asset_root_resolution_status"] = "failed"
+        diagnostics["asset_root_error"] = _asset_error(exc)
         assets_root = None
     if assets_root:
+        asset_root = _safe_asset_value(assets_root)
+        franka_usd = (
+            str(assets_root).rstrip("/")
+            + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
+        )
+        diagnostics.update(
+            {
+                "asset_root_resolution_status": "resolved",
+                "asset_root": asset_root,
+                "franka_usd": _safe_asset_value(franka_usd),
+                "asset_transport": _asset_transport(assets_root),
+                "official_isaac_asset": True,
+                "franka_usd_accessible": _is_local_asset_file(franka_usd),
+                "robot_asset_source": "nucleus_franka_usd",
+            }
+        )
         return (
-            assets_root + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd",
+            franka_usd,
             "nucleus_franka_usd",
         )
+
+    if diagnostics["asset_root_resolution_status"] == "not_attempted":
+        diagnostics["asset_root_resolution_status"] = "empty"
 
     try:
         import isaacsim.asset.importer.urdf as urdf_module
@@ -1066,6 +1363,16 @@ def _resolve_franka_usd(get_assets_root_path, cache_parent: Path) -> tuple[str, 
             output_path = generated_path
     if not output_path.is_file():
         raise RuntimeError(f"bundled Franka URDF import did not produce USD: {output_path}")
+    diagnostics.update(
+        {
+            "asset_root_resolution_status": "fallback_bundled",
+            "franka_usd": str(output_path),
+            "asset_transport": "local",
+            "official_isaac_asset": False,
+            "franka_usd_accessible": output_path.is_file(),
+            "robot_asset_source": "isaacsim_bundled_franka_urdf",
+        }
+    )
     return str(output_path), "isaacsim_bundled_franka_urdf"
 
 
@@ -1223,6 +1530,74 @@ def _pick_place_lift_height(task: dict[str, Any]) -> float | None:
     return value
 
 
+def _rgbd_camera_config(task: dict[str, Any]) -> dict[str, Any] | None:
+    raw = task.get("camera")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("task.camera must be an object")
+    prim_path = str(raw.get("prim_path", ""))
+    if not prim_path.startswith("/World/"):
+        raise ValueError("task.camera.prim_path must be under /World")
+    resolution = raw.get("resolution", [160, 120])
+    if (
+        not isinstance(resolution, (list, tuple))
+        or len(resolution) != 2
+        or any(int(value) <= 0 for value in resolution)
+    ):
+        raise ValueError("task.camera.resolution must contain two positive values")
+    position = raw.get("position")
+    orientation = raw.get("orientation_wxyz")
+    if not isinstance(position, (list, tuple)) or len(position) != 3:
+        raise ValueError("task.camera.position must contain three values")
+    if not isinstance(orientation, (list, tuple)) or len(orientation) != 4:
+        raise ValueError("task.camera.orientation_wxyz must contain four values")
+    position = [float(value) for value in position]
+    orientation = [float(value) for value in orientation]
+    if not all(math.isfinite(value) for value in position + orientation):
+        raise ValueError("task.camera pose must contain finite values")
+    if math.isclose(sum(value * value for value in orientation), 0.0):
+        raise ValueError("task.camera.orientation_wxyz must be non-zero")
+    frequency = int(raw.get("frequency_hz", 60))
+    if frequency <= 0:
+        raise ValueError("task.camera.frequency_hz must be positive")
+    return {
+        "prim_path": prim_path,
+        "name": str(raw.get("name", "scene_factory_rgbd")),
+        "resolution": [int(value) for value in resolution],
+        "position": position,
+        "orientation_wxyz": orientation,
+        "frequency_hz": frequency,
+    }
+
+
+def _serialize_command(command: Any) -> dict[str, Any]:
+    return {
+        "phase": command.phase.value if hasattr(command.phase, "value") else str(command.phase),
+        "goal_position": (
+            [float(value) for value in command.goal_position]
+            if command.goal_position is not None
+            else None
+        ),
+        "gripper": str(command.gripper),
+        "requires_ik": bool(command.requires_ik),
+    }
+
+
+def _camera_world_matrix(position: Any, orientation_wxyz: Any) -> list[list[float]]:
+    w, x, y, z = (float(value) for value in orientation_wxyz)
+    norm = math.sqrt(w * w + x * x + y * y + z * z)
+    if norm == 0.0:
+        raise ValueError("camera orientation must have non-zero norm")
+    w, x, y, z = (value / norm for value in (w, x, y, z))
+    return [
+        [1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - z * w), 2.0 * (x * z + y * w), float(position[0])],
+        [2.0 * (x * y + z * w), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z - x * w), float(position[1])],
+        [2.0 * (x * z - y * w), 2.0 * (y * z + x * w), 1.0 - 2.0 * (x * x + y * y), float(position[2])],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+
+
 def _validate_scene_payload(scene: dict[str, Any]) -> None:
     if not isinstance(scene, dict) or not scene.get("scene_id"):
         raise ValueError("backend reset requires a SceneFactory scene payload")
@@ -1237,6 +1612,47 @@ def _is_ascii(value: str) -> bool:
     except UnicodeEncodeError:
         return False
     return True
+
+
+def _empty_asset_root_diagnostics() -> dict[str, Any]:
+    return {
+        "asset_root_resolution_status": "not_attempted",
+        "asset_root": None,
+        "asset_root_error": None,
+        "franka_usd": None,
+        "franka_usd_accessible": False,
+        "asset_transport": None,
+        "official_isaac_asset": False,
+        "robot_asset_source": None,
+    }
+
+
+def _safe_asset_value(value: Any) -> str:
+    """Keep asset diagnostics useful without persisting URL credentials."""
+    text = str(value)
+    parsed = urlsplit(text)
+    if not parsed.scheme or not parsed.netloc:
+        return text
+    return urlunsplit((parsed.scheme, parsed.hostname or "", parsed.path.rstrip("/"), "", ""))
+
+
+def _asset_transport(value: Any) -> str:
+    parsed = urlsplit(str(value))
+    if not parsed.netloc or len(parsed.scheme) == 1:
+        return "local"
+    return parsed.scheme
+
+
+def _is_local_asset_file(value: Any) -> bool:
+    text = str(value)
+    return "://" not in text and Path(text).is_file()
+
+
+def _asset_error(exc: BaseException, asset_value: Any | None = None) -> str:
+    message = f"{type(exc).__name__}: {exc}"
+    if asset_value is not None:
+        message = message.replace(str(asset_value), _safe_asset_value(asset_value))
+    return message
 
 
 def _empty_grasp_diagnostics() -> dict[str, Any]:

@@ -256,6 +256,7 @@ def _run_runtime(
         failure_reason=failure_reason,
     )
     report["robot_asset_source"] = summary.get("robot_asset_source")
+    _attach_asset_root_diagnostics(report, summary)
     report.update(error_payload)
     report["trace"] = str(trace_path)
     diagnostics = report.get("grasp_diagnostics") or summary.get("grasp_diagnostics", {})
@@ -266,6 +267,22 @@ def _run_runtime(
     if backend is not None:
         backend.close()
     return 0 if report["result"] == "passed" else 2
+
+
+def _attach_asset_root_diagnostics(report: dict[str, Any], summary: dict[str, Any]) -> None:
+    keys = (
+        "asset_root_resolution_status",
+        "asset_root",
+        "asset_root_error",
+        "franka_usd",
+        "franka_usd_accessible",
+        "asset_transport",
+        "official_isaac_asset",
+        "robot_asset_source",
+    )
+    diagnostics = {key: summary.get(key) for key in keys}
+    report.update(diagnostics)
+    report["asset_root_diagnostics"] = diagnostics
 
 
 def _write_trace(handle, observation: dict[str, Any]) -> None:

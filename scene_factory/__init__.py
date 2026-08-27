@@ -15,6 +15,7 @@ from .external import (
     normalize_producer,
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
+from .trajectory import DatasetError, Episode, EpisodeFrame, EpisodeRecorder, load_episode
 from .models import ArticulationJoint, InteriorRegion, InteractionRegion, SemanticState
 from .planning import (
     InteractionAction,
@@ -104,6 +105,11 @@ __all__ = [
     "apply_symbolic_interaction_action",
     "validate_dataset",
     "validate_usd",
+    "DatasetError",
+    "Episode",
+    "EpisodeFrame",
+    "EpisodeRecorder",
+    "load_episode",
     "EXECUTION_COMMAND_SCHEMA_VERSION",
     "EXECUTION_TRACE_SCHEMA_VERSION",
     "DryRunInteractionExecutor",

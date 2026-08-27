@@ -20,7 +20,7 @@ class IsaacUsdExporter:
 
     def export(self, scene: CompiledScene, output_path: str | Path) -> Path:
         try:
-            from pxr import Gf, Usd, UsdGeom, UsdPhysics
+            from pxr import Gf, Usd, UsdGeom, UsdLux, UsdPhysics
         except ImportError as exc:
             raise IsaacBackendUnavailable(
                 "USD export requires Isaac Sim's Python environment (the 'pxr' package is missing). "
@@ -37,6 +37,9 @@ class IsaacUsdExporter:
         physics_scene = UsdPhysics.Scene.Define(stage, "/World/PhysicsScene")
         physics_scene.CreateGravityDirectionAttr().Set(Gf.Vec3f(0.0, 0.0, -1.0))
         physics_scene.CreateGravityMagnitudeAttr().Set(9.81)
+        dome = UsdLux.DomeLight.Define(stage, "/World/Lighting/SceneFactoryDome")
+        dome.CreateIntensityAttr(500.0)
+        dome.CreateColorAttr(Gf.Vec3f(1.0, 1.0, 1.0))
 
         room_x, room_y, _ = scene.room_dimensions_m
         floor = UsdGeom.Cube.Define(stage, "/World/Room/Floor")
