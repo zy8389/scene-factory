@@ -50,6 +50,7 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/usd/mug_001.usd",
 )
 SDIST_REQUIRED_FILES = (
+    "MANIFEST.in",
     "pyproject.toml",
     "README.md",
     "LICENSE",
@@ -70,6 +71,8 @@ FORBIDDEN_COMMON_SEGMENTS = {
     "credential",
     "local_assets",
     "isaac_local_assets",
+    "tests",
+    "test",
 }
 FORBIDDEN_WHEEL_SEGMENTS = FORBIDDEN_COMMON_SEGMENTS | {"tests", "test"}
 FORBIDDEN_SUFFIXES = (".aria2", ".part", ".tmp", ".log")

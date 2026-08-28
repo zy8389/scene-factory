@@ -1,0 +1,14 @@
+prune .git
+prune .github
+prune .venv
+prune venv
+prune tests
+prune outputs
+prune logs
+prune release-dist
+prune local_assets
+prune isaac_local_assets
+global-exclude *.aria2
+global-exclude *.part
+global-exclude *.tmp
+global-exclude *.log
