@@ -88,10 +88,22 @@ or conformance report does not claim physical feasibility.
 
 Isaac integration remains an independent, environment-specific acceptance gate.
 Reference Isaac Sim 6.0.1 real P1-1, P1-2, and P1-3 acceptance passes locally
-with official Local Assets. This evidence is environment-specific and does not
-claim universal hardware compatibility. Real articulated asset execution has
-not been validated. Real robot execution has not been run. Isaac Lab integration
-has not started.
+with official Local Assets. P1-1 Franka mug-lift, P1-2 Franka pick-and-place,
+and P1-3 RGB-D trajectory export are PASS results. P1-3B real episode
+`inspect`, `validate`, and `replay` are also PASS for episode integrity and
+contract consistency. The real episode metadata has no `task_spec`, so
+`task_replay_available=false`: pure-Python task-oracle recomputation is
+unavailable, while integrity replay remains PASS. This evidence is
+environment-specific and does not claim universal hardware compatibility.
+
+The following physical scopes remain explicitly unvalidated:
+
+Real articulated asset execution has not been validated. Real robot execution
+has not been run. Isaac Lab integration has not started.
+
+- Real articulated asset execution: NOT RUN.
+- Real robot execution: NOT RUN.
+- Isaac Lab: NOT STARTED.
 
 These limitations do not prevent use of the pure-Python v0.1 SDK for offline
 scene, dataset, planning, and executor-contract workflows.
