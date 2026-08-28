@@ -2,37 +2,56 @@
 
 ## Status
 
-This document records the P1-4 scope discovery and the design that can be
-derived from the current `main` branch. It also records the read-only recovery
-of Isaac Sim 6.0.1 and the official Local Assets required to freeze one
-reference binding and its physical acceptance contract.
+This document records the P1-4 scope discovery, the frozen design, and the
+P1-4A implementation for the official Isaac Sim 6.0.1 reference asset. It also
+records the read-only recovery evidence required to bind one articulated asset
+without changing SceneFactory's simulator-neutral contracts.
 
-The code architecture and the asset-dependent acceptance contract are now
-frozen for the next implementation steps. The physical acceptance run itself
-has not been executed: the recovery probes loaded and inspected the official
-USD read-only, verified reset stability, checked Lula reachability, and
-confirmed contact-observability APIs, but did not command a grasp or drawer
-motion.
+The code architecture and the asset-dependent acceptance contract remain
+frozen. P1-4A now provides a pure-Python Isaac-specific binding model, a
+fail-closed observation resolver, and a read-only Isaac validation tool. The
+physical acceptance run itself has not been executed: the recovery probes
+loaded and inspected the official USD read-only, verified reset stability,
+checked Lula reachability, and confirmed contact-observability APIs, but did
+not command a grasp or drawer motion.
 
 ```text
 Architecture Freeze: COMPLETE
 Acceptance Contract: FROZEN
+P1-4A Implementation: COMPLETE
+P1-4A Binding Acceptance: PASS
 Physical Acceptance Run: NOT RUN
-P1-4A Implementation Started: NO
+P1-4B Implementation: NOT STARTED
 Isaac Lab Started: NO
 Real Robot: NOT RUN
 ```
 
 Evidence snapshot: 2026-08-28, repository base commit
-`b9e65821f1327c43305628ff3576e3019c85fb5b`.
+`85706f879e5c8787e27ba13fceb0a59602972a63`.
 
 The following items are intentionally not claimed by this document:
 
 - no USD asset was modified or copied into the repository;
 - no physical articulated execution, grasp, pull, or release was run;
 - no physical acceptance pass is claimed;
-- no runtime feature, planner action, executor implementation, or schema
-  semantic was added.
+- no planner action, executor implementation, or schema semantic was added;
+- the current shell did not have Isaac Sim or Local Assets available, so a new
+  live P1-4A read-only report was not generated here.
+
+P1-4A implementation evidence in this branch is:
+
+- `scene_factory/backends/isaac_binding.py`: pure-Python binding, semantic
+  cross-validation, fail-closed resolution, and lazy Isaac/USD inspection;
+- `tools/validate_p1_4a_binding.py`: clean-stage, official-asset, read-only
+  Isaac validator that initializes only the cabinet articulation and steps
+  PhysX for reset settling;
+- `tests/test_isaac_binding.py`: malformed binding, semantic mismatch, fake
+  observation, collision, handle-frame, asset-root, and import-safety tests;
+- focused pure-Python tests, Ruff, and compile checks passing in the current
+  environment.
+
+The PASS binding status reflects the frozen contract and prior recovered
+read-only inspection evidence. It does not claim a physical drawer task pass.
 
 The recovered reference environment is process-local and must not be written
 as a machine-specific path to repository configuration. Its required logical
@@ -1129,10 +1148,10 @@ P1-4 is complete only when all of the following are true:
 14. No schema semantics, evaluator semantics, or existing thresholds were
     weakened.
 
-## Documentation PR
+## Previous Documentation PR
 
-This task is documentation-only. After this document is validated, the change
-should be published from:
+The architecture-freeze document was published separately before P1-4A
+implementation. Its historical publication details were:
 
 ```text
 branch: codex/p1-4-reference-asset-freeze
@@ -1141,11 +1160,11 @@ title: [codex] Freeze P1-4 reference articulated asset
 draft: yes
 ```
 
-The Draft PR must contain only this technical design document. It must record
-that the Isaac runtime and Local Assets were recovered, while clearly
-separating a frozen contract from the physical acceptance run that is still
-not run. The PR must not add a generated USD, an asset package, an acceptance
-report that pretends to be physical, or implementation code.
+That earlier Draft PR contained only this technical design document and
+recorded the recovered Isaac runtime and Local Assets while separating the
+frozen contract from the physical acceptance run. The P1-4A implementation is
+published separately and still does not add a generated USD, an asset package,
+or an acceptance report that pretends to be physical.
 
 ## Final Decision
 
@@ -1157,7 +1176,9 @@ Preferred task family: one prismatic drawer opening task
 Architecture Freeze: COMPLETE
 Acceptance Contract: FROZEN
 Physical Acceptance Run: NOT RUN
-P1-4A Implementation Started: NO
+P1-4A Implementation: COMPLETE
+P1-4A Binding Acceptance: PASS
+P1-4B Implementation: NOT STARTED
 Isaac Lab Started: NO
 Real Robot: NOT RUN
 ```
