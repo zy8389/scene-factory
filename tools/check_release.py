@@ -158,8 +158,8 @@ def _check_release_documents(failures: list[str]) -> None:
     for phrase in ("production ready", "fully validated Isaac manipulation", "real robot ready"):
         if phrase.lower() in notes.lower():
             failures.append(f"release notes overclaim unsupported status: {phrase}")
-    if "## 0.1.0 - Unreleased" not in changelog:
-        failures.append("changelog must keep 0.1.0 explicitly unreleased")
+    if "## 0.1.0 - 2026-08-28" not in changelog:
+        failures.append("changelog must finalize 0.1.0 with release date 2026-08-28")
 
 
 def _check_links(failures: list[str], paths: list[Path]) -> None:
