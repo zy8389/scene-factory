@@ -3,46 +3,57 @@
 ## Status
 
 This document records the P1-4 scope discovery and the design that can be
-derived from the current `main` branch.
+derived from the current `main` branch. It also records the read-only recovery
+of Isaac Sim 6.0.1 and the official Local Assets required to freeze one
+reference binding and its physical acceptance contract.
 
-The code architecture is sufficiently understood to define the integration
-boundary. The physical acceptance contract is not frozen because the
-configured Isaac Sim installation on this machine does not currently expose a
-usable Isaac Python runtime or the required official Local Assets roots.
+The code architecture and the asset-dependent acceptance contract are now
+frozen for the next implementation steps. The physical acceptance run itself
+has not been executed: the recovery probes loaded and inspected the official
+USD read-only, verified reset stability, checked Lula reachability, and
+confirmed contact-observability APIs, but did not command a grasp or drawer
+motion.
 
 ```text
-Architecture Freeze: PARTIAL
-Acceptance Freeze: BLOCKED
-Implementation Started: NO
+Architecture Freeze: COMPLETE
+Acceptance Contract: FROZEN
+Physical Acceptance Run: NOT RUN
+P1-4A Implementation Started: NO
 Isaac Lab Started: NO
 Real Robot: NOT RUN
 ```
 
-Evidence snapshot: 2026-08-28, release commit `7e0de6f419522f74cae4bb2314a7b3dc8a1eb906`.
+Evidence snapshot: 2026-08-28, repository base commit
+`b9e65821f1327c43305628ff3576e3019c85fb5b`.
 
 The following items are intentionally not claimed by this document:
 
-- no articulated USD was loaded or modified;
-- no candidate asset was selected as the reference asset;
-- no physical articulated execution was run;
+- no USD asset was modified or copied into the repository;
+- no physical articulated execution, grasp, pull, or release was run;
+- no physical acceptance pass is claimed;
 - no runtime feature, planner action, executor implementation, or schema
   semantic was added.
 
-The blocker is concrete rather than conceptual. The ordinary Python probe
-reports no `isaacsim`, `pxr`, Isaac core, robot-motion, or PhysX extension
-packages. The known Kit application directories contain application shells and
-the compatibility-checker data, but none of the following paths exists:
+The recovered reference environment is process-local and must not be written
+as a machine-specific path to repository configuration. Its required logical
+roots and version facts are:
 
 ```text
-<asset-root>/Assets/Isaac/6.0/Isaac
-<asset-root>/Assets/Isaac/6.0/NVIDIA
-<asset-root>/Assets/Isaac/6.0/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd
+ISAACSIM_ASSET_ROOT: <ISAACSIM_ASSET_ROOT>
+Isaac Sim: 6.0.1.0
+Python: 3.12.7
+isaacsim-core: 6.0.1.0
+isaacsim-robot-motion: 6.0.1.0
+pxr: importable
+Isaac asset namespaces: <ISAACSIM_ASSET_ROOT>/Isaac and <ISAACSIM_ASSET_ROOT>/NVIDIA
 ```
 
-Without a real asset stage, joint limits, articulation roots, link paths,
-handle geometry, collision materials, mass properties, and Franka reachability
-cannot be verified. Any exact asset name, USD path, joint range, stability
-window, or controller offset written as final would be an invention.
+The official Franka USD used for the read-only probes is
+`<ISAACSIM_ASSET_ROOT>/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd`.
+The asset-dependent facts below are frozen from the real stage, while the
+world placement remains an implementation-stage fixture parameter because the
+diagnostic placement probe at `[0.6, 0.2, 0.78]` put the handle outside the
+successful Lula reachability setup.
 
 ## Motivation
 
@@ -267,51 +278,65 @@ asset passes the required inspection and reachability checks.
 
 ### Asset inspection result
 
-No official articulated asset could be inspected in this environment. The
-required search roots were checked only at known Isaac installation locations:
+The official Local Assets root was recovered and verified in a clean Isaac Sim
+6.0.1 child process. The selected complete asset is:
 
 ```text
-Assets/Isaac/6.0/Isaac
-Assets/Isaac/6.0/NVIDIA
+<ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd
 ```
 
-Neither root was present. The Isaac package probe also failed before any
-`SimulationApp` startup, so no read-only `pxr` stage inspection was possible.
-No asset was downloaded, generated, copied into the repository, or used as a
-proxy.
+The referenced official layers are:
+
+```text
+<ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_visuals.usd
+<ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_collisions.usd
+<ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/configurations/cabinet_lab.usd
+<ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/configurations/cabinet_default_physics.usd
+```
+
+Read-only USD inspection established default prim and articulation root
+`/cabinet`, stage units of `1.0` meters, and Z-up stage orientation. The
+complete asset contains two prismatic drawer joints and two revolute door
+joints. The handle hierarchy and fixed joint are real USD relationships, not
+filename-only matches. Collision APIs were also found in the referenced
+instance prototypes using `PhysicsCollisionAPI` and
+`PhysicsMeshCollisionAPI`.
 
 ### Candidate matrix
 
-The rows below are search targets, not inspected candidate assets. They are
-included to make the unresolved decision explicit rather than to imply that
-an asset exists locally.
+The official family yields four bounded task candidates. The top drawer is
+selected because it is a single prismatic interaction with a clear handle
+frame and a direct match to the existing `approach -> grasp -> pull ->
+release` planner vocabulary.
 
-| Search target | Official USD path | Articulation/joints | Handle/link | Collision/mass | Franka reachability | Decision |
+| Candidate | Controlled joint | Runtime range | Handle/binding | Read-only result | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
-| Drawer-family asset | unavailable | unavailable | unavailable | unavailable | unavailable | blocked |
-| Hinged door-family asset | unavailable | unavailable | unavailable | unavailable | unavailable | blocked |
-| Cabinet/storage-unit asset | unavailable | unavailable | unavailable | unavailable | unavailable | blocked |
+| Top drawer opening | `/cabinet/sektion/drawer_top_joint` | `0.0 .. 0.40000000596` m | `/cabinet/drawer_handle_top` and its frame | stable reset; asset-frame Lula probes passed | selected |
+| Bottom drawer opening | `/cabinet/sektion/drawer_bottom_joint` | `0.0 .. 0.40000000596` m | cabinet handle family; not frozen | stable reset; not probed as reference | not selected |
+| Left door opening | `/cabinet/sektion/door_left_joint` | `-1.57000005 .. 0.0` rad | door handle mapping not frozen | stable reset; not probed as reference | not selected |
+| Right door opening | `/cabinet/sektion/door_right_joint` | `0.0 .. 1.57000005` rad | door handle mapping not frozen | stable reset; not probed as reference | not selected |
 
-For each real candidate, the next discovery pass must record the exact asset
-path, name, source or license metadata, articulation root, joint count and
-types, joint names and limits, default pose, handle/link structure, collision
-and mass APIs, physics material, visual quality, Franka accessibility,
-SceneFactory mapping complexity, and a repeatable reset pose.
+The official Franka asset was loaded separately and exposed nine runtime DOFs.
+All runtime positions and limits were finite. The asset reset/settle probe ran
+120 physics iterations from the closed state; all four cabinet joint
+velocities were zero at the end, the maximum final position delta was about
+`1.11e-08`, and the run exited cleanly.
 
 ### Reference-asset decision
 
 ```text
-Selected reference asset: none
-Reference-asset freeze: BLOCKED
-Preferred family pending inspection: one prismatic drawer asset
+Selected reference asset: Sektion Cabinet top drawer
+Official asset: <ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd
+Reference-asset freeze: FROZEN
+Task family: prismatic drawer opening
+Physical acceptance run: NOT RUN
 ```
 
-The final reference asset must be an official Local Asset loaded from the
-configured Isaac root. A proxy, hand-authored USD, or uninspected asset cannot
-be promoted to the P1-4 acceptance reference. The exact object id, joint id,
-joint path, handle path, semantic ranges, approach frame, controller offsets,
-settle window, and physical tolerances remain open until the asset inspection
-is completed.
+The selection is an official Local Asset and is frozen for P1-4A/B/C design
+work. It is not a physical task result: no contact-driven drawer actuation has
+been executed. The world fixture transform is intentionally left to the
+implementation-owned configuration, subject to the asset-frame-relative
+coordinate and reachability contract below.
 
 ## Architecture
 
@@ -370,21 +395,34 @@ and the planner. They should not be made dependent on Isaac prim naming.
 ### Isaac-specific binding
 
 The physical adapter needs a separate binding object or adapter-owned
-configuration that is resolved only for the selected asset. Its eventual
-fields should be limited to verified runtime facts such as:
+configuration that is resolved only for the selected asset. The frozen
+reference binding is:
 
 ```text
-asset source / resolved USD path
-articulation root prim path
-canonical joint id -> USD joint prim path
-canonical link name -> USD link prim path
-canonical interaction region -> handle or grasp prim path
-local frame / pose transform for the interaction region
-verified collision roots
+asset source: <ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd
+articulation root: /cabinet
+controlled joint: /cabinet/sektion/drawer_top_joint
+joint name: drawer_top_joint
+joint type: prismatic
+joint parent link: /cabinet/sektion
+joint child link: /cabinet/drawer_top
+joint axis: X (joint-local)
+runtime limits: 0.0 .. 0.40000000596 m
+handle link: /cabinet/drawer_handle_top
+handle fixed joint: /cabinet/drawer_top/drawer_handle_top_joint
+handle fixed-joint body0: /cabinet/drawer_top
+handle fixed-joint body1: /cabinet/drawer_handle_top
+handle frame: /cabinet/drawer_handle_top/drawer_handle_frame
 ```
 
-This binding should be kept in an Isaac-specific module, runtime configuration,
-or generated acceptance fixture. It should not be added to the canonical v0.1
+The selected interaction is the top drawer opening. Its canonical semantic
+joint and region ids remain owned by the SceneFactory asset metadata; the
+paths above belong only to the Isaac-specific binding. The referenced handle
+visual and collision instances resolve through USD prototypes, so binding
+validation must traverse instance prototypes when checking collision APIs.
+
+The binding should be kept in an Isaac-specific module, runtime configuration,
+or generated acceptance fixture. It must not be added to the canonical v0.1
 asset semantics merely because one simulator has stable-looking prim paths.
 
 The binding resolver must fail closed when a required prim is missing,
@@ -395,17 +433,19 @@ prim is not acceptable.
 
 ### Resolution rules
 
-1. Resolve the selected official asset from the Isaac Local Assets root and
-   confirm the stage can load in the clean Isaac child process.
+1. Resolve the selected official asset from `ISAACSIM_ASSET_ROOT` and confirm
+   the stage can load in the clean Isaac child process.
 2. Locate exactly one articulation root and exactly one controlled joint for
    the selected semantic joint.
 3. Read the runtime joint type, axis, limits, default pose, and current
-   position. Compare them with the binding expectations and canonical semantic
-   metadata.
+   position. Compare them with the frozen binding: prismatic X axis, limits
+   `0.0 .. 0.40000000596` m, and initial position `0.0` m.
 4. Resolve the link and handle collision roots needed for approach and contact
    evidence. Record their exact prim paths in the run report.
-5. Confirm required mass, collision, and physics material data before any
-   manipulation command is accepted.
+5. Confirm the handle fixed joint, collision APIs in the referenced prototypes,
+   required mass, and physics material data before any manipulation command is
+   accepted. The read-only contact probe confirmed that contact reports and
+   finite force matrices are available; it did not produce a contact event.
 6. Refuse execution if any mapping is missing, ambiguous, out of limits, or
    inconsistent with the selected semantic state.
 
@@ -495,6 +535,37 @@ be finalized during implementation, but a result that contains only
 The controller should be the smallest deterministic path for the selected
 asset, reusing the existing Franka runtime patterns where they apply.
 
+### Coordinate-frame convention
+
+- USD stage units are meters and the stage up axis is Z.
+- Source-asset paths such as `/cabinet/...` are relative to the referenced
+  cabinet prim. In a runtime fixture they become descendants of the fixture
+  root, for example `/World/CabinetPlacement/Cabinet/...`.
+- The drawer joint axis is X in the joint-local frame. Opening is positive
+  displacement from the reset position.
+- The handle frame is
+  `/cabinet/drawer_handle_top/drawer_handle_frame`. Runtime code must resolve
+  its local-to-world transform rather than assume a hard-coded world pose.
+- Lula uses the Franka `right_gripper` kinematics frame and WXYZ quaternion
+  ordering. The recovery probe applied the following Cartesian offsets to the
+  resolved handle-frame world position:
+
+```text
+orientation: [0.0, 1.0, 0.0, 0.0]
+grasp offset: [0.0, 0.0, -0.005] m
+pre-grasp offset: [-0.06, 0.0, 0.0] m from the grasp probe
+pull-endpoint offset: [0.05, 0.0, 0.0] m from the grasp probe
+```
+
+The offsets and orientation above are frozen diagnostic/controller inputs for
+the selected handle frame. The successful reachability evidence was obtained
+in the asset-frame-relative setup with the cabinet at its source origin and
+the Franka base at approximately `[-0.05, 0.0, 0.0]` m. A separate probe with
+cabinet fixture translation `[0.6, 0.2, 0.78]` m and robot base
+`[-0.05, 0.0, 0.78]` m resolved the correct prims but Lula returned
+`success=false` for all three targets. That world transform is therefore an
+implementation-stage fixture parameter, not a reachability pass.
+
 ### Approach
 
 Use the verified interaction-region frame and approach axis to generate a
@@ -502,9 +573,12 @@ pre-grasp pose. The binding must define the frame conversion from the asset
 link or handle to the robot end-effector target. Reuse the existing Lula IK
 and Franka drive setup rather than introducing a new motion-planning stack.
 
-Approach passes only when IK converges, the pose and orientation error are
-inside implementation thresholds, and the end effector is observed near the
-verified region. The exact thresholds require the selected asset inspection.
+The read-only reachability contract uses the Lula tolerances already exercised
+against the real handle frame: position tolerance `0.01` m and orientation
+tolerance `0.1` rad. The recovery probe returned finite joint solutions and
+`success=true` for pre-grasp, grasp, and the small pull endpoint in the
+asset-frame-relative setup. This is reachability evidence only; it does not
+prove collision-free motion or a physical grasp.
 
 ### Grasp
 
@@ -515,9 +589,16 @@ colliders, handle collision root, resolved materials where available, and
 contact force/read validity.
 
 A gripper command or a declared holding flag is not sufficient. Grasp success
-requires observed contact with the selected handle or region and a stable
-relative configuration for the verification window defined after asset
-inspection.
+requires observed contact with the selected handle or region, finite
+force-read data, and a stable relative configuration. The runtime contact
+probe established `contact_report_available=true`,
+`contact_report_subscribed=true`, and `contact_force_read_valid=true` for the
+drawer handle and both Franka finger views. In the diagnostic stage, the
+target rigid body was `/World/Cabinet/drawer_handle_top`, the finger views were
+`/World/Robot/panda_leftfinger` and `/World/Robot/panda_rightfinger`, and each
+force view returned a finite matrix of shape `[1, 1, 3]`. It observed no
+contact event while the system was stationary, so the physical contact
+criterion remains unrun.
 
 ### Pull
 
@@ -540,8 +621,11 @@ scope.
 ### Release and failure detection
 
 Open the gripper, observe contact separation, and continue physics for a
-post-release stability window. The task is not complete until the observed
-joint remains in the selected semantic range and `TaskEvaluator` returns true.
+post-release stability window of 30 physics steps at 60 Hz. The task is not
+complete until the observed joint remains in the selected semantic range,
+absolute joint velocity is at most `0.01` m/s, joint-position drift across the
+window is at most `0.005` m, and `TaskEvaluator` returns true. These are
+acceptance-contract tolerances, not results of a physical manipulation run.
 
 Every phase needs a timeout and must fail closed on unavailable IK, missing
 contacts, non-finite state, joint limit violation, controller divergence,
@@ -549,19 +633,26 @@ stage failure, or unsupported evidence APIs.
 
 ## Acceptance Contract
 
-This section defines the invariant contract. Asset-dependent values are
-explicitly pending the blocked inspection and must be filled from the selected
-official USD, not guessed.
+This section defines the frozen invariant contract for the selected official
+asset. It separates a frozen acceptance specification from an executed
+physical acceptance result. The latter remains `NOT RUN` until P1-4B/C
+implements the executor and runs the two required reference trials.
 
 ### Preconditions
 
 - Isaac Sim must be 6.0.1.0 with the supported OpenUSD/PhysX runtime.
-- The run must use the official Local Assets root and an official Franka USD.
-- The controlled articulated asset must be an official Local Asset loaded from
-  the same reference environment and must not be a proxy or generated USD.
+- The run must use `ISAACSIM_ASSET_ROOT` and the official Franka USD at
+  `<ISAACSIM_ASSET_ROOT>/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd`.
+- The controlled articulated asset must be the selected official USD at
+  `<ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd`.
+- The selected binding must resolve articulation root `/cabinet`, controlled
+  joint `/cabinet/sektion/drawer_top_joint`, drawer child `/cabinet/drawer_top`,
+  handle `/cabinet/drawer_handle_top`, and handle frame
+  `/cabinet/drawer_handle_top/drawer_handle_frame`.
 - The runtime must start `SimulationApp` in a clean child process before
   importing `omni.*`, Isaac core, motion-generation, or `pxr` runtime modules.
-- The run must use one documented scene seed and controller configuration.
+- The run must use one documented scene seed and controller configuration,
+  with physics dt `1/60` s and the frozen handle-frame offsets above.
 - Output and USD paths must satisfy the existing Windows ASCII-path rule.
 - The reference machine must record Isaac version, asset root diagnostics,
   resolved USD paths, GPU/driver context, and configuration hash.
@@ -571,18 +662,24 @@ official USD, not guessed.
 Before the first command:
 
 - the selected object is loaded and its exact articulation binding is valid;
-- the controlled joint is in the verified closed semantic range and within
-  runtime limits;
-- the Franka is initialized at the documented base pose and is not holding the
-  handle;
+- `drawer_top_joint` is prismatic, uses its joint-local X axis, has runtime
+  limits `0.0 .. 0.40000000596` m, and starts at canonical position `0.0` m;
+- the controlled joint is in the frozen closed semantic range `[0.0, 0.02]` m;
+- the Franka is initialized at an implementation-owned base pose that is
+  proven reachable in the selected fixture, is not holding the handle, and is
+  recorded in the report;
 - the gripper is open and no target contact is active;
 - the stage has a valid physics scene and has completed deterministic reset
-  settling;
+  settling. The read-only reset probe used 120 physics iterations and ended
+  with finite positions, zero velocities, and maximum final position delta
+  about `1.11e-08`;
 - the initial observed snapshot is finite and includes the controlled joint
   position and binding diagnostics.
 
-The exact closed range and reset pose are blocked until a real asset is
-inspected.
+The world placement is not part of the frozen asset binding. It must be
+provided by the implementation fixture and must preserve the asset-frame
+reachability contract; the diagnostic placement `[0.6, 0.2, 0.78]` m is not
+approved because its three Lula probes returned `success=false`.
 
 ### Goal
 
@@ -593,9 +690,9 @@ object and semantic state. For the provisional drawer family this is:
 Franka physically opens the selected drawer.
 ```
 
-The target is entry into a verified semantic `open` range, not merely an
-arbitrary positive joint displacement. The range and target position must be
-derived from the selected asset's verified limits and reset pose.
+The target is entry into the frozen semantic `open` range `[0.32, 0.38]` m,
+with nominal target position `0.35` m. This range is inside the verified
+runtime limits and is not merely an arbitrary positive joint displacement.
 
 ### Physical pass conditions
 
@@ -624,6 +721,28 @@ All of the following are required:
 11. The run exits cleanly. A close failure converts a nominal success to
     failure.
 
+### Frozen quantitative gates
+
+- Reset: initial `drawer_top_joint` position in `[0.0, 0.02]` m and finite
+  joint velocity within runtime limits.
+- Approach and grasp probes: Lula position tolerance `0.01` m and orientation
+  tolerance `0.1` rad, using `right_gripper` and WXYZ orientation
+  `[0.0, 1.0, 0.0, 0.0]`.
+- Pull: final observed joint position in `[0.32, 0.38]` m, nominal target
+  `0.35` m, and no direct joint/object/USD transform assignment.
+- Contact: contact reporting subscribed, force reads valid and finite, and at
+  least one observed finger-to-handle contact pair during grasp and pull.
+- Release: contact separation observed, followed by 30 consecutive physics
+  steps at 60 Hz with absolute joint velocity at most `0.01` m/s and joint
+  position drift at most `0.005` m.
+- Repeatability: each of two runs independently satisfies every gate above;
+  exact floating-point identity is not required. The two runs must use the
+  same exact commit SHA, seed, asset URI, controller configuration, and
+  binding hash.
+
+These thresholds freeze the acceptance contract; they are not evidence that a
+physical acceptance run has passed.
+
 ### Measurements to record
 
 Each accepted run must record:
@@ -648,10 +767,9 @@ exact release commit, seed, asset, and controller configuration. Both runs
 must satisfy the complete physical pass conditions.
 
 The acceptance must compare metric ranges rather than require exact floating
-point identity. The allowed joint, pose, contact-duration, and post-release
-variation must be selected after inspecting the real asset and measuring the
-reference machine. Those values are currently unfreezable because the asset
-and runtime are unavailable.
+point identity. Reports must retain the per-run values for joint motion, pose,
+contact duration, and post-release drift so that a failed repeatability gate is
+auditable.
 
 No claim of acceptance may be made from one symbolic run, one failed physical
 probe, or a bundled URDF fallback.
@@ -949,10 +1067,11 @@ pass.
 ### Real Isaac acceptance
 
 The P1-4 physical gate remains a local or reference-machine acceptance because
-the current hardware and GitHub-hosted runners do not provide a supported
-Isaac Sim environment. The gate must publish its version, asset root, resolved
-paths, seed, metrics, evidence, and full failure reason. A skipped or
-unavailable Isaac run is `not run` or `blocked`, never `passed`.
+GitHub-hosted runners do not provide a supported Isaac Sim environment. The
+recovered local reference environment is suitable for read-only inspection and
+must be used for the later physical gate. The gate must publish its version,
+asset root, resolved paths, seed, metrics, evidence, and full failure reason.
+A skipped or unavailable Isaac run is `not run` or `blocked`, never `passed`.
 
 ## Isaac Lab Boundary
 
@@ -1016,32 +1135,34 @@ This task is documentation-only. After this document is validated, the change
 should be published from:
 
 ```text
-branch: codex/p1-4-scope-design
-commit: Define P1-4 real articulated execution scope
-title: [codex] Define P1-4 real articulated execution scope
+branch: codex/p1-4-reference-asset-freeze
+commit: Freeze P1-4 reference articulated asset
+title: [codex] Freeze P1-4 reference articulated asset
 draft: yes
 ```
 
-The Draft PR must contain only this technical design document. The missing
-Isaac runtime and asset roots must be visible in the PR as the reason the
-architecture status is partial and the acceptance status is blocked. The PR
-must not add a generated USD, an asset package, an acceptance report that
-pretends to be physical, or implementation code.
+The Draft PR must contain only this technical design document. It must record
+that the Isaac runtime and Local Assets were recovered, while clearly
+separating a frozen contract from the physical acceptance run that is still
+not run. The PR must not add a generated USD, an asset package, an acceptance
+report that pretends to be physical, or implementation code.
 
 ## Final Decision
 
 ```text
 Recommended P1-4: Real Articulated Interaction Execution
-Reference articulated asset: none selected; official Local Asset inspection is blocked
-Preferred task family: one prismatic drawer opening task, pending real inspection
-Architecture Freeze: PARTIAL
-Acceptance Freeze: BLOCKED
-Implementation Started: NO
+Reference articulated asset: Sektion Cabinet top drawer
+Official asset: <ISAACSIM_ASSET_ROOT>/Isaac/Props/Sektion_Cabinet/sektion_cabinet_instanceable.usd
+Preferred task family: one prismatic drawer opening task
+Architecture Freeze: COMPLETE
+Acceptance Contract: FROZEN
+Physical Acceptance Run: NOT RUN
+P1-4A Implementation Started: NO
 Isaac Lab Started: NO
 Real Robot: NOT RUN
 ```
 
-The next unblocker is environmental, not a change in scope: restore or expose
-the Isaac Sim 6.0.1 Python executable and the official Local Assets roots,
-rerun the read-only candidate inspection, select one real asset, and fill the
-asset-dependent binding and metric values before starting P1-4A.
+The next step is implementation work in a separate P1-4A PR using this frozen
+binding and acceptance contract. That work must preserve the current
+simulator-neutral schemas and must not claim physical acceptance until the
+executor produces the required contact-driven two-run evidence.
