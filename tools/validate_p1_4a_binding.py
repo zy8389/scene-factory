@@ -362,8 +362,8 @@ def main(argv: list[str] | None = None) -> int:
                 for value in (velocity_before, velocity_after)
             ),
             "settle_steps_completed": completed_steps >= args.settle_steps,
-            "drawer_commanded": False,
-            "franka_loaded": False,
+            "drawer_not_commanded": not report["physical_manipulation"]["drawer_commanded"],
+            "franka_not_loaded": not report["physical_manipulation"]["franka_loaded"],
             "collision_available": after.collision_available,
         }
         report["result"] = "passed" if all(report["checks"].values()) else "failed"
