@@ -383,6 +383,10 @@ def main(argv: list[str] | None = None) -> int:
         report["traceback"] = traceback.format_exc()
     finally:
         report["shutdown"] = "not_started" if app is None else "attempted"
+        # Persist before Kit teardown. Some Isaac Sim builds terminate the
+        # process from app.close(), which would otherwise erase the report.
+        _write_report(args.report, report)
+        print("SCENE_FACTORY_P1_4A_REPORT=" + json.dumps(report, ensure_ascii=False), flush=True)
         if app is not None:
             try:
                 app.close(exit_code=exit_code)
@@ -399,8 +403,8 @@ def main(argv: list[str] | None = None) -> int:
                     }
                 )
                 exit_code = 1
-        _write_report(args.report, report)
-        print("SCENE_FACTORY_P1_4A_REPORT=" + json.dumps(report, ensure_ascii=False), flush=True)
+        if report["shutdown"] == "completed":
+            _write_report(args.report, report)
     return exit_code
 
 
