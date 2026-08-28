@@ -36,6 +36,7 @@ def _wheel_members() -> dict[str, bytes]:
 def _sdist_members() -> dict[str, bytes]:
     root = "scene_factory-0.1.0"
     members = {
+        f"{root}/MANIFEST.in": b"prune tests\n",
         f"{root}/pyproject.toml": b"[project]\nversion = '0.1.0'\n",
         f"{root}/README.md": b"# SceneFactory\n",
         f"{root}/LICENSE": b"MIT\n",
@@ -110,6 +111,15 @@ class ReleaseArtifactTests(unittest.TestCase):
             _write_wheel(path, members)
             with self.assertRaises(release_artifacts.ArtifactError):
                 release_artifacts.audit_wheel(path)
+
+    def test_forbidden_sdist_member_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="scene_factory_artifact_test_") as directory:
+            path = Path(directory) / release_artifacts.EXPECTED_SDIST
+            members = _sdist_members()
+            members["scene_factory-0.1.0/tests/leaked.py"] = b"temporary\n"
+            _write_sdist(path, members)
+            with self.assertRaises(release_artifacts.ArtifactError):
+                release_artifacts.audit_sdist(path)
 
     def test_unsafe_archive_member_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory(prefix="scene_factory_artifact_test_") as directory:
