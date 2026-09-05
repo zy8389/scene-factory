@@ -22,6 +22,7 @@ from scene_factory.backends.isaac_acceptance import (
 from scene_factory.backends.isaac_interaction import (
     IsaacInteractionExecutor,
     _IsaacInteractionConfig,
+    _IsaacInteractionRuntime,
 )
 from scene_factory.execution import (
     EXECUTION_TRACE_SCHEMA_VERSION,
@@ -391,3 +392,16 @@ def test_child_records_a_valid_terminal_failure_trace(tmp_path):
     assert report["execution_trace"]["result"] == "failed"
     assert len(report["execution_trace"]["steps"]) == 1
     assert report["failure_reason"] == "motion_convergence_failed"
+
+
+def test_reference_runtime_disables_process_terminating_fast_shutdown():
+    runtime = _IsaacInteractionRuntime(_IsaacInteractionConfig())
+    with (
+        patch.object(type(BINDING), "resolve_asset_path", return_value=Path("C:/assets/drawer.usd")),
+        patch("scene_factory.backends.isaac_interaction._load_simulation_app") as load,
+    ):
+        load.return_value.side_effect = RuntimeError("stop before simulator imports")
+        with pytest.raises(RuntimeError, match="stop before simulator imports"):
+            runtime.reset({}, 0.0)
+        config = load.return_value.call_args.args[0]
+        assert config["fast_shutdown"] is False

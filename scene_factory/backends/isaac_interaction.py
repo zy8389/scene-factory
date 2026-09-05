@@ -2459,7 +2459,9 @@ class _IsaacInteractionRuntime:
                     "width": 640,
                     "height": 480,
                     "disable_viewport_updates": self.config.headless,
-                    "fast_shutdown": True,
+                    # Full teardown must return so the runner can attest closure and
+                    # persist source-after evidence (Isaac 6 fast shutdown exits).
+                    "fast_shutdown": False,
                     "extra_args": [
                         "--/app/renderer/skipWhileMinimized=true",
                         "--/rtx-transient/resourcemanager/texturestreaming/enabled=false",
