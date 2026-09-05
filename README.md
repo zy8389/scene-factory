@@ -3,9 +3,13 @@
 SceneFactory is a deterministic scene, task, interaction-planning, and
 executor-contract toolkit for embodied-AI simulation workflows.
 
-The v0.1 release candidate focuses on an offline Python SDK that can be cloned,
+The v0.1.0 GitHub Release (2026-08-28) provides an offline Python SDK that can be cloned,
 installed, inspected, and used without Isaac Sim, a GPU, NumPy, an LLM API, or
 a network connection.
+
+P1-4B/C physical drawer work is experimental and unreleased. See
+[the closeout status and evidence contract](docs/P1_4_CLOSEOUT.md); offline tests
+are not physical reference acceptance.
 
 ## What it does
 

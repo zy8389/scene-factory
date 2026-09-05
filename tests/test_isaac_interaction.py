@@ -5,6 +5,7 @@ import math
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 from scene_factory.backends.isaac_binding import (
     SEKTION_TOP_DRAWER_BINDING,
@@ -59,6 +60,7 @@ class FakeInteractionRuntime:
         self.pull_origin: tuple[float, ...] | None = None
         self.gripper_open = True
         self.release_started = False
+        self.release_steps = 0
         self.pull_started = False
         self.pull_steps = 0
         self.solve_count = 0
@@ -85,9 +87,12 @@ class FakeInteractionRuntime:
     def read_joint(self) -> float:
         return self.drawer_position
 
+    def read_joint_velocity(self):
+        return 0.02 if self.mode == "release_velocity" and self.release_started else 0.0
+
     def read_contacts(self):
         if self.gripper_open:
-            if self.mode == "persistent_release" and self.release_started:
+            if (self.mode == "persistent_release" and self.release_started) or (self.mode == "release_recontact" and self.release_steps >= 10):
                 return self._contact(True, True)
             return self._contact(False, False)
         if self.mode == "missing_left":
@@ -282,6 +287,12 @@ class FakeInteractionRuntime:
     def step_physics(self) -> None:
         self.calls.append("step_physics")
         self.physics_steps += 1
+        if self.release_started:
+            self.release_steps += 1
+            if self.mode == "release_drift" and self.release_steps >= 10:
+                self.drawer_position += 0.006
+                return
+
         if self.arm_targets and self.mode != "joint_convergence_failure":
             self.robot_joint_positions = list(self.arm_targets[-1])
             if self.mode != "convergence_failure":
@@ -375,6 +386,44 @@ class IsaacInteractionExecutorTests(unittest.TestCase):
 
     def release(self, executor, step_id=3):
         return executor.execute(self.command("release", step_id=step_id))
+
+    def test_full_drawer_pull_uses_requested_35cm_path_not_5cm_pilot(self):
+        executor = self.make_executor()
+        self.approach(executor)
+        self.grasp(executor)
+        with patch.object(executor, "_precompute_pull_ik_path", return_value={"success": False}) as path:
+            result = self.pull(executor, target=0.35)
+        self.assertEqual(result.reason, "pull_ik_continuation_failed")
+        self.assertAlmostEqual(path.call_args.args[2], 0.35)
+        self.assertEqual(result.evidence["execution_joint_write_count"], 0)
+        executor.close()
+
+    def test_release_observes_thirty_post_separation_steps(self):
+        executor = self.make_executor()
+        self.assertEqual(self.approach(executor).status, "succeeded")
+        self.assertEqual(self.grasp(executor).status, "succeeded")
+        self.assertEqual(self.pull(executor).status, "succeeded")
+        result = self.release(executor)
+        self.assertEqual(result.status, "succeeded")
+        samples = result.evidence["stability_samples"]
+        self.assertEqual(len(samples), 30)
+        self.assertTrue(all(b["physics_step"] == a["physics_step"] + 1 for a,b in zip(samples,samples[1:])))
+        self.assertTrue(all(s["contact_separated"] and s["joint_velocity_m_s"] == 0.0 for s in samples))
+        executor.close()
+
+    def test_release_fails_on_velocity_drift_or_late_recontact(self):
+        for mode in ("release_velocity", "release_drift", "release_recontact"):
+            with self.subTest(mode=mode):
+                executor = self.make_executor()
+                self.approach(executor)
+                self.grasp(executor)
+                self.pull(executor)
+                self.runtimes[-1].mode = mode
+                self.runtimes[-1].release_steps = 0
+                result = self.release(executor)
+                self.assertEqual(result.status, "failed")
+                self.assertEqual(result.reason, "release_stability_failed")
+                executor.close()
 
     def test_exact_capabilities_and_import_safety(self) -> None:
         executor = IsaacInteractionExecutor(runtime_factory=lambda config: FakeInteractionRuntime(config))

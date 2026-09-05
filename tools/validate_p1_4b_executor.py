@@ -1,4 +1,4 @@
-"""Run the P1-4B physical primitive acceptance in fresh Isaac processes.
+"""Run the P1-4B frozen full-drawer acceptance in fresh Isaac processes.
 
 The parent process intentionally imports no Isaac modules.  Each runtime child
 owns one clean ``IsaacInteractionExecutor`` lifecycle and writes its report
@@ -8,6 +8,10 @@ before Kit teardown, which keeps failures and shutdown behavior auditable.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import uuid
+from dataclasses import asdict
+from datetime import datetime, timezone
 import json
 import math
 import os
@@ -45,12 +49,18 @@ from scene_factory.backends.isaac_interaction import (  # noqa: E402
     _rank_fixture_candidates,
     _rank_long_horizon_orientation_candidates,
 )
-from scene_factory.execution import ExecutionCommand  # noqa: E402
+from scene_factory.execution import (  # noqa: E402
+    EXECUTION_TRACE_SCHEMA_VERSION, ExecutionCommand, ExecutionTrace, ExecutionTraceStep,
+    validate_execution_trace,
+)
+from scene_factory.backends.isaac_acceptance import (  # noqa: E402
+    REPORT_VERSION, TARGET_POSITION_M, TARGET_RANGE_M, acceptance_plan, acceptance_scene,
+    canonical_hash, task_status, positive_checks, negative_checks, validate_acceptance,
+)
 from scene_factory.planning import InteractionAction, InteractionWorldState  # noqa: E402
 from scene_factory.robotics import quaternion_angular_distance  # noqa: E402
 
 
-REPORT_VERSION = "scene_factory.p1_4b_executor_acceptance.v2"
 _ACTIONS = ("approach", "grasp", "pull", "release")
 _ORIENTATION_REFINEMENT_SWEEP_DEGREES = (-25, -20, -10, -5, 5, 10, 20, 25)
 _BASELINE_BRANCH_PREVIOUS_Q = (
@@ -305,112 +315,132 @@ def _result_summary(result: Any) -> dict[str, Any]:
     return result.to_dict() if hasattr(result, "to_dict") else dict(result)
 
 
+def _source_provenance() -> dict[str, Any]:
+    files = subprocess.check_output(["git", "ls-files", "-z"], cwd=PROJECT_ROOT).split(b"\0")
+    digest = hashlib.sha256()
+    for raw_path in sorted(path for path in files if path):
+        path = PROJECT_ROOT / raw_path.decode("utf-8")
+        digest.update(raw_path + b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+    clean = not subprocess.check_output(
+        ["git", "status", "--porcelain", "--untracked-files=all"], cwd=PROJECT_ROOT
+    ).strip()
+    return {"git_head": _git_head(), "clean": clean, "source_sha256": digest.hexdigest()}
+
+
+def _asset_manifest(executor: IsaacInteractionExecutor) -> list[dict[str, str]]:
+    # Immutable on-disk USD dependencies, not anonymous session/root layers.
+    root = Path(os.environ["ISAACSIM_ASSET_ROOT"]).resolve()
+    layers = []
+    for layer in executor._runtime._stage.GetUsedLayers():
+        if layer.anonymous:
+            continue
+        path = Path(layer.realPath).resolve(strict=True)
+        relative = path.relative_to(root).as_posix()
+        layers.append({"asset_relative_path": relative,
+                       "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    return sorted(layers, key=lambda item: item["asset_relative_path"])
+
+
 def _run_child(report_path: Path, *, negative: bool, expected_head: str | None) -> int:
+    if report_path.exists():
+        raise FileExistsError(f"refusing to overwrite runtime evidence: {report_path}")
     report: dict[str, Any] = {
-        "report_version": REPORT_VERSION,
-        "result": "failed",
-        "mode": "negative" if negative else "positive",
-        "git_head": _git_head(),
-        "expected_git_head": expected_head,
-        "runtime": {},
-        "actions": {},
-        "checks": {},
-        "errors": [],
+        "report_version": REPORT_VERSION, "result": "failed",
+        "mode": "negative" if negative else "positive", "git_head": _git_head(),
+        "expected_git_head": expected_head, "runtime": {}, "actions": {}, "checks": {},
+        "errors": [], "closed_cleanly": False, "run_id": str(uuid.uuid4()),
+        "process_id": os.getpid(), "started_at": datetime.now(timezone.utc).isoformat(),
     }
     executor: IsaacInteractionExecutor | None = None
+    plan, scene = acceptance_plan(), acceptance_scene()
+    records = []
+    failure_reason = "runtime_not_completed"
     try:
+        report["source_before"] = _source_provenance()
+        if (not expected_head or report["git_head"] != expected_head
+                or not report["source_before"]["clean"]):
+            raise ValueError("full acceptance requires the expected exact clean commit")
         executor = IsaacInteractionExecutor()
         report["capabilities"] = executor.capabilities().to_dict()
-        executor.reset({"scene_id": "p1_4b_action_acceptance"}, _initial_state())
+        executor.reset(scene, _initial_state())
         initial_snapshot = executor.snapshot()
-        report["runtime"]["binding_id"] = SEKTION_TOP_DRAWER_BINDING.binding_id
-        report["runtime"]["runtime_root"] = SEKTION_TOP_DRAWER_RUNTIME_ROOT
-        report["runtime"]["asset_relative_path"] = SEKTION_TOP_DRAWER_BINDING.asset_relative_path
-        report["runtime"]["isaac_version"] = initial_snapshot.get("isaac_version")
-        report["runtime"]["diagnostics"] = initial_snapshot.get("runtime_diagnostics", {})
-        if negative:
-            before = executor.snapshot()
-            result = executor.execute(_command("pull", 0, target=_PULL_TARGET))
-            after = executor.snapshot()
-            report["actions"]["pull_without_grasp"] = _result_summary(result)
-            before_position = _snapshot_joint(before)
-            after_position = _snapshot_joint(after)
-            report["checks"] = {
-                "same_git_head": expected_head is None or report["git_head"] == expected_head,
-                "pull_failed": result.status == "failed",
-                "drawer_delta_numerical_noise": abs(after_position - before_position) <= 1.0e-6,
-                "execution_drawer_writes_zero": result.evidence.get("execution_joint_write_count") == 0,
-            }
-            report["result"] = "passed" if all(report["checks"].values()) else "failed"
-            return 0 if report["result"] == "passed" else 2
-
-        for step_id, action in enumerate(_ACTIONS):
-            target = _PULL_TARGET if action == "pull" else None
-            result = executor.execute(_command(action, step_id, target=target))
-            report["actions"][action] = _result_summary(result)
-            if result.status != "succeeded":
-                raise RuntimeError(f"{action} failed: {result.reason}")
-        snapshot = executor.snapshot()
-        report["snapshot"] = dict(snapshot)
-        pull = report["actions"]["pull"]
-        grasp = report["actions"]["grasp"]
-        release = report["actions"]["release"]
-        report["checks"] = {
-            "same_git_head": expected_head is None or report["git_head"] == expected_head,
-            "capabilities_exact": report["capabilities"]
-            == {
-                "executor": "isaac_interaction",
-                "version": "1",
-                "physical": True,
-                "articulation_execution": True,
-                "supported_actions": list(_ACTIONS),
-            },
-            "all_action_statuses_succeeded": all(
-                report["actions"][action]["status"] == "succeeded" for action in _ACTIONS
-            ),
-            "both_finger_grasp": grasp["evidence"].get("left_contact") is True
-            and grasp["evidence"].get("right_contact") is True,
-            "finite_force_evidence": grasp["evidence"].get("contact_force_valid") is True,
-            "opposed_contact_topology": grasp["evidence"].get("opposed_contact") is True
-            or grasp["evidence"].get("contact_diagnostics", {}).get("opposed_contact") is True,
-            "non_front_clamp_topology": grasp["evidence"].get("grasp_topology")
-            in {"top_bottom_pinch", "side_pinch", "cage_hook"},
-            "positive_contact_driven_pull": pull["evidence"].get("drawer_joint_delta", 0.0) > 0.0
-            and pull["evidence"].get("contact_maintained") is True,
-            "positive_drawer_axis_traction": pull["evidence"].get("positive_axial_traction_observed") is True,
-            "physical_recovery_delta_ge_0_01": pull["evidence"].get("drawer_joint_delta", 0.0) >= 0.01,
-            "pull_target_within_tolerance": abs(
-                pull["evidence"].get("drawer_joint_after", 0.0) - _PULL_TARGET
-            )
-            <= _PULL_TOLERANCE,
-            "execution_drawer_writes_zero": pull["evidence"].get("execution_joint_write_count") == 0,
-            "release_contact_separation": release["evidence"].get("contact_separated") is True,
-            "release_gripper_open": release["evidence"].get("gripper_open") is True,
-            "snapshot_holding_empty": snapshot.get("holding") is None,
-            "snapshot_joint_finite": math_is_finite(_snapshot_joint(snapshot)),
-            "snapshot_runtime_root_recorded": snapshot.get("binding_id") == SEKTION_TOP_DRAWER_BINDING.binding_id,
+        report["initial_snapshot"] = initial_snapshot
+        report["runtime"] = {
+            "binding_id": SEKTION_TOP_DRAWER_BINDING.binding_id,
+            "isaac_version": initial_snapshot.get("isaac_version"),
+            "diagnostics": initial_snapshot.get("runtime_diagnostics", {}),
         }
-        report["result"] = "passed" if all(report["checks"].values()) else "failed"
+        report["configuration"] = {
+            "binding": SEKTION_TOP_DRAWER_BINDING.to_dict(),
+            "target_position_m": TARGET_POSITION_M, "target_range_m": list(TARGET_RANGE_M),
+            "seed": 0, "controller": asdict(executor._config),
+            "usd_layers": _asset_manifest(executor),
+        }
+        report["configuration_sha256"] = canonical_hash(report["configuration"])
+        if negative:
+            result = executor.execute(_command("pull", 0, target=TARGET_POSITION_M))
+            report["actions"]["pull_without_grasp"] = result.to_dict()
+            failure_reason = None if result.status == "failed" and result.reason == "pull_before_grasp" else "negative_not_rejected"
+        else:
+            for action in plan.steps:
+                command = ExecutionCommand.from_action(plan.plan_sha256, action)
+                result = executor.execute(command)
+                records.append(ExecutionTraceStep(command, result))
+                report["actions"][action.action] = result.to_dict()
+                if result.status != "succeeded":
+                    failure_reason = result.reason or "action_failed"
+                    break
+            else:
+                failure_reason = None
+        report["snapshot"] = executor.snapshot()
+        report["task_status"] = task_status(report["snapshot"])
+        if not negative:
+            if not report["task_status"]["task_success"] and failure_reason is None:
+                failure_reason = "goal_not_observed"
+            trace = ExecutionTrace(
+                schema_version=EXECUTION_TRACE_SCHEMA_VERSION, plan_sha256=plan.plan_sha256,
+                scene_id=scene["scene_id"], executor=executor.capabilities(),
+                result="failed" if failure_reason else "passed", steps=tuple(records),
+                final_evidence=report["snapshot"], goal_status=report["task_status"],
+                failure_reason=("executor_step_failed" if records and records[-1].result.status != "succeeded" else "goal_not_satisfied") if failure_reason else None,
+            )
+            report["execution_trace"] = trace.to_dict()
+            validation = validate_execution_trace(scene, plan, trace)
+            report["trace_validation"] = validation.to_dict()
+            if not validation.valid:
+                failure_reason = failure_reason or "trace_validation_failed"
+        if _asset_manifest(executor) != report["configuration"]["usd_layers"]:
+            failure_reason = "assets_changed_during_execution"
+        report["result"] = "failed" if failure_reason else "passed"
+        report["failure_reason"] = failure_reason
     except Exception as exc:
-        report["errors"].append(
-            {
-                "type": type(exc).__name__,
-                "message": " ".join(str(exc).split())[:1000],
-            }
-        )
+        report["result"] = "failed"
+        report["errors"].append({"type": type(exc).__name__, "message": " ".join(str(exc).split())[:1000]})
         report["traceback"] = traceback.format_exc()
     finally:
-        # Persist the physical evidence before Kit teardown.  Some Isaac builds
-        # terminate the process while closing SimulationApp.
+        # First persist before Kit teardown, then attest that close returned.
         _write(report_path, report)
         if executor is not None:
             try:
                 executor.close()
+                report["closed_cleanly"] = True
             except Exception as exc:
-                report["errors"].append(
-                    {"type": type(exc).__name__, "message": f"close: {exc}"}
-                )
+                report["errors"].append({"type": type(exc).__name__, "message": f"close: {exc}"})
                 report["result"] = "failed"
+        try:
+            report["source_after"] = _source_provenance()
+            # The parent independently replaces this provisional exit code
+            # with the observed OS exit status in the saved child report.
+            preview = dict(report, process_returncode=0)
+            checker = negative_checks if negative else positive_checks
+            report["checks"] = checker(preview, expected_head or "")
+            if not all(report["checks"].values()):
+                report["result"] = "failed"
+        except Exception as exc:
+            report["errors"].append({"type": type(exc).__name__, "message": f"evidence: {exc}"})
+            report["result"] = "failed"
+        report["finished_at"] = datetime.now(timezone.utc).isoformat()
         _write(report_path, report)
         print("SCENE_FACTORY_P1_4B_REPORT=" + json.dumps(report, ensure_ascii=False, allow_nan=False), flush=True)
     return 0 if report["result"] == "passed" else 2
@@ -2541,26 +2571,28 @@ def _spawn_child(
         command.extend(("--orientation-angle-deg", str(orientation_angle_deg)))
     environment = os.environ.copy()
     environment.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
-    report_path.unlink(missing_ok=True)
+    if report_path.exists() or log_path.exists():
+        raise FileExistsError("refusing to overwrite runtime evidence; use a new report basename")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("w", encoding="utf-8", errors="replace") as log:
-        process = subprocess.run(
-            command,
-            cwd=PROJECT_ROOT,
-            env=environment,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            text=True,
-            check=False,
-        )
+        try:
+            process = subprocess.run(
+                command, cwd=PROJECT_ROOT, env=environment, stdout=log,
+                stderr=subprocess.STDOUT, text=True, check=False, timeout=1200,
+            )
+            returncode = process.returncode
+        except subprocess.TimeoutExpired:
+            returncode = 124
+            log.write("\nSCENE_FACTORY_CHILD_TIMEOUT after 1200 seconds\n")
     report = _read_child_report(report_path)
-    report["process_returncode"] = process.returncode
+    report["process_returncode"] = returncode
     report["runtime_log"] = str(log_path)
-    if process.returncode != 0 and report.get("result") == "passed":
+    if returncode != 0:
         report["result"] = "failed"
         report.setdefault("errors", []).append(
-            {"type": "runtime_process_failed", "message": str(process.returncode)}
+            {"type": "runtime_process_failed", "message": str(returncode)}
         )
+    _write(report_path, report)
     return report
 
 
@@ -3319,42 +3351,13 @@ def main(argv: list[str] | None = None) -> int:
     run1 = _spawn_child(args.isaac_python, run1_path, root / f"{stem}.run1.log", negative=False, expected_head=expected_head)
     run2 = _spawn_child(args.isaac_python, run2_path, root / f"{stem}.run2.log", negative=False, expected_head=expected_head)
     negative = _spawn_child(args.isaac_python, negative_path, root / f"{stem}.negative.log", negative=True, expected_head=expected_head)
-    repeatability = _compare_runs(run1, run2)
+    evidence_gate = validate_acceptance(run1, run2, negative, expected_head=expected_head or "")
     report = {
-        "report_version": REPORT_VERSION,
-        "result": "passed",
-        "git_head": expected_head,
-        "isaac_python": str(args.isaac_python.expanduser().resolve()),
-        "frozen_config": {
-            "binding_id": SEKTION_TOP_DRAWER_BINDING.binding_id,
-            "asset_relative_path": SEKTION_TOP_DRAWER_BINDING.asset_relative_path,
-            "grasp_topology": "top_bottom_pinch",
-            "pregrasp_distance_m": 0.06,
-            "waypoint_spacing_m": 0.01,
-            "target_position": _PULL_TARGET,
-            "target_tolerance": _PULL_TOLERANCE,
-            "runtime_root": SEKTION_TOP_DRAWER_RUNTIME_ROOT,
-        },
-        "run1": run1,
-        "run2": run2,
-        "negative": negative,
-        "repeatability": repeatability,
-        "checks": {
-            "same_exact_head": expected_head is not None
-            and run1.get("git_head") == expected_head
-            and run2.get("git_head") == expected_head,
-            "run1_passed": run1.get("result") == "passed",
-            "run2_passed": run2.get("result") == "passed",
-            "negative_passed": negative.get("result") == "passed",
-            "repeatability_passed": all(
-                value is True
-                if isinstance(value, bool)
-                else all(value.values())
-                for value in repeatability.values()
-            ),
-        },
+        "report_version": REPORT_VERSION, "result": evidence_gate["result"],
+        "scope": "frozen full 0.35 m drawer task; not the 0.05 m primitive pilot",
+        "git_head": expected_head, "run1": run1, "run2": run2, "negative": negative,
+        "evidence_gate": evidence_gate,
     }
-    report["result"] = "passed" if all(report["checks"].values()) else "failed"
     _write(report_path, report)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False))
     return 0 if report["result"] == "passed" else 2

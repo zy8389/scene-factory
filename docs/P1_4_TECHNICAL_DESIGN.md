@@ -1,3 +1,8 @@
+> **Status addendum:** This document freezes the original contract; its historical
+> "NOT STARTED" status lines are not current delivery status. See
+> [P1-4B/C closeout](P1_4_CLOSEOUT.md) for experimental code and the external
+> negative physical evidence. Do not change the frozen goal to the 50 mm pilot.
+
 # P1-4 Technical Design: Real Articulated Interaction Execution
 
 ## Status

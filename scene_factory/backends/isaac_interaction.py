@@ -59,12 +59,13 @@ _LEGACY_PRE_GRASP_OFFSET_M = (-0.06, 0.0, 0.0)
 _GRASP_TOPOLOGIES = frozenset({"front_face_clamp", "top_bottom_pinch", "side_pinch", "cage_hook"})
 _FINAL_GRASP_TOPOLOGY = "top_bottom_pinch"
 _PRE_GRASP_DISTANCE_M = 0.06
-_PULL_DISTANCE_M = 0.05
 _POSITION_TOLERANCE_M = 0.01
 _ORIENTATION_TOLERANCE_RAD = 0.1
 _PULL_TOLERANCE_M = 0.015
 _CONTACT_STABLE_STEPS = 5
-_RELEASE_OBSERVATION_STEPS = 20
+_RELEASE_OBSERVATION_STEPS = 30
+_RELEASE_MAX_VELOCITY_M_S = 0.01
+_RELEASE_MAX_DRIFT_M = 0.005
 _ORIENTATION_FAMILY_DEGREES = tuple(range(-90, 91, 15))
 _ORIENTATION_REFINEMENT_DEGREES = tuple(range(-90, 91, 5))
 _CURRENT_FIXTURE_ROBOT_BASE_POSITION_M = (0.7, 0.0, 0.78)
@@ -1498,11 +1499,6 @@ class IsaacInteractionExecutor:
         if target <= before:
             raise _ActionFailure("pull_target_not_ahead", {"drawer_joint_before": before, "target_position": target})
         requested_delta = target - before
-        if abs(requested_delta - _PULL_DISTANCE_M) > 1.0e-6:
-            raise _ActionFailure(
-                "pull_target_distance_mismatch",
-                {"drawer_joint_before": before, "target_position": target, "target_displacement": requested_delta},
-            )
         plan = self._grasp_plan()
         axis = _unit(
             _vector(plan["opening_axis_world"], 3, "opening_axis_world"),
@@ -1523,7 +1519,7 @@ class IsaacInteractionExecutor:
         ik_path = self._precompute_pull_ik_path(
             eef_start,
             axis,
-            _PULL_DISTANCE_M,
+            requested_delta,
             tuple(plan["orientation_wxyz"]),
         )
         if ik_path.get("success") is not True:
@@ -1697,7 +1693,7 @@ class IsaacInteractionExecutor:
             self._step()
             contacts = _contact(self._runtime.read_contacts())
             contact_samples.append({"physics_step": self._physics_steps, **contacts})
-            if not contacts["left_contact"] and not contacts["right_contact"]:
+            if contacts["force_valid"] and not contacts["left_contact"] and not contacts["right_contact"]:
                 separation_steps += 1
             else:
                 separation_steps = 0
@@ -1708,10 +1704,32 @@ class IsaacInteractionExecutor:
                 "release_contact_separation_failed",
                 {"contact_separated": False, "separation_stable_steps": separation_steps, "contact_samples": contact_samples},
             )
-        while len(contact_samples) < _RELEASE_OBSERVATION_STEPS:
+        # A separate, consecutive post-separation window; the opening transient
+        # is not counted toward the frozen 30-step stability requirement.
+        stability_samples: list[dict[str, Any]] = []
+        for _ in range(_RELEASE_OBSERVATION_STEPS):
             self._step()
             contacts = _contact(self._runtime.read_contacts())
             contact_samples.append({"physics_step": self._physics_steps, **contacts})
+            position = _finite(self._runtime.read_joint(), "release joint position")
+            velocity = _finite(self._runtime.read_joint_velocity(), "release joint velocity")
+            separated = not contacts["left_contact"] and not contacts["right_contact"]
+            sample = {
+                "physics_step": self._physics_steps,
+                "joint_position_m": position,
+                "joint_velocity_m_s": velocity,
+                "contact_separated": separated,
+                "contact_observation_valid": contacts["force_valid"],
+            }
+            stability_samples.append(sample)
+            if (not contacts["force_valid"] or not separated or abs(velocity) > _RELEASE_MAX_VELOCITY_M_S
+                    or abs(position - drawer_at_release) > _RELEASE_MAX_DRIFT_M):
+                raise _ActionFailure(
+                    "release_stability_failed",
+                    {"drawer_position_release": drawer_at_release,
+                     "contact_separated": separated,
+                     "stability_samples": stability_samples, "contact_samples": contact_samples},
+                )
         drawer_after = _finite(self._runtime.read_joint(), "drawer position after release observation")
         gripper = self._runtime.read_gripper()
         if not isinstance(gripper, Mapping) or gripper.get("open") is not True:
@@ -1731,6 +1749,7 @@ class IsaacInteractionExecutor:
                 "separation_stable_steps": separation_steps,
                 "drawer_position_release": drawer_at_release,
                 "drawer_position_after_observation": drawer_after,
+                "stability_samples": stability_samples,
                 "contact_samples": contact_samples,
             },
         )
@@ -2688,6 +2707,16 @@ class _IsaacInteractionRuntime:
         index = names.index(SEKTION_TOP_DRAWER_BINDING.joint_name)
         values = np.asarray(self._cabinet.get_joint_positions(), dtype=float)
         return _finite(values[index], "runtime drawer position")
+
+    def read_joint_velocity(self) -> float:
+        if self._cabinet is None:
+            raise RuntimeError("cabinet articulation is not initialized")
+        import numpy as np
+
+        names = [str(name) for name in self._cabinet.dof_names]
+        index = names.index(SEKTION_TOP_DRAWER_BINDING.joint_name)
+        values = np.asarray(self._cabinet.get_joint_velocities(), dtype=float)
+        return _finite(values[index], "runtime drawer velocity")
 
     def joint_limits(self) -> tuple[float, float]:
         if self._cabinet is None:

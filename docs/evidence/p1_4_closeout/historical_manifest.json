@@ -1,0 +1,26 @@
+{
+  "reports": [
+    {
+      "raw_report": "<RUNTIME_ROOT>/p1_4b_root_cause/p1_4b_root_cause_report.md",
+      "sha256": "1d1f43ed8f27ce22d03047a46859b5e257b25de8648021e141e372b66a798459",
+      "bytes": 7267,
+      "finding": "Frozen default approach fails; physical traction recovery below 10 mm; not merge-ready.",
+      "provenance": "pre-existing external report; not generated or rerun by the closeout evidence gate"
+    },
+    {
+      "raw_report": "<RUNTIME_ROOT>/p1_4_reference_reselection/p1_4_reference_pairing_reselection_report.md",
+      "sha256": "ee81a8d7f09369d4d7cc78b462c06c6024d4efb99052fbdd378de0fa7638a968",
+      "bytes": 12887,
+      "finding": "Sektion top drawer binding remains valid, but pairing NOT ACCEPTED as the physical reference.",
+      "provenance": "pre-existing external report; not generated or rerun by the closeout evidence gate"
+    },
+    {
+      "raw_report": "<RUNTIME_ROOT>/p1_4_revolute_door_r3c2/physical_door_qualification_report.md",
+      "sha256": "71c297f4d46e7f81a36911683bf612b3c8966a163fc499ce95d80051d8c940d3",
+      "bytes": 6140,
+      "finding": "World-fixed mount and corrected 60-degree IK pass; collision preflight fails 241/241 samples; physical actions NOT RUN.",
+      "provenance": "pre-existing external report; not generated or rerun by the closeout evidence gate"
+    }
+  ],
+  "scope": "Historical negative evidence; does not prove global infeasibility or alter the frozen drawer task."
+}

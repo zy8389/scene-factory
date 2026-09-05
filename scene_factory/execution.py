@@ -1095,7 +1095,14 @@ def validate_execution_trace(
                 raise ExecutionError("terminal_result_mismatch", "passed trace did not execute every step")
             if trace_model.goal_status.get("task_success") is not True:
                 raise ExecutionError("goal_status_mismatch", "passed trace must have task_success=true")
-            if _trace_positions(trace_model) != plan_model.expected_final_state.get("joint_positions"):
+            positions = _trace_positions(trace_model)
+            # A physical position is an observation, not an exact symbolic write.
+            # Require measured positions and the goal range via TaskEvaluator below;
+            # preserve exact expected-state equality for dry-run executors.
+            if positions is None or (
+                not trace_model.executor.physical
+                and positions != plan_model.expected_final_state.get("joint_positions")
+            ):
                 raise ExecutionError("final_evidence_mismatch", "passed final evidence differs from expected state")
         elif trace_model.failure_reason == "goal_not_satisfied":
             if failed_indices:
