@@ -22,8 +22,8 @@ from scene_factory.execution import validate_execution_trace
 from scene_factory.planning import plan_interaction
 from scene_factory.tasks import TaskEvaluator
 
-REPORT_VERSION = "scene_factory.p1_4b_executor_acceptance.v3"
-GATE_VERSION = "scene_factory.p1_4c_evidence_gate.v1"
+REPORT_VERSION = "scene_factory.p1_4b_executor_acceptance.v4"
+GATE_VERSION = "scene_factory.p1_4c_evidence_gate.v2"
 TARGET_POSITION_M = 0.35
 TARGET_RANGE_M = (0.32, 0.38)
 RELEASE_STEPS = 30
@@ -113,18 +113,23 @@ def _joint(snapshot: Mapping[str, Any]) -> Any:
 
 def common_checks(report: Mapping[str, Any], expected_head: str) -> dict[str, bool]:
     before, after = report.get("source_before", {}), report.get("source_after", {})
+    preclose = report.get("source_before_shutdown", {})
     config = report.get("configuration", {})
     layers = config.get("usd_layers", [])
     return {
         "report_version": report.get("report_version") == REPORT_VERSION,
         "report_passed": report.get("result") == "passed" and report.get("errors") == [],
         "clean_exit": report.get("process_returncode") == 0
-        and report.get("closed_cleanly") is True,
+        and report.get("parent_observed_exit") is True
+        and report.get("evidence_persisted_before_shutdown") is True
+        and report.get("shutdown_requested") is True
+        and report.get("shutdown_mode") == "kit_fast_shutdown",
         "exact_clean_commit": _sha(expected_head, 40)
         and report.get("git_head") == expected_head
         and before.get("git_head") == after.get("git_head") == expected_head
         and before.get("clean") is True
-        and after.get("clean") is True,
+        and after.get("clean") is True
+        and preclose == before,
         "unchanged_source": _sha(before.get("source_sha256"))
         and before.get("source_sha256") == after.get("source_sha256"),
         "configuration_hash": _sha(report.get("configuration_sha256"))

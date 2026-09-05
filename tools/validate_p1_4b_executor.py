@@ -419,28 +419,31 @@ def _run_child(report_path: Path, *, negative: bool, expected_head: str | None) 
         report["errors"].append({"type": type(exc).__name__, "message": " ".join(str(exc).split())[:1000]})
         report["traceback"] = traceback.format_exc()
     finally:
-        # First persist before Kit teardown, then attest that close returned.
+        # Isaac 6 fast_shutdown exits the process inside close(). Persist the
+        # complete child observations FIRST; only the parent can attest OS exit
+        # and source-after state. OS exit 0 is never task success by itself.
+        try:
+            report["source_before_shutdown"] = _source_provenance()
+            if report["source_before_shutdown"] != report.get("source_before"):
+                report["result"] = "failed"
+                report["errors"].append({"type": "source_changed", "message": "source changed before shutdown"})
+        except Exception as exc:
+            report["errors"].append({"type": type(exc).__name__, "message": f"evidence: {exc}"})
+            report["result"] = "failed"
+        report["execution_finished_at"] = datetime.now(timezone.utc).isoformat()
+        report["shutdown_requested"] = executor is not None
+        report["shutdown_mode"] = "kit_fast_shutdown"
+        report["evidence_persisted_before_shutdown"] = True
         _write(report_path, report)
         if executor is not None:
             try:
                 executor.close()
+                # This field records a returned close only; the gate does not
+                # fabricate a return when Kit deliberately terminates the process.
                 report["closed_cleanly"] = True
             except Exception as exc:
                 report["errors"].append({"type": type(exc).__name__, "message": f"close: {exc}"})
                 report["result"] = "failed"
-        try:
-            report["source_after"] = _source_provenance()
-            # The parent independently replaces this provisional exit code
-            # with the observed OS exit status in the saved child report.
-            preview = dict(report, process_returncode=0)
-            checker = negative_checks if negative else positive_checks
-            report["checks"] = checker(preview, expected_head or "")
-            if not all(report["checks"].values()):
-                report["result"] = "failed"
-        except Exception as exc:
-            report["errors"].append({"type": type(exc).__name__, "message": f"evidence: {exc}"})
-            report["result"] = "failed"
-        report["finished_at"] = datetime.now(timezone.utc).isoformat()
         _write(report_path, report)
         print("SCENE_FACTORY_P1_4B_REPORT=" + json.dumps(report, ensure_ascii=False, allow_nan=False), flush=True)
     return 0 if report["result"] == "passed" else 2
@@ -2587,11 +2590,24 @@ def _spawn_child(
     report = _read_child_report(report_path)
     report["process_returncode"] = returncode
     report["runtime_log"] = str(log_path)
+    report["process_command"] = command
+    report["parent_observed_exit"] = returncode != 124
+    report["finished_at"] = datetime.now(timezone.utc).isoformat()
     if returncode != 0:
         report["result"] = "failed"
         report.setdefault("errors", []).append(
             {"type": "runtime_process_failed", "message": str(returncode)}
         )
+    if not any((kinematics_only, fixture_kinematics, motion_only, static_grasp, traction_mm is not None)):
+        try:
+            report["source_after"] = _source_provenance()
+            checker = negative_checks if negative else positive_checks
+            report["checks"] = checker(report, expected_head or "")
+            if not all(report["checks"].values()):
+                report["result"] = "failed"
+        except Exception as exc:
+            report["result"] = "failed"
+            report.setdefault("errors", []).append({"type": type(exc).__name__, "message": f"parent evidence: {exc}"})
     _write(report_path, report)
     return report
 

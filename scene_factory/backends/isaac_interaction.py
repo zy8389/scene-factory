@@ -2459,9 +2459,9 @@ class _IsaacInteractionRuntime:
                     "width": 640,
                     "height": 480,
                     "disable_viewport_updates": self.config.headless,
-                    # Full teardown must return so the runner can attest closure and
-                    # persist source-after evidence (Isaac 6 fast shutdown exits).
-                    "fast_shutdown": False,
+                    # Isaac 6 fast shutdown terminates the process by design.
+                    # The runner persists first; the parent attests the OS exit.
+                    "fast_shutdown": True,
                     "extra_args": [
                         "--/app/renderer/skipWhileMinimized=true",
                         "--/rtx-transient/resourcemanager/texturestreaming/enabled=false",

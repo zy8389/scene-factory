@@ -81,7 +81,12 @@ def synthetic_report(pid, *, negative=False, position=0.349):
         "run_id": str(uuid.uuid4()),
         "process_id": pid,
         "process_returncode": 0,
-        "closed_cleanly": True,
+        "closed_cleanly": False,
+        "source_before_shutdown": dict(SOURCE),
+        "parent_observed_exit": True,
+        "shutdown_requested": True,
+        "shutdown_mode": "kit_fast_shutdown",
+        "evidence_persisted_before_shutdown": True,
         "initial_snapshot": snapshot(0),
         "snapshot": snapshot(0 if negative else position),
         "actions": {},
@@ -162,7 +167,10 @@ def test_frozen_plan_and_valid_synthetic_evidence():
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("closed_cleanly", False),
+        ("parent_observed_exit", False),
+        ("shutdown_requested", False),
+        ("evidence_persisted_before_shutdown", False),
+        ("source_before_shutdown", {}),
         ("process_returncode", 1),
         ("git_head", "e" * 40),
         ("report_version", "scene_factory.p1_4b_executor_acceptance.v2"),
@@ -394,7 +402,7 @@ def test_child_records_a_valid_terminal_failure_trace(tmp_path):
     assert report["failure_reason"] == "motion_convergence_failed"
 
 
-def test_reference_runtime_disables_process_terminating_fast_shutdown():
+def test_reference_runtime_uses_parent_attested_fast_shutdown():
     runtime = _IsaacInteractionRuntime(_IsaacInteractionConfig())
     with (
         patch.object(type(BINDING), "resolve_asset_path", return_value=Path("C:/assets/drawer.usd")),
@@ -404,4 +412,4 @@ def test_reference_runtime_disables_process_terminating_fast_shutdown():
         with pytest.raises(RuntimeError, match="stop before simulator imports"):
             runtime.reset({}, 0.0)
         config = load.return_value.call_args.args[0]
-        assert config["fast_shutdown"] is False
+        assert config["fast_shutdown"] is True

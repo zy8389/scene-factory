@@ -54,7 +54,10 @@ reference machine's runtime directory, not silently rewritten or uploaded.
 5. Two positive processes and a separate pull-before-grasp negative process
    bind exact clean commit, tracked-file hash, binding, seed, controller config,
    loaded on-disk USD layer hashes, unique run/process identity, and OS exit code.
-6. Close failure, timeout, changed source/assets, malformed JSON, or missing
+6. Isaac 6 fast shutdown terminates inside `close()`: child evidence is persisted
+   before shutdown and the parent independently records the OS exit, timestamp
+   and source-after hash. A returned `close()` is not invented; exit 0 alone is
+   not task success. Close failure, timeout, changed source/assets, malformed JSON, or missing
    evidence fail closed. Child reports/logs are not overwritten by a rerun.
    Each process has a 1200-second limit; no retry sweep is launched.
 
