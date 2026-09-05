@@ -1,0 +1,356 @@
+{
+  "ci_for_tested_code": [
+    "https://github.com/zy8389/scene-factory/actions/runs/33992855338/job/101378057564",
+    "https://github.com/zy8389/scene-factory/actions/runs/33992858786/job/101378066869"
+  ],
+  "commands": {
+    "lint": "<DEV_PYTHON> -m ruff check .",
+    "offline_gate": "<DEV_PYTHON> tools/validate_p1_4c_acceptance.py --run1 <CLOSEOUT_ROOT>/full_task_r3.run1.json --run2 <CLOSEOUT_ROOT>/full_task_r3.run2.json --negative <CLOSEOUT_ROOT>/full_task_r3.negative.json --expected-head 24fe842b9b452aac7bd8ea9542ad316379adc6d3 --report <CLOSEOUT_ROOT>/evidence_gate_r3.json",
+    "physical_parent": "<ISAAC_PYTHON> tools/validate_p1_4b_executor.py --isaac-python <ISAAC_PYTHON> --head 24fe842b9b452aac7bd8ea9542ad316379adc6d3 --report <CLOSEOUT_ROOT>/full_task_r3.json",
+    "tests": "<DEV_PYTHON> -m pytest -q"
+  },
+  "earlier_attempts_original_hashes": [
+    {
+      "bytes": 12926566,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.json",
+      "published_review_copy": false,
+      "sha256": "1fc08f0233b6d63e97cd912e4cad58111b565a1806834a2317772f391a4cd239",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 1582131,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.negative.json",
+      "published_review_copy": false,
+      "sha256": "e9c2fd434c68e73d80e9c0c1b44fddab19e53b1ddfe1195f2e852ee3be1ee325",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 23275,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.negative.log",
+      "published_review_copy": false,
+      "sha256": "f732f6afc161ce8e0ff417d62d403c1c022aca8021057217a6db0405a262e479",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 5343304,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.run1.json",
+      "published_review_copy": false,
+      "sha256": "144f34ba5917a97c796a0308ab675bf9bc7d081f98fd3953703f0a769e61f1a1",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 23445,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.run1.log",
+      "published_review_copy": false,
+      "sha256": "9fc652b5b2c4747e848dae0ab5bfbbfb3a362a8f96b13d5375c4187aed2bf69e",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 5343266,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.run2.json",
+      "published_review_copy": false,
+      "sha256": "a7be90a67330d87bdadf8d743819ee51d0d6924d9a433f86df970de9474bfb9c",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 23287,
+      "finding": "Physical IK failure; incomplete shutdown-tail evidence; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task.run2.log",
+      "published_review_copy": false,
+      "sha256": "2becff1fb71421880c432a09da4b15d144b3a3b6bb0c8fb518b889c877139ac7",
+      "tested_code_commit": "454b5c816b0a82deaef0de8112bf0c5769805393"
+    },
+    {
+      "bytes": 12926936,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.json",
+      "published_review_copy": false,
+      "sha256": "fdbe5c2d02c7faf8ecd6101ea3d38a21101f10bc48a79aeaab9dff1314621872",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    },
+    {
+      "bytes": 1582233,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.negative.json",
+      "published_review_copy": false,
+      "sha256": "435349fc75fd9092ae96d9a60a0c58edc27e72fa5ce6ef5c754701558d1fbafb",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    },
+    {
+      "bytes": 40876,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.negative.log",
+      "published_review_copy": false,
+      "sha256": "5a218a411c6c3ffb71797e91d41f8d0bd763a7a10b04cd4b8acd33d2c26a1cfd",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    },
+    {
+      "bytes": 5343406,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.run1.json",
+      "published_review_copy": false,
+      "sha256": "4d366f4b6ab75b9bc83a09b203f1d048937183dcaae0c3ca45a5cb9d44be096f",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    },
+    {
+      "bytes": 40822,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.run1.log",
+      "published_review_copy": false,
+      "sha256": "763644efc5979f34fbbfb024a96a91bdeeb83c77ecf14833a94e2b2f47f03e99",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    },
+    {
+      "bytes": 5343368,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.run2.json",
+      "published_review_copy": false,
+      "sha256": "0a135d7d5fbe4f1edee794c8cad2d0155a204f892de03b33bf4c0474ce0025fd",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    },
+    {
+      "bytes": 40875,
+      "finding": "Physical IK failure; graceful extension teardown crashed 0xC0000005; NOT accepted",
+      "path": "<CLOSEOUT_ROOT>/full_task_r2.run2.log",
+      "published_review_copy": false,
+      "sha256": "38ed98666669e45a97c8fcf1b939df936bcf6176b038d3a516959b313e189bba",
+      "tested_code_commit": "454743cc2cb386770a76e408e1ef61fa2e9ef109"
+    }
+  ],
+  "entries": [
+    {
+      "name": "full_task_r3.run1.json",
+      "original": {
+        "bytes": 5345050,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.run1.json",
+        "retained_on_reference_machine": true,
+        "sha256": "07769e3b397a2cf603d3df7e362b36b3f6ef46d34a050d101a1698ee24c9bcc6"
+      },
+      "review_copy": {
+        "bytes": 462539,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.run1.json.gz",
+        "sha256": "116c390976d876cd767ea2a12e38119a4717a8cd3046446367968f893ae68bbf",
+        "uncompressed_bytes": 5205187,
+        "uncompressed_sha256": "a088e3e7dc075851114f3dc729738b42255cdf5b2a61af5ca9522f3d651eab12"
+      }
+    },
+    {
+      "name": "full_task_r3.run1.log",
+      "original": {
+        "bytes": 23194,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.run1.log",
+        "retained_on_reference_machine": true,
+        "sha256": "199b4a2acb18c7873eace6796392ef836e3b99290d30918c059434ea507c3e7d"
+      },
+      "review_copy": {
+        "bytes": 5804,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.run1.log.gz",
+        "sha256": "2f2ffa9ac169a397860c5fcc9ca2ec64331af5943ad9ef2f7253652a1d0f01fa",
+        "uncompressed_bytes": 23116,
+        "uncompressed_sha256": "a4ffe0bb89efa6e6048ce4453e241d450db238720a6154d9255bf964cd8ff8a6"
+      }
+    },
+    {
+      "name": "full_task_r3.run2.json",
+      "original": {
+        "bytes": 5345012,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.run2.json",
+        "retained_on_reference_machine": true,
+        "sha256": "8597fe6bf02413a335572971a5ad0d1e17dc6b2c537eee72cc84d88324de6ce2"
+      },
+      "review_copy": {
+        "bytes": 462523,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.run2.json.gz",
+        "sha256": "4e0497f0db82369c2d06881fc7f50809c238dc6bb54d1abd5f28da7c1bccf4b8",
+        "uncompressed_bytes": 5205149,
+        "uncompressed_sha256": "ffb9980720fb335ba07a944f382ecd259b13dd439ba8dce5d7c88184ecf91d4f"
+      }
+    },
+    {
+      "name": "full_task_r3.run2.log",
+      "original": {
+        "bytes": 23208,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.run2.log",
+        "retained_on_reference_machine": true,
+        "sha256": "7041d3025e31b44d73a81742721e1a6805ddb00e2efbb1ffa2b06e08992e1ad1"
+      },
+      "review_copy": {
+        "bytes": 5784,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.run2.log.gz",
+        "sha256": "a8caea3a292619e4f5335ecf5ad6de3d8d3e8440a6ea71be38912da68937d86b",
+        "uncompressed_bytes": 23130,
+        "uncompressed_sha256": "9f5cc7503ccff8b707f55a81f66893ffab0df58416dcb58a40cc1df20c75b7cc"
+      }
+    },
+    {
+      "name": "full_task_r3.negative.json",
+      "original": {
+        "bytes": 1583701,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.negative.json",
+        "retained_on_reference_machine": true,
+        "sha256": "b13bf38e43ae3e0fb812bd45ce6907dd6a88e19de646cb11532194f13b0be214"
+      },
+      "review_copy": {
+        "bytes": 175612,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.negative.json.gz",
+        "sha256": "394461bdf879b830377118a31160c8bda38c7bf3f7575b111eada9710ba96e34",
+        "uncompressed_bytes": 1536110,
+        "uncompressed_sha256": "b29b6c5fda28b0a0e200c5219f2efed4f93f6c4ebf0b7128d654e3200c43a891"
+      }
+    },
+    {
+      "name": "full_task_r3.negative.log",
+      "original": {
+        "bytes": 23207,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.negative.log",
+        "retained_on_reference_machine": true,
+        "sha256": "84d2b6a75126a92826929c5c700f0cfeb24da33a8b12695b294d147deeb4ad4f"
+      },
+      "review_copy": {
+        "bytes": 5809,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.negative.log.gz",
+        "sha256": "fa38722e4b942b4addd0faed10348ec2a9ab4a0633e02c03237f0502b59b95f5",
+        "uncompressed_bytes": 23129,
+        "uncompressed_sha256": "64f2f9d509921c175dd558dc473d3011b7c2020d17ea97d4664236f227055bc9"
+      }
+    },
+    {
+      "name": "full_task_r3.json",
+      "original": {
+        "bytes": 12931615,
+        "path": "<CLOSEOUT_ROOT>/full_task_r3.json",
+        "retained_on_reference_machine": true,
+        "sha256": "7dbeb6dcc6fa4aa59733f1da97771aaf8c47a5cd28910aae5812158d00a8bda8"
+      },
+      "review_copy": {
+        "bytes": 1113595,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/full_task_r3.json.gz",
+        "sha256": "a05bd228c3b649afa2b7be259a648897435e2efceb92f1bd434355b87774bb71",
+        "uncompressed_bytes": 12604189,
+        "uncompressed_sha256": "90a4a363576cdb1a6f6bf7548ec8a3d1a0f8717479798351069a2b898c78f902"
+      }
+    },
+    {
+      "name": "parent_r3.log",
+      "original": {
+        "bytes": 12931651,
+        "path": "<CLOSEOUT_ROOT>/parent_r3.log",
+        "retained_on_reference_machine": true,
+        "sha256": "28b3831b363271bb0e40196c19f04d7c0f4857d1ad14fbfe095d5920181f5ee1"
+      },
+      "review_copy": {
+        "bytes": 1119634,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/parent_r3.log.gz",
+        "sha256": "1384a3543548bd8b390a1853b8e20e774cc7930f5f9ea4ca15914db058f840e6",
+        "uncompressed_bytes": 12931408,
+        "uncompressed_sha256": "16ee1d9fb02125f911d202bf1554218114d23e2247e445db0d65a1f7ee90612b"
+      }
+    },
+    {
+      "name": "evidence_gate_r3.json",
+      "original": {
+        "bytes": 3229,
+        "path": "<CLOSEOUT_ROOT>/evidence_gate_r3.json",
+        "retained_on_reference_machine": true,
+        "sha256": "13814a6826c60145f5c36e3d0960f24d3f9a2ceeb9972c9f813c04c98d8842d0"
+      },
+      "review_copy": {
+        "bytes": 677,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/evidence_gate_r3.json.gz",
+        "sha256": "605d98c7e6ce70e4b4c1e8c6c2025109f95f188c6aa6f523529fd404db86cd51",
+        "uncompressed_bytes": 3126,
+        "uncompressed_sha256": "8f423134ebd21bf87fd1149f60da572c7f93adc1dd7af02de0685c86d55319e4"
+      }
+    },
+    {
+      "name": "evidence_gate_r3.log",
+      "original": {
+        "bytes": 3229,
+        "path": "<CLOSEOUT_ROOT>/evidence_gate_r3.log",
+        "retained_on_reference_machine": true,
+        "sha256": "13814a6826c60145f5c36e3d0960f24d3f9a2ceeb9972c9f813c04c98d8842d0"
+      },
+      "review_copy": {
+        "bytes": 683,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/evidence_gate_r3.log.gz",
+        "sha256": "f947af48316ba737a739e5da68e5497260252d06f254798e05d3ab3ce3f9a925",
+        "uncompressed_bytes": 3229,
+        "uncompressed_sha256": "13814a6826c60145f5c36e3d0960f24d3f9a2ceeb9972c9f813c04c98d8842d0"
+      }
+    },
+    {
+      "name": "offline_tests_r3.log",
+      "original": {
+        "bytes": 443,
+        "path": "<CLOSEOUT_ROOT>/offline_tests_r3.log",
+        "retained_on_reference_machine": true,
+        "sha256": "d8aa7e54c530d5a6a4f38986e133350a5b45116ba34efe83496b1e1a7f0e1917"
+      },
+      "review_copy": {
+        "bytes": 103,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/offline_tests_r3.log.gz",
+        "sha256": "2f6c5121669341ff113b922656040fb411f11df73c4b4e121bd67c7df90c2453",
+        "uncompressed_bytes": 443,
+        "uncompressed_sha256": "d8aa7e54c530d5a6a4f38986e133350a5b45116ba34efe83496b1e1a7f0e1917"
+      }
+    },
+    {
+      "name": "offline_ruff_r3.log",
+      "original": {
+        "bytes": 20,
+        "path": "<CLOSEOUT_ROOT>/offline_ruff_r3.log",
+        "retained_on_reference_machine": true,
+        "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      },
+      "review_copy": {
+        "bytes": 40,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/offline_ruff_r3.log.gz",
+        "sha256": "6907f34c82deb8a688eb1658e87fcdbb33e1cfd89fabe0c681fe5186b5ecb153",
+        "uncompressed_bytes": 20,
+        "uncompressed_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+      }
+    },
+    {
+      "name": "environment.json",
+      "original": {
+        "bytes": 453,
+        "path": "<CLOSEOUT_ROOT>/environment.json",
+        "retained_on_reference_machine": true,
+        "sha256": "816de3655818856c8896b881ed8949581a35c88231bccc3aba9578884b2f17a4"
+      },
+      "review_copy": {
+        "bytes": 235,
+        "kind": "portable review copy, NOT byte-identical original",
+        "path": "review/environment.json.gz",
+        "sha256": "c1aa0621b386f78f7f423aef19b8a83e424f67932dfae849071230597ae9c17f",
+        "uncompressed_bytes": 429,
+        "uncompressed_sha256": "de1f25e766e63666a2e23e7b42d5f65b65a4d27504ce02bd18dfd5bb24e6bc05"
+      }
+    }
+  ],
+  "gate_equivalence_verified": true,
+  "original_root": "<CLOSEOUT_ROOT> = <RUNTIME_ROOT>/p1_4_closeout_20260906",
+  "result": "FAILED",
+  "review_policy": "Originals retained unchanged on reference machine. Public gzip copies replace local machine/user roots and GPU identifier cells; JSON is reserialized. Physical observations, configuration, source attestations and trace payloads are unchanged. Original and copy hashes are different by design. Hashes do not authenticate physical origin.",
+  "run_date_basis": "2026-09-05 UTC (2026-09-06 Asia/Shanghai)",
+  "schema": "scene_factory.p1_4_closeout_manifest.v1",
+  "tested_code_commit": "24fe842b9b452aac7bd8ea9542ad316379adc6d3"
+}
