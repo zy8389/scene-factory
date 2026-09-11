@@ -1176,9 +1176,9 @@ The architecture-freeze document was published separately before P1-4A
 implementation. Its historical publication details were:
 
 ```text
-branch: codex/p1-4-reference-asset-freeze
+reference: P1-4 reference articulated asset freeze
 commit: Freeze P1-4 reference articulated asset
-title: [codex] Freeze P1-4 reference articulated asset
+title: Freeze P1-4 reference articulated asset
 draft: yes
 ```
 

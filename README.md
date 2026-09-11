@@ -1,60 +1,56 @@
 # SceneFactory
 
-SceneFactory is a deterministic scene, task, interaction-planning, and
-executor-contract toolkit for embodied-AI simulation workflows.
+SceneFactory 是面向具身智能仿真工作流的确定性场景、任务、交互规划和执行器契约工具包。
 
-The v0.1 release candidate focuses on an offline Python SDK that can be cloned,
-installed, inspected, and used without Isaac Sim, a GPU, NumPy, an LLM API, or
-a network connection.
+v0.1 候选版本提供离线 Python SDK，可在无需 Isaac Sim、GPU、NumPy、LLM API
+或网络连接的情况下完成克隆、安装、检查和使用。
 
-## What it does
+## 功能概览
 
 ```text
-recipe / external SceneIntent
+配方 / 外部 SceneIntent
           |
           v
-deterministic SceneFactory compilation
+确定性 SceneFactory 编译
           |
-          +--> scene specification and SVG preview
-          +--> reproducible batch dataset
-          +--> articulated asset contract
-          +--> symbolic InteractionPlan
+          +--> 场景规范和 SVG 预览
+          +--> 可复现的批量数据集
+          +--> 可动部件资产契约
+          +--> 符号化 InteractionPlan
           +--> DryRun ExecutionTrace
-          +--> executor conformance report
+          +--> 执行器一致性报告
 ```
 
-The core pipeline provides:
+核心流程提供：
 
-- deterministic household scene generation from recipes or external JSON;
-- asset registry, metadata, support surfaces, and articulation contracts;
-- batch datasets with portable manifests, validation, and reproduction;
-- symbolic articulation planning and offline dry-run execution;
-- execution trace validation and a core executor conformance suite;
-- optional Isaac Sim USD export and environment-specific robot integration.
+- 根据配方或外部 JSON 生成确定性的家庭场景；
+- 资产注册表、元数据、支撑面和可动部件契约；
+- 具备可移植清单、验证和复现能力的批量数据集；
+- 符号化可动部件规划与离线干运行执行；
+- 执行轨迹验证及核心执行器一致性套件；
+- 可选的 Isaac Sim USD 导出和依赖环境的机器人集成。
 
-## Installation
+## 安装
 
-SceneFactory supports Python 3.12 or newer and has no required runtime
-dependencies for the core SDK:
+SceneFactory 支持 Python 3.12 或更高版本，核心 SDK 没有必需的运行时依赖：
 
 ```bash
 python -m pip install .
 scene-factory list-recipes
 ```
 
-For development checks:
+开发检查环境可使用：
 
 ```bash
 python -m pip install ".[dev]"
 ```
 
-The wheel includes recipes, schemas, web files, the asset registry, and the
-committed asset metadata required by the offline workflows. It does not bundle
-Isaac Sim or NVIDIA Local Assets.
+wheel 包含配方、模式、Web 文件、资产注册表，以及离线工作流所需的已提交资产
+元数据；不包含 Isaac Sim 或 NVIDIA Local Assets。
 
-## 5-minute quickstart
+## 5 分钟快速上手
 
-Build one deterministic scene without a simulator:
+无需模拟器即可构建一个确定性场景：
 
 ```bash
 scene-factory build \
@@ -63,11 +59,10 @@ scene-factory build \
   --output outputs/basic-scene
 ```
 
-The output contains `scene_spec.json`, `layout.json`, `validation.json`, and
-an offline `preview.svg`. The same command works from any current directory
-after installation.
+输出包含 `scene_spec.json`、`layout.json`、`validation.json` 和离线
+`preview.svg`。安装后，相同命令可在任意当前目录中运行。
 
-The equivalent Python API is:
+等价的 Python API 为：
 
 ```python
 from scene_factory import SceneFactory
@@ -80,19 +75,19 @@ assert result.valid
 print(result.scene.scene_id)
 ```
 
-Runnable examples are in [`examples/`](examples/):
+可运行示例位于 [`examples/`](examples/)：
 
-- [`basic_scene`](examples/basic_scene/README.md) for recipe compilation;
-- [`external_intent`](examples/external_intent/README.md) for structured input;
-- [`deterministic_dataset`](examples/deterministic_dataset/README.md) for batch
-  validation and reproduction;
-- [`articulated_drawer`](examples/articulated_drawer/README.md) for planning,
-  dry-run execution, and trace validation.
+- [`basic_scene`](examples/basic_scene/README.md)：配方编译；
+- [`external_intent`](examples/external_intent/README.md)：结构化输入；
+- [`deterministic_dataset`](examples/deterministic_dataset/README.md)：批量验证
+  和复现；
+- [`articulated_drawer`](examples/articulated_drawer/README.md)：规划、干运行
+  执行和轨迹验证。
 
-## External SceneIntent
+## 外部 SceneIntent
 
-External programs can submit a versioned `SceneIntent` JSON document. Validate
-and compile it through the same deterministic pipeline:
+外部程序可以提交带版本的 `SceneIntent` JSON 文档。使用相同的确定性流水线
+验证并编译：
 
 ```bash
 scene-factory intent validate examples/external_intent/scene.json
@@ -102,11 +97,10 @@ scene-factory build \
   --output outputs/external-scene
 ```
 
-The raw intent and `scene_factory.external_scene.v1` envelope are validated
-before compilation. Producer metadata records provenance but does not affect
-scene identity.
+原始 intent 以及 `scene_factory.external_scene.v1` 封装会在编译前验证。
+生成方元数据记录来源，但不影响场景身份。
 
-## Deterministic datasets
+## 确定性数据集
 
 ```bash
 scene-factory batch \
@@ -118,15 +112,13 @@ scene-factory dataset validate outputs/dataset
 scene-factory dataset reproduce outputs/dataset
 ```
 
-Dataset manifests use portable relative paths, content hashes, and semantic
-fingerprints. Validation and reproduction are offline and do not call an LLM or
-external service.
+数据集清单使用可移植的相对路径、内容哈希和语义指纹。验证和复现完全离线，
+不会调用 LLM 或外部服务。
 
-## Articulated planning and execution
+## 可动部件规划与执行
 
-The symbolic planner consumes articulated metadata and produces an
-`InteractionPlan`. The dry-run executor applies semantic state transitions and
-emits a validated `ExecutionTrace`:
+符号规划器使用可动部件元数据生成 `InteractionPlan`。干运行执行器会应用
+语义状态转换，并输出经过验证的 `ExecutionTrace`：
 
 ```bash
 scene-factory task plan \
@@ -145,13 +137,12 @@ scene-factory task execution-validate \
   --trace outputs/drawer-trace.json
 ```
 
-`DryRunInteractionExecutor` reports `physical=false`. A passing symbolic plan,
-trace, or conformance report does not claim collision-free motion or physical
-manipulation.
+`DryRunInteractionExecutor` 会报告 `physical=false`。符号计划、轨迹或一致性
+报告通过，并不表示已经证明运动无碰撞或操作具备物理可行性。
 
-## Executor conformance
+## 执行器一致性
 
-Inspect the reference executor and run the simulator-neutral core suite:
+查看参考执行器并运行与模拟器无关的核心套件：
 
 ```bash
 scene-factory executor inspect --executor dry-run
@@ -161,50 +152,44 @@ scene-factory executor conformance \
 scene-factory executor validate-report executor-conformance.json
 ```
 
-The suite checks lifecycle, capability declarations, command/result correlation,
-evidence, final goals, and trace semantics. It is a compatibility gate for
-`InteractionExecutor`, not a physical acceptance gate.
+该套件检查生命周期、能力声明、命令与结果关联、证据、最终目标和轨迹语义。
+它是 `InteractionExecutor` 的兼容性门槛，而非物理验收门槛。
 
-## Architecture and API
+## 架构与 API
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains the compilation and
-  simulator boundaries.
-- [`docs/PUBLIC_API.md`](docs/PUBLIC_API.md) documents the supported Python API.
-- [`docs/CLI.md`](docs/CLI.md) lists CLI commands and exit-code behavior.
-- [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) records environment support.
-- [`docs/SCHEMA_POLICY.md`](docs/SCHEMA_POLICY.md) defines schema compatibility.
-- Existing deep dives remain available for the
-  [asset pipeline](docs/ASSET_PIPELINE.md),
-  [LLM integration](docs/LLM_INTEGRATION.md), and
-  [web UI](docs/WEB_UI.md).
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 说明编译流程和模拟器边界。
+- [`docs/PUBLIC_API.md`](docs/PUBLIC_API.md) 记录受支持的 Python API。
+- [`docs/CLI.md`](docs/CLI.md) 列出 CLI 命令和退出码行为。
+- [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) 记录环境支持范围。
+- [`docs/SCHEMA_POLICY.md`](docs/SCHEMA_POLICY.md) 定义模式兼容性策略。
+- 更深入的资料仍可参阅[资产流水线](docs/ASSET_PIPELINE.md)、
+  [LLM 集成](docs/LLM_INTEGRATION.md)和 [Web UI](docs/WEB_UI.md)。
 
-## Isaac Sim status
+## Isaac Sim 状态
 
-Isaac-specific modules use lazy imports so `import scene_factory` remains a
-pure-Python operation. Isaac Sim 6.0.1 can be used for USD export and the
-environment-specific Franka/RGB-D workflows described in
-[`docs/ISAAC_VALIDATION.md`](docs/ISAAC_VALIDATION.md).
+Isaac 专用模块采用延迟导入，因此 `import scene_factory` 始终是纯 Python 操作。
+Isaac Sim 6.0.1 可用于 USD 导出，以及
+[`docs/ISAAC_VALIDATION.md`](docs/ISAAC_VALIDATION.md) 中描述的依赖环境的
+Franka/RGB-D 工作流。
 
-The current public status is intentionally conservative:
+当前公开状态有意保持谨慎：
 
-| Capability | Status |
+| 能力 | 状态 |
 | --- | --- |
-| Pure-Python scene, dataset, planning, and dry-run workflows | available |
-| Executor conformance | available |
-| Real Isaac Franka acceptance (P1-1/P1-2) | validated on reference Isaac Sim 6.0.1 |
-| Real Isaac RGB-D acceptance (P1-3) | validated on reference Isaac Sim 6.0.1 |
-| Isaac Lab | not started |
+| 纯 Python 场景、数据集、规划和干运行工作流 | 可用 |
+| 执行器一致性 | 可用 |
+| 真实 Isaac Franka 验收（P1-1/P1-2） | 已在参考 Isaac Sim 6.0.1 环境中验证 |
+| 真实 Isaac RGB-D 验收（P1-3） | 已在参考 Isaac Sim 6.0.1 环境中验证 |
+| Isaac Lab | 尚未开始 |
 
-Official Isaac Sim Local Assets are not bundled with SceneFactory. Real Franka
-and RGB-D acceptance requires a separately validated Isaac environment and
-official assets. The reference Isaac Sim 6.0.1 local environment has passed
-P1-1, P1-2, and P1-3; this evidence is environment-specific and is not a
-claim of universal hardware compatibility. No bundled URDF or offline result
-is presented as a substitute for that acceptance.
+官方 Isaac Sim Local Assets 不随 SceneFactory 打包。真实 Franka 和 RGB-D 验收需要
+单独验证的 Isaac 环境和官方资产。参考 Isaac Sim 6.0.1 本地环境已通过 P1-1、P1-2
+和 P1-3；这些证据仅适用于该环境，并不代表通用硬件兼容性。项目不会将随附的
+URDF 或离线结果作为该验收的替代证明。
 
-## CLI reference
+## CLI 参考
 
-The public command groups are:
+公开命令组如下：
 
 ```text
 list-recipes
@@ -219,13 +204,13 @@ llm-status
 llm-test
 ```
 
-Run `scene-factory --help` or see [`docs/CLI.md`](docs/CLI.md) for the complete
-syntax. The CLI uses exit code `0` for success, `1` for command/configuration or
-runtime input errors, and `2` for validation or acceptance failures.
+运行 `scene-factory --help` 或查看 [`docs/CLI.md`](docs/CLI.md) 了解完整语法。
+CLI 成功时使用退出码 `0`；命令、配置或运行时输入错误使用 `1`；
+验证或验收失败使用 `2`。
 
-## Development
+## 开发
 
-The offline release checks are:
+离线发布检查如下：
 
 ```bash
 python tools/check_release.py
@@ -235,14 +220,12 @@ python -B -m compileall -q scene_factory tools tests
 python -B -m pytest -p no:cacheprovider -q
 ```
 
-`tools/release_smoke.py` is intended to run after installing the wheel into a
-fresh virtual environment. It runs from a temporary directory outside the
-repository and does not import repository source files.
+`tools/release_smoke.py` 应在全新的虚拟环境中安装 wheel 后运行。它会从仓库外的
+临时目录运行，且不会导入仓库源文件。
 
-## Episode validation and replay
+## Episode 验证与回放
 
-Exported RGB-D episodes can be inspected in a regular Python environment
-without starting Isaac Sim:
+导出的 RGB-D episode 可在无需启动 Isaac Sim 的常规 Python 环境中检查：
 
 ```powershell
 scene-factory episode inspect <episode_path>
@@ -250,15 +233,14 @@ scene-factory episode validate <episode_path>
 scene-factory episode replay <episode_path>
 ```
 
-`validate` checks episode files, media, calibration, frame synchronization,
-state-machine transitions, and result consistency. `replay` is a deterministic
-offline consistency check; it does not rerun Isaac Sim physics. When episode
-metadata includes a task snapshot, it also recomputes the pure-Python task
-oracle. Otherwise it reports `task_replay=not_available` explicitly.
+`validate` 会检查 episode 文件、媒体、标定、帧同步、状态机转换和结果一致性。
+`replay` 是确定性的离线一致性检查，不会重新运行 Isaac Sim 物理仿真。若 episode
+元数据包含任务快照，它还会重新计算纯 Python 任务预言机；否则会明确报告
+`task_replay=not_available`。
 
-## License and asset attribution
+## 许可证与资产署名
 
-The code is licensed under MIT. Packaged YCB source assets are attributed in
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md); their upstream license terms
-continue to apply. See [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) and
-[`CHANGELOG.md`](CHANGELOG.md) for release-readiness scope and status.
+代码采用 MIT 许可证。随包提供的 YCB 源资产署名见
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)，其上游许可证条款仍然适用。
+发布就绪范围和状态见 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) 与
+[`CHANGELOG.md`](CHANGELOG.md)。
