@@ -45,3 +45,20 @@ collision continue to use SceneFactory's deterministic proxy definitions.
 Poly Haven states that all downloadable assets are released under CC0 and may
 be used commercially and redistributed without attribution. The individual
 manifests preserve source URLs, packaged hashes, and conversion details.
+
+## Poly Haven kitchen detail pack
+
+The `kitchen_cc0_v2` pack adds appliance, cookware, food and utensil meshes to
+the after-cooking kitchen recipe. They are self-contained 1K GLB conversions;
+their visual transforms preserve aspect ratio in the viewer, while physics
+continues to use registered primitive collision proxies.
+
+| Scene asset | Poly Haven model | License | Packaged GLB hash |
+| --- | --- | --- | --- |
+| `electric_stove_basic` | [Electric Stove](https://polyhaven.com/a/electric_stove) | CC0 | `26cbb0b2986bd9bfada51e94dd4fbe2bb31503678c0e55949e55859bb45ea151` |
+| `microwave_basic` | [Vintage Microwave](https://polyhaven.com/a/vintage_microwave) | CC0 | `177874d2aac68b3a073b2f0b58a32553e9d16e1aeb014f5d347498e0ba6a4607` |
+| `electric_kettle_basic` | [Vintage Electric Kettle](https://polyhaven.com/a/vintage_electric_kettle) | CC0 | `963c0902e52f39419dd4d0c6c69e631571a5c2187d3838f5f7efb1e91f9cc76e` |
+| `frying_pan_basic` | [Brass Pan 01](https://polyhaven.com/a/brass_pan_01) | CC0 | `d458778bf91ab5a3668a37d3cd7d0005dc2a2c88da3d2342158d6b965c14e01b` |
+| `apple_basic` | [Food Apple 01](https://polyhaven.com/a/food_apple_01) | CC0 | `745bb132292ad0a335494fe98a6e882efb7c775f7c30761e80b490fe8a82ae79` |
+| `avocado_basic` | [Food Avocado 01](https://polyhaven.com/a/food_avocado_01) | CC0 | `56eb36e2840d3309756b78d487e6a1729aba99c87cc29bb01e8bddf5115dc4bc` |
+| `wooden_spoon_basic` | [Wooden Spoon](https://polyhaven.com/a/wooden_spoon) | CC0 | `96203c13af0e2f0d587b3f467cac8dbf8cee110bf8fcc2be01acc35bee6109f6` |

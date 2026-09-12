@@ -1,0 +1,36 @@
+{
+  "asset_id": "frying_pan_basic",
+  "batch_id": "kitchen_cc0_v2",
+  "source_name": "Brass Pan 01",
+  "source_url": "https://polyhaven.com/a/brass_pan_01",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:4baf504c0b665858296de702f93beda5",
+  "source_variant": "gltf/1k",
+  "original_filename": "brass_pan_01_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/brass_pan_01/brass_pan_01_1k.gltf",
+      "sha256": "d458778bf91ab5a3668a37d3cd7d0005dc2a2c88da3d2342158d6b965c14e01b",
+      "bytes": 1615012
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

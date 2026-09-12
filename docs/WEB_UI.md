@@ -39,6 +39,10 @@ powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart -IsaacPyth
 MuJoCo 文件使用包围盒碰撞代理，GLB 用于 Three.js 视觉预览，Isaac USD 仍是可选
 高保真产物。
 
+Three.js 会读取每个 GLB 来源清单中的轴向变换，并以等比缩放、底部对齐方式放入场景；
+它不会为了填满碰撞代理而拉伸模型。厨房预览还包含地板、两面墙、挡板和局部顶灯，便于
+观察家具与餐厨物体在室内空间中的比例。
+
 ## 当前语言能力
 
 当前界面已可以识别并可视化三类事件：

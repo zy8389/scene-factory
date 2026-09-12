@@ -1,44 +1,90 @@
 {
   "name": "kitchen_after_cooking",
   "room_type": "kitchen",
-  "room_dimensions_m": [5.4, 4.2, 2.8],
+  "room_dimensions_m": [
+    5.4,
+    4.2,
+    2.8
+  ],
   "event": "after_cooking",
-  "description": "刚做完饭，砧板、刀和蔬菜袋还在台面上，锅盖偏放在岛台。",
-  "keywords": ["厨房", "做饭", "做完饭", "砧板", "锅", "蔬菜", "cooking", "kitchen"],
+  "description": "刚做完饭：电炉上留着平底锅，砧板上有切开的食材，水壶、木勺、碗盘和锅盖仍散落在料理台与岛台。",
+  "keywords": [
+    "cooking",
+    "kitchen",
+    "做完饭",
+    "做饭",
+    "厨房",
+    "平底锅",
+    "微波炉",
+    "水壶",
+    "牛油果",
+    "电炉",
+    "砧板",
+    "苹果",
+    "蔬菜",
+    "锅"
+  ],
   "objects": [
     {
       "object_id": "counter_1",
       "category": "kitchen_counter",
       "dynamic": false,
-      "fixed_pose": {"position": [0.0, 1.65, 0.45], "yaw_deg": 0}
+      "fixed_pose": {
+        "position": [
+          0.0,
+          1.65,
+          0.45
+        ],
+        "yaw_deg": 0
+      }
     },
     {
       "object_id": "island_1",
       "category": "kitchen_island",
       "dynamic": false,
-      "fixed_pose": {"position": [0.0, -0.25, 0.46], "yaw_deg": 2}
+      "fixed_pose": {
+        "position": [
+          0.0,
+          -0.25,
+          0.46
+        ],
+        "yaw_deg": 2
+      }
     },
     {
       "object_id": "cutting_board_1",
       "category": "cutting_board",
       "support": "counter_1:top",
       "dynamic": false,
-      "yaw_range_deg": [-12, 12]
+      "fixed_pose": {
+        "position": [
+          0.0,
+          1.47,
+          0.911
+        ],
+        "yaw_deg": 4
+      }
     },
     {
       "object_id": "knife_1",
       "category": "kitchen_knife",
       "asset_id": "knife_001",
       "support": "cutting_board_1:top",
-      "yaw_range_deg": [-15, 15],
-      "fallback_policy": "proxy"
+      "fallback_policy": "proxy",
+      "yaw_range_deg": [
+        -30,
+        30
+      ]
     },
     {
       "object_id": "bowl_1",
       "category": "bowl",
       "asset_id": "bowl_001",
       "support": "counter_1:top",
-      "yaw_range_deg": [-35, 35],
+      "yaw_range_deg": [
+        -35,
+        35
+      ],
       "fallback_policy": "proxy"
     },
     {
@@ -46,16 +92,27 @@
       "category": "plate",
       "asset_id": "plate_001",
       "support": "counter_1:top",
-      "yaw_range_deg": [-35, 35],
+      "yaw_range_deg": [
+        -35,
+        35
+      ],
       "fallback_policy": "proxy"
     },
     {
       "object_id": "vegetable_bag_1",
       "category": "vegetable_bag",
       "support": "counter_1:top",
-      "yaw_range_deg": [-50, 50],
+      "yaw_range_deg": [
+        -50,
+        50
+      ],
       "relations": [
-        {"kind": "near", "target": "cutting_board_1", "min_distance_m": 0.28, "max_distance_m": 0.55}
+        {
+          "kind": "near",
+          "target": "cutting_board_1",
+          "min_distance_m": 0.28,
+          "max_distance_m": 0.55
+        }
       ]
     },
     {
@@ -63,16 +120,27 @@
       "category": "pot",
       "asset_id": "pot_001",
       "support": "island_1:top",
-      "yaw_range_deg": [-20, 20],
+      "yaw_range_deg": [
+        -20,
+        20
+      ],
       "fallback_policy": "proxy"
     },
     {
       "object_id": "pot_lid_1",
       "category": "pot_lid",
       "support": "island_1:top",
-      "yaw_range_deg": [-45, 45],
+      "yaw_range_deg": [
+        -45,
+        45
+      ],
       "relations": [
-        {"kind": "near", "target": "pot_1", "min_distance_m": 0.30, "max_distance_m": 0.55}
+        {
+          "kind": "near",
+          "target": "pot_1",
+          "min_distance_m": 0.3,
+          "max_distance_m": 0.55
+        }
       ]
     },
     {
@@ -80,13 +148,131 @@
       "category": "mug",
       "asset_id": "mug_001",
       "support": "island_1:top",
-      "yaw_range_deg": [-35, 35],
+      "yaw_range_deg": [
+        -35,
+        35
+      ],
       "fallback_policy": "proxy"
+    },
+    {
+      "object_id": "stove_1",
+      "category": "electric_stove",
+      "asset_id": "electric_stove_basic",
+      "dynamic": false,
+      "fixed_pose": {
+        "position": [
+          -1.48,
+          1.63,
+          0.43
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "microwave_1",
+      "category": "microwave",
+      "asset_id": "microwave_basic",
+      "support": "counter_1:top",
+      "dynamic": false,
+      "fixed_pose": {
+        "position": [
+          0.67,
+          1.65,
+          1.07
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "kettle_1",
+      "category": "electric_kettle",
+      "asset_id": "electric_kettle_basic",
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -18,
+        18
+      ],
+      "fixed_pose": {
+        "position": [
+          -0.9,
+          1.65,
+          1.025
+        ],
+        "yaw_deg": -8
+      }
+    },
+    {
+      "object_id": "frying_pan_1",
+      "category": "frying_pan",
+      "asset_id": "frying_pan_basic",
+      "support": "stove_1:cooktop",
+      "yaw_range_deg": [
+        -12,
+        12
+      ]
+    },
+    {
+      "object_id": "apple_1",
+      "category": "apple",
+      "asset_id": "apple_basic",
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -180,
+        180
+      ],
+      "relations": [
+        {
+          "kind": "near",
+          "target": "cutting_board_1",
+          "min_distance_m": 0.14,
+          "max_distance_m": 0.32
+        }
+      ]
+    },
+    {
+      "object_id": "avocado_1",
+      "category": "avocado",
+      "asset_id": "avocado_basic",
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -160,
+        160
+      ],
+      "relations": [
+        {
+          "kind": "near",
+          "target": "cutting_board_1",
+          "min_distance_m": 0.12,
+          "max_distance_m": 0.3
+        }
+      ]
+    },
+    {
+      "object_id": "wooden_spoon_1",
+      "category": "wooden_spoon",
+      "asset_id": "wooden_spoon_basic",
+      "support": "island_1:top",
+      "yaw_range_deg": [
+        -40,
+        40
+      ],
+      "fixed_pose": {
+        "position": [
+          0.38,
+          -0.25,
+          0.931
+        ],
+        "yaw_deg": -18
+      }
     }
   ],
   "task": {
     "instruction": "把锅盖放到锅上。",
     "target_object": "pot_lid_1",
-    "success": {"predicate": "on", "subject": "pot_lid_1", "target": "pot_1"}
+    "success": {
+      "predicate": "on",
+      "subject": "pot_lid_1",
+      "target": "pot_1"
+    }
   }
 }

@@ -1,0 +1,36 @@
+{
+  "asset_id": "electric_stove_basic",
+  "batch_id": "kitchen_cc0_v2",
+  "source_name": "Electric Stove",
+  "source_url": "https://polyhaven.com/a/electric_stove",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:1ec96abe416e022f792ace742d33947a",
+  "source_variant": "gltf/1k",
+  "original_filename": "electric_stove_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/electric_stove/electric_stove_1k.gltf",
+      "sha256": "26cbb0b2986bd9bfada51e94dd4fbe2bb31503678c0e55949e55859bb45ea151",
+      "bytes": 2477944
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

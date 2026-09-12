@@ -54,6 +54,10 @@ class SceneBundleTests(unittest.TestCase):
             }
             self.assertGreaterEqual(len(visual_paths), 4)
             self.assertTrue(visual_paths.issubset(names))
+            self.assertEqual(
+                manifest["assets"]["pot_basic"]["visual_transform"]["scale_mode"],
+                "uniform_contain",
+            )
 
     def test_web_generation_exposes_downloadable_scene_bundle(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

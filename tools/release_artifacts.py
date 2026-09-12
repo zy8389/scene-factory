@@ -21,7 +21,7 @@ from typing import Iterable
 EXPECTED_VERSION = "0.1.0"
 EXPECTED_WHEEL = "scene_factory-0.1.0-py3-none-any.whl"
 EXPECTED_SDIST = "scene_factory-0.1.0.tar.gz"
-MAX_WHEEL_BYTES = 20 * 1024 * 1024
+MAX_WHEEL_BYTES = 32 * 1024 * 1024
 MAX_SDIST_BYTES = 50 * 1024 * 1024
 
 WHEEL_REQUIRED_FILES = (
@@ -69,6 +69,20 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/source/cutting_board_wood/visual.glb",
     "data/assets/source/pot_basic/SOURCE.json",
     "data/assets/source/pot_basic/visual.glb",
+    "data/assets/source/electric_stove_basic/SOURCE.json",
+    "data/assets/source/electric_stove_basic/visual.glb",
+    "data/assets/source/microwave_basic/SOURCE.json",
+    "data/assets/source/microwave_basic/visual.glb",
+    "data/assets/source/electric_kettle_basic/SOURCE.json",
+    "data/assets/source/electric_kettle_basic/visual.glb",
+    "data/assets/source/frying_pan_basic/SOURCE.json",
+    "data/assets/source/frying_pan_basic/visual.glb",
+    "data/assets/source/apple_basic/SOURCE.json",
+    "data/assets/source/apple_basic/visual.glb",
+    "data/assets/source/avocado_basic/SOURCE.json",
+    "data/assets/source/avocado_basic/visual.glb",
+    "data/assets/source/wooden_spoon_basic/SOURCE.json",
+    "data/assets/source/wooden_spoon_basic/visual.glb",
     "data/assets/collision/mug_001_collision.usd",
     "data/assets/usd/mug_001.usd",
 )

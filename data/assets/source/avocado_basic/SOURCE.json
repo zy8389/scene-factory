@@ -1,0 +1,36 @@
+{
+  "asset_id": "avocado_basic",
+  "batch_id": "kitchen_cc0_v2",
+  "source_name": "Food Avocado 01",
+  "source_url": "https://polyhaven.com/a/food_avocado_01",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:e4054137d65bf850cf455b65a186a5d2",
+  "source_variant": "gltf/1k",
+  "original_filename": "food_avocado_01_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/food_avocado_01/food_avocado_01_1k.gltf",
+      "sha256": "56eb36e2840d3309756b78d487e6a1729aba99c87cc29bb01e8bddf5115dc4bc",
+      "bytes": 584216
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

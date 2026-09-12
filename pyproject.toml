@@ -94,6 +94,34 @@ license-files = ["LICENSE"]
   "data/assets/source/pot_basic/*.json",
   "data/assets/source/pot_basic/*.glb",
 ]
+"share/scene-factory/data/assets/source/electric_stove_basic" = [
+  "data/assets/source/electric_stove_basic/*.json",
+  "data/assets/source/electric_stove_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/microwave_basic" = [
+  "data/assets/source/microwave_basic/*.json",
+  "data/assets/source/microwave_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/electric_kettle_basic" = [
+  "data/assets/source/electric_kettle_basic/*.json",
+  "data/assets/source/electric_kettle_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/frying_pan_basic" = [
+  "data/assets/source/frying_pan_basic/*.json",
+  "data/assets/source/frying_pan_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/apple_basic" = [
+  "data/assets/source/apple_basic/*.json",
+  "data/assets/source/apple_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/avocado_basic" = [
+  "data/assets/source/avocado_basic/*.json",
+  "data/assets/source/avocado_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/wooden_spoon_basic" = [
+  "data/assets/source/wooden_spoon_basic/*.json",
+  "data/assets/source/wooden_spoon_basic/*.glb",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

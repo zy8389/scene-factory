@@ -46,6 +46,23 @@ class SceneFactoryTests(unittest.TestCase):
                     result = self.factory.build_from_recipe(recipe, seed)
                     self.assertTrue(result.valid, result.validation.to_dict())
 
+    def test_after_cooking_recipe_has_a_full_kitchen_visual_slice(self) -> None:
+        result = self.factory.build_from_recipe("kitchen_after_cooking", 42)
+        asset_ids = {item.asset_id for item in result.scene.objects}
+        self.assertTrue(result.valid, result.validation.to_dict())
+        self.assertGreaterEqual(len(result.scene.objects), 17)
+        self.assertTrue(
+            {
+                "electric_stove_basic",
+                "microwave_basic",
+                "electric_kettle_basic",
+                "frying_pan_basic",
+                "apple_basic",
+                "avocado_basic",
+                "wooden_spoon_basic",
+            }.issubset(asset_ids)
+        )
+
     def test_write_result_and_agent_facade(self) -> None:
         result = self.factory.build_from_recipe("kitchen_after_cooking", 11)
         with tempfile.TemporaryDirectory() as temporary_directory:

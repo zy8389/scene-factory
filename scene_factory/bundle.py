@@ -51,8 +51,8 @@ def _safe_component(value: str) -> str:
     return candidate
 
 
-def _load_visual_assets(asset_root: Path) -> dict[str, Path]:
-    discovered: dict[str, Path] = {}
+def _load_visual_assets(asset_root: Path) -> dict[str, dict[str, Any]]:
+    discovered: dict[str, dict[str, Any]] = {}
     if not asset_root.is_dir():
         return discovered
     for metadata_path in asset_root.glob("*/SOURCE.json"):
@@ -69,7 +69,25 @@ def _load_visual_assets(asset_root: Path) -> dict[str, Path]:
             and geometry_path.is_file()
             and geometry_path.suffix.lower() == ".glb"
         ):
-            discovered[asset_id] = geometry_path
+            transform = metadata.get("visual_transform")
+            if not isinstance(transform, dict):
+                transform = {}
+            rotation = transform.get("rotation_euler_deg", [90.0, 0.0, 0.0])
+            if (
+                not isinstance(rotation, list)
+                or len(rotation) != 3
+                or any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in rotation)
+            ):
+                rotation = [90.0, 0.0, 0.0]
+            discovered[asset_id] = {
+                "path": geometry_path,
+                "transform": {
+                    "up_axis": str(transform.get("up_axis", "Y")),
+                    "rotation_euler_deg": [float(value) for value in rotation],
+                    "scale_mode": "uniform_contain",
+                    "anchor": "bottom_center",
+                },
+            }
     return discovered
 
 
@@ -126,14 +144,16 @@ class SceneBundleExporter:
                 "source_type": record.source_type,
                 "license": record.license,
             }
-            visual_path = self.visual_assets.get(asset_id)
-            if visual_path is not None:
+            visual = self.visual_assets.get(asset_id)
+            if visual is not None:
                 archive_path = f"assets/{_safe_component(asset_id)}/visual.glb"
-                data = visual_path.read_bytes()
+                data = Path(visual["path"]).read_bytes()
                 archive_files[archive_path] = data
                 asset["visual"] = _file_descriptor(archive_path, data)
+                asset["visual_transform"] = visual["transform"]
             else:
                 asset["visual"] = None
+                asset["visual_transform"] = None
             assets[asset_id] = asset
 
         manifest = {

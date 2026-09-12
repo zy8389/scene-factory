@@ -1,0 +1,36 @@
+{
+  "asset_id": "wooden_spoon_basic",
+  "batch_id": "kitchen_cc0_v2",
+  "source_name": "Wooden Spoon",
+  "source_url": "https://polyhaven.com/a/wooden_spoon",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:d79fe52951d9529c5aa0070ce19d1b9c",
+  "source_variant": "gltf/1k",
+  "original_filename": "wooden_spoon_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_spoon/wooden_spoon_1k.gltf",
+      "sha256": "96203c13af0e2f0d587b3f467cac8dbf8cee110bf8fcc2be01acc35bee6109f6",
+      "bytes": 1973556
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

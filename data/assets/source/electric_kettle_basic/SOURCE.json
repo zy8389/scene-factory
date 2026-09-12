@@ -1,0 +1,36 @@
+{
+  "asset_id": "electric_kettle_basic",
+  "batch_id": "kitchen_cc0_v2",
+  "source_name": "Vintage Electric Kettle",
+  "source_url": "https://polyhaven.com/a/vintage_electric_kettle",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:2b916b831d913ba1785a8b08ab2f0f61",
+  "source_variant": "gltf/1k",
+  "original_filename": "vintage_electric_kettle_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/vintage_electric_kettle/vintage_electric_kettle_1k.gltf",
+      "sha256": "963c0902e52f39419dd4d0c6c69e631571a5c2187d3838f5f7efb1e91f9cc76e",
+      "bytes": 2969476
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

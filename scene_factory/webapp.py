@@ -180,6 +180,7 @@ class SceneWebApplication:
             "bbox_m": list(record.bbox_m),
             "source_type": record.source_type,
             "visual_url": visual["url"] if visual else None,
+            "visual_transform": visual["transform"] if visual else None,
             "license": record.license,
         }
 
@@ -204,8 +205,29 @@ class SceneWebApplication:
             assets[asset_id] = {
                 "path": geometry_path,
                 "url": f"/assets/{quote(asset_id)}/visual",
+                "transform": self._visual_transform(metadata),
             }
         return assets
+
+    @staticmethod
+    def _visual_transform(metadata: dict[str, Any]) -> dict[str, Any]:
+        """Return the documented axis transform used to display one source GLB."""
+        raw = metadata.get("visual_transform")
+        if not isinstance(raw, dict):
+            raw = {}
+        rotation = raw.get("rotation_euler_deg", (90.0, 0.0, 0.0))
+        if (
+            not isinstance(rotation, (list, tuple))
+            or len(rotation) != 3
+            or any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in rotation)
+        ):
+            rotation = (90.0, 0.0, 0.0)
+        return {
+            "up_axis": str(raw.get("up_axis", "Y")),
+            "rotation_euler_deg": [float(value) for value in rotation],
+            "scale_mode": "uniform_contain",
+            "anchor": "bottom_center",
+        }
 
     def resolve_output(self, relative_path: str) -> Path:
         requested = (self.output_root / unquote(relative_path)).resolve()

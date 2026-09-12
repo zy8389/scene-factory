@@ -10,6 +10,8 @@
 - a Three.js WebGL scene preview with bounding-box fallback;
 - eight CC0 furniture and kitchen visual assets with source manifests and
   notices.
+- a 17-object after-cooking kitchen slice with seven additional CC0 appliance,
+  cookware, food and utensil meshes.
 
 ### Changed
 
@@ -18,6 +20,8 @@
   `DryRunBackend` use remains dependency-free;
 - documentation and release artifact checks now describe the visual-asset and
   MuJoCo workflow boundaries.
+- Three.js visual assets now use documented axis transforms, uniform scaling and
+  bottom alignment; the kitchen preview includes walls, backsplash and lighting.
 
 ## 0.1.0 - 2026-08-28
 

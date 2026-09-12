@@ -1,0 +1,36 @@
+{
+  "asset_id": "microwave_basic",
+  "batch_id": "kitchen_cc0_v2",
+  "source_name": "Vintage Microwave",
+  "source_url": "https://polyhaven.com/a/vintage_microwave",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:2af73fa4765d4371b70c2de4674d7d4b",
+  "source_variant": "gltf/1k",
+  "original_filename": "vintage_microwave_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90.0,
+      0.0,
+      0.0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/vintage_microwave/vintage_microwave_1k.gltf",
+      "sha256": "177874d2aac68b3a073b2f0b58a32553e9d16e1aeb014f5d347498e0ba6a4607",
+      "bytes": 2120288
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}
