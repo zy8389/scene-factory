@@ -25,7 +25,12 @@ from .external import (
 from .intent import SceneIntent
 from .intent_compiler import IntentCompiler
 from .layout import LayoutSolver
-from .llm import IntentParser, create_intent_parser_from_env, load_llm_settings
+from .llm import (
+    IntentParser,
+    StructuredLLMIntentParser,
+    create_intent_parser_from_env,
+    load_llm_settings,
+)
 from .models import CompiledScene, SceneRecipe, ValidationReport
 from .paths import default_recipes_dir, default_registry_path
 from .recipes import RecipeLibrary
@@ -95,6 +100,7 @@ class SceneFactory:
             "api_key_configured": bool(self.llm_settings["api_key"]),
             "timeout_seconds": self.llm_settings["timeout_seconds"],
             "cache_dir": str(self.llm_settings["cache_dir"]),
+            "keyword_fast_path": self.llm_settings["keyword_fast_path"],
             "ca_bundle": str(self.llm_settings["ca_bundle"]),
             "transport": self.llm_settings["transport"],
             "proxy_url": self.llm_settings["proxy_url"],
@@ -172,6 +178,23 @@ class SceneFactory:
 
     def build_from_prompt(self, prompt: str, seed: int) -> BuildResult:
         parser_warning = None
+        matched_recipe, keyword_score = self.recipes.match_prompt_with_score(prompt)
+        if (
+            self.llm_settings["keyword_fast_path"]
+            and isinstance(self.intent_parser, StructuredLLMIntentParser)
+            and keyword_score >= 3
+        ):
+            scene = self.layout_solver.compile(
+                matched_recipe,
+                seed,
+                description_override=prompt,
+            )
+            return BuildResult(
+                matched_recipe,
+                scene,
+                self.validator.validate(scene),
+                prompt_parser="keyword_fast",
+            )
         if self.intent_parser is not None:
             try:
                 intent = self.intent_parser.parse(prompt)
@@ -188,11 +211,14 @@ class SceneFactory:
                 if self.llm_required:
                     raise RuntimeError(f"required LLM scene parsing failed: {exc}") from exc
                 parser_warning = f"{type(exc).__name__}: {exc}"[:500]
-        recipe = self.recipes.match_prompt(prompt)
-        scene = self.layout_solver.compile(recipe, seed, description_override=prompt)
+        scene = self.layout_solver.compile(
+            matched_recipe,
+            seed,
+            description_override=prompt,
+        )
         parser = "keyword_fallback" if self.intent_parser else "keyword"
         return BuildResult(
-            recipe,
+            matched_recipe,
             scene,
             self.validator.validate(scene),
             prompt_parser=parser,
@@ -247,6 +273,8 @@ class SceneFactory:
         result: BuildResult,
         output_dir: str | Path,
         export_usd: bool = False,
+        export_mjcf: bool = False,
+        export_bundle: bool = True,
     ) -> dict[str, str]:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
@@ -301,11 +329,30 @@ class SceneFactory:
             files["revision"] = str(revision_path.resolve())
 
         if export_usd:
-            from .exporters.isaac_usd import IsaacUsdExporter
+            from .exporters.isaac_usd import IsaacBackendUnavailable, IsaacUsdExporter
 
             usd_path = output / "scene.usd"
-            IsaacUsdExporter(self.registry).export(result.scene, usd_path)
+            try:
+                IsaacUsdExporter(self.registry).export(result.scene, usd_path)
+            except IsaacBackendUnavailable:
+                from .isaac_runtime import export_usd_with_isaac
+
+                export_usd_with_isaac(layout_path, self.registry_path, usd_path)
             files["usd"] = str(usd_path.resolve())
+
+        if export_mjcf:
+            from .exporters.mujoco_mjcf import MujocoMjcfExporter
+
+            mjcf_path = output / "scene.xml"
+            MujocoMjcfExporter(self.registry).export(result.scene, mjcf_path)
+            files["mjcf"] = str(mjcf_path.resolve())
+
+        if export_bundle:
+            from .bundle import SceneBundleExporter
+
+            bundle_path = output / f"{result.scene.scene_id}.scene.zip"
+            SceneBundleExporter(self.registry).export(result.scene, files, bundle_path)
+            files["bundle"] = str(bundle_path.resolve())
 
         return files
 
@@ -319,6 +366,7 @@ class SceneFactory:
         intent: SceneIntent | None = None,
         input_source: dict[str, Any] | None = None,
         export_usd: bool = False,
+        export_mjcf: bool = False,
         resume: bool = False,
     ) -> list[dict[str, Any]]:
         if count < 1:
@@ -337,6 +385,7 @@ class SceneFactory:
             count=count,
             seed_start=seed_start,
             export_usd=export_usd,
+            export_mjcf=export_mjcf,
         )
         if resume:
             if not output_root.is_dir() or output_root.is_symlink():
@@ -405,7 +454,13 @@ class SceneFactory:
                     scene_id=scene_id,
                     seed=seed,
                 )
-                files = self.write_result(result, stage_dir, export_usd=export_usd)
+                files = self.write_result(
+                    result,
+                    stage_dir,
+                    export_usd=export_usd,
+                    export_mjcf=export_mjcf,
+                    export_bundle=False,
+                )
                 record = make_manifest_record(result, files, output_root, scene_id)
                 marker = stage_dir / ".scene_factory_staging.json"
                 if not marker.is_file():
@@ -455,6 +510,10 @@ class SceneFactory:
             "export_usd",
         )
         mismatches = [key for key in keys if existing.get(key) != expected.get(key)]
+        if bool(existing.get("export_mjcf", False)) != bool(
+            expected.get("export_mjcf", False)
+        ):
+            mismatches.append("export_mjcf")
         if existing.get("dataset_id") != expected.get("dataset_id"):
             mismatches.append("dataset_id")
         if mismatches:

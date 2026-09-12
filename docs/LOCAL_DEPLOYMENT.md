@@ -12,11 +12,14 @@
 | 离线事件配方 | 可运行 | 否 |
 | 布局、支撑关系和碰撞校验 | 可运行 | 否 |
 | SVG 俯视预览 | 可运行 | 否 |
+| Three.js / GLB 三维预览 | 可运行；缺少视觉模型时回退到代理 | 否 |
+| MuJoCo MJCF 导出和场景包 | 可运行 | 否 |
+| MuJoCo 环境步进 | 需本地 Python 已安装 `mujoco` | 否 |
 | USD 导出 | 使用现有 Isaac Python | 否 |
 | OpenUSD/pxr 验证 | 使用现有 Isaac Python | 否 |
 | Isaac Sim/PhysX Headless 验收 | 使用现有 Isaac Sim 6.0.1 | 否 |
 | 批量场景制造 | 可运行 | 否 |
-| 四个 ready YCB 真实资产 | 可运行；仓库已包含固定 revision 与 attribution | 否 |
+| YCB 与 CC0 GLB 视觉资产 | 可运行；仓库包含来源清单与许可证说明 | 否 |
 | Franka mug-lift manual gate | reference Isaac Sim 6.0.1 environment 已通过；其他机器需复现 | 否 |
 | Franka pick-and-place gate | reference Isaac Sim 6.0.1 environment 已通过；其他机器需复现 | 否 |
 | RGB-D trajectory acceptance | reference Isaac Sim 6.0.1 environment 已通过；需要官方 Local Assets | 否 |

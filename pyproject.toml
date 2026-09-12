@@ -14,6 +14,7 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 gym = ["gymnasium>=1.0"]
+mujoco = ["mujoco>=3.3,<3.4"]
 
 [project.scripts]
 scene-factory = "scene_factory.cli:main"
@@ -27,6 +28,7 @@ license-files = ["LICENSE"]
 "share/scene-factory/recipes" = ["recipes/*.json"]
 "share/scene-factory/schemas" = ["schemas/*.json"]
 "share/scene-factory/web" = ["web/*.html", "web/*.css", "web/*.js"]
+"share/scene-factory/web/vendor" = ["web/vendor/*"]
 "share/scene-factory/data/assets" = ["data/assets/registry.jsonl"]
 "share/scene-factory/data/assets/collision" = ["data/assets/collision/*.usd"]
 "share/scene-factory/data/assets/metadata" = ["data/assets/metadata/*.json"]
@@ -59,6 +61,38 @@ license-files = ["LICENSE"]
 ]
 "share/scene-factory/data/assets/source/ycb_025_mug/collision" = [
   "data/assets/source/ycb_025_mug/collision/*.glb",
+]
+"share/scene-factory/data/assets/source/sofa_basic" = [
+  "data/assets/source/sofa_basic/*.json",
+  "data/assets/source/sofa_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/coffee_table_oak" = [
+  "data/assets/source/coffee_table_oak/*.json",
+  "data/assets/source/coffee_table_oak/*.glb",
+]
+"share/scene-factory/data/assets/source/side_cabinet_basic" = [
+  "data/assets/source/side_cabinet_basic/*.json",
+  "data/assets/source/side_cabinet_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/entry_bench_basic" = [
+  "data/assets/source/entry_bench_basic/*.json",
+  "data/assets/source/entry_bench_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/kitchen_counter_basic" = [
+  "data/assets/source/kitchen_counter_basic/*.json",
+  "data/assets/source/kitchen_counter_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/kitchen_island_basic" = [
+  "data/assets/source/kitchen_island_basic/*.json",
+  "data/assets/source/kitchen_island_basic/*.glb",
+]
+"share/scene-factory/data/assets/source/cutting_board_wood" = [
+  "data/assets/source/cutting_board_wood/*.json",
+  "data/assets/source/cutting_board_wood/*.glb",
+]
+"share/scene-factory/data/assets/source/pot_basic" = [
+  "data/assets/source/pot_basic/*.json",
+  "data/assets/source/pot_basic/*.glb",
 ]
 
 [tool.pytest.ini_options]

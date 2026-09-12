@@ -82,6 +82,12 @@ def _parser() -> argparse.ArgumentParser:
     source.add_argument("--intent", help="External SceneIntent JSON path, or - for stdin")
     build.add_argument("--seed", type=int, default=42)
     build.add_argument("--output", type=Path, required=True)
+    build.add_argument(
+        "--mjcf",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Export MuJoCo MJCF (enabled by default)",
+    )
     build.add_argument("--usd", action="store_true", help="Export USD using Isaac Sim pxr")
 
     batch = subparsers.add_parser("batch", help="Build multiple deterministic scenes")
@@ -92,6 +98,12 @@ def _parser() -> argparse.ArgumentParser:
     batch.add_argument("--count", type=int, required=True)
     batch.add_argument("--seed-start", type=int, default=0)
     batch.add_argument("--output", type=Path, required=True)
+    batch.add_argument(
+        "--mjcf",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Export MuJoCo MJCF (enabled by default)",
+    )
     batch.add_argument("--usd", action="store_true", help="Export USD using Isaac Sim pxr")
     batch.add_argument("--resume", action="store_true", help="Resume an incomplete dataset")
 
@@ -419,7 +431,12 @@ def main(argv: list[str] | None = None) -> int:
                     args.seed,
                     input_source=document.input_source,
                 )
-            files = factory.write_result(result, args.output, export_usd=args.usd)
+            files = factory.write_result(
+                result,
+                args.output,
+                export_usd=args.usd,
+                export_mjcf=args.mjcf,
+            )
             print(
                 json.dumps(
                     {
@@ -451,6 +468,7 @@ def main(argv: list[str] | None = None) -> int:
             intent=external_document.intent if external_document else None,
             input_source=external_document.input_source if external_document else None,
             export_usd=args.usd,
+            export_mjcf=args.mjcf,
             resume=args.resume,
         )
         valid_count = sum(item["valid"] for item in manifest)

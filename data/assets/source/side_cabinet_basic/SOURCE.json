@@ -1,0 +1,26 @@
+{
+  "asset_id": "side_cabinet_basic",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Modern Wooden Cabinet",
+  "source_url": "https://polyhaven.com/a/modern_wooden_cabinet",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:623406579e948eb75ff52ec1498085c8",
+  "source_variant": "gltf/1k",
+  "original_filename": "modern_wooden_cabinet_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/modern_wooden_cabinet/modern_wooden_cabinet_1k.gltf",
+      "sha256": "081b44f3b98d6903a82625d1941584f1e3bc4b6c366a3dc242649b01d3b3b0f9",
+      "bytes": 2850304
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

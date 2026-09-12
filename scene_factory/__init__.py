@@ -1,6 +1,12 @@
 """SceneFactory public API."""
 
 from .factory import BuildResult, SceneFactory
+from .bundle import (
+    BUNDLE_SCHEMA,
+    BUNDLE_VERSION,
+    SceneBundleError,
+    SceneBundleExporter,
+)
 from .asset_validator import AssetValidator, validate_asset, validate_usd
 from .asset_pipeline import AssetNormalizer, CollisionProcessor
 from .dataset import DatasetResult, inspect_dataset, reproduce_dataset, validate_dataset
@@ -15,6 +21,8 @@ from .external import (
     normalize_producer,
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
+from .backends import MujocoBackend
+from .exporters import MujocoMjcfExporter
 from .trajectory import (
     DatasetError,
     Episode,
@@ -87,6 +95,12 @@ __all__ = [
     "AssetNormalizer",
     "AssetValidator",
     "BuildResult",
+    "BUNDLE_SCHEMA",
+    "BUNDLE_VERSION",
+    "SceneBundleError",
+    "SceneBundleExporter",
+    "MujocoBackend",
+    "MujocoMjcfExporter",
     "CollisionProcessor",
     "DatasetResult",
     "ExternalSceneDocument",

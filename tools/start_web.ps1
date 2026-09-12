@@ -1,4 +1,5 @@
 param(
+    [string]$Python = "",
     [string]$IsaacPython = "",
     [string]$HostAddress = "127.0.0.1",
     [int]$Port = 8765,
@@ -8,20 +9,72 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
-    $python = Get-Command python -ErrorAction SilentlyContinue
-    if ($null -eq $python) {
-        throw "Python executable not found; pass -IsaacPython explicitly."
+
+function Test-PxrRuntime {
+    param([string]$PythonPath)
+
+    if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) {
+        return $false
     }
-    $IsaacPython = $python.Source
+    & $PythonPath -c "import pxr" 2>$null
+    return $LASTEXITCODE -eq 0
+}
+
+if ([string]::IsNullOrWhiteSpace($Python)) {
+    $projectPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
+    if (Test-Path -LiteralPath $projectPython -PathType Leaf) {
+        $Python = $projectPython
+    } else {
+        $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+        if ($null -eq $pythonCommand) {
+            throw "Python executable not found; pass -Python explicitly."
+        }
+        $Python = $pythonCommand.Source
+    }
+}
+if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
+    throw "Python not found: $Python"
+}
+& $Python -c "import mujoco" 2>$null
+$MujocoAvailable = $LASTEXITCODE -eq 0
+
+if (-not [string]::IsNullOrWhiteSpace($IsaacPython)) {
+    if (-not (Test-PxrRuntime $IsaacPython)) {
+        throw "Isaac Python cannot import pxr: $IsaacPython"
+    }
+} else {
+    $candidates = @()
+    $configuredIsaacPython = [Environment]::GetEnvironmentVariable(
+        "SCENE_FACTORY_ISAAC_PYTHON",
+        "Process"
+    )
+    if (-not [string]::IsNullOrWhiteSpace($configuredIsaacPython)) {
+        $candidates += $configuredIsaacPython
+    }
+    $workspaceParent = Split-Path $ProjectRoot -Parent
+    $candidates += Join-Path $workspaceParent "scene_factory_isaac_py312\Scripts\python.exe"
+    $fallbackPython = Get-Command python -ErrorAction SilentlyContinue
+    if ($null -ne $fallbackPython) {
+        $candidates += $fallbackPython.Source
+    }
+
+    foreach ($candidate in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+        if (Test-PxrRuntime $candidate) {
+            $IsaacPython = $candidate
+            break
+        }
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($IsaacPython)) {
+    $env:SCENE_FACTORY_ISAAC_PYTHON = $IsaacPython
 }
 if ([string]::IsNullOrWhiteSpace($Output)) {
     $Output = Join-Path $ProjectRoot "outputs\web"
+    if ($Output -match '[^\x00-\x7F]') {
+        $Output = Join-Path (Split-Path $ProjectRoot -Parent) "scene_factory_runtime\web"
+    }
 }
 
-if (-not (Test-Path -LiteralPath $IsaacPython -PathType Leaf)) {
-    throw "Isaac Python not found: $IsaacPython"
-}
 if ($Port -lt 1 -or $Port -gt 65535) {
     throw "Port must be between 1 and 65535"
 }
@@ -48,8 +101,18 @@ Push-Location $ProjectRoot
 try {
     Write-Host "LLM config: $ProjectRoot\config\llm.json"
     Write-Host "LLM key env: SCENE_FACTORY_LLM_API_KEY"
+    if ($MujocoAvailable) {
+        Write-Host "MuJoCo environment: available ($Python)"
+    } else {
+        Write-Host "MuJoCo environment: unavailable (optional; install with: python -m pip install .[mujoco])"
+    }
+    if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
+        Write-Host "Isaac validation: unavailable (optional)"
+    } else {
+        Write-Host "Isaac validation: $IsaacPython"
+    }
     Write-Host "SceneFactory UI: http://${HostAddress}:$Port/"
-    & $IsaacPython -m scene_factory.webapp `
+    & $Python -m scene_factory.webapp `
         --host $HostAddress `
         --port $Port `
         --output $Output

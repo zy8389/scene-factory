@@ -1,0 +1,26 @@
+{
+  "asset_id": "kitchen_counter_basic",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Painted Wooden Cabinet",
+  "source_url": "https://polyhaven.com/a/painted_wooden_cabinet",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:43f7a37a61773dadbafd46ab51b97c9e",
+  "source_variant": "gltf/1k",
+  "original_filename": "painted_wooden_cabinet_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/painted_wooden_cabinet/painted_wooden_cabinet_1k.gltf",
+      "sha256": "1e6fc076b12caea37fa1f1b5302c7a4160bd5aeda5e20f72b4bccb3ea87b4391",
+      "bytes": 1857648
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

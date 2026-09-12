@@ -25,7 +25,12 @@ from .intent import SceneIntent
 DATASET_SCHEMA_VERSION = "scene_factory.dataset.v1"
 SCENE_SCHEMA_VERSION = "scene_factory.dataset_scene.v1"
 _REQUIRED_FILES = ("scene_spec", "layout", "validation", "preview")
-_OPTIONAL_FILE_NAMES = {"intent": "scene_intent.json", "revision": "revision.json", "usd": "scene.usd"}
+_OPTIONAL_FILE_NAMES = {
+    "intent": "scene_intent.json",
+    "revision": "revision.json",
+    "usd": "scene.usd",
+    "mjcf": "scene.xml",
+}
 _FILE_NAMES = {
     "scene_spec": "scene_spec.json",
     "layout": "layout.json",
@@ -122,6 +127,7 @@ def dataset_identity(
     count: int,
     seed_start: int,
     export_usd: bool,
+    export_mjcf: bool = False,
 ) -> str:
     if source.get("type") == "intent":
         identity_source: Mapping[str, Any] = {
@@ -136,6 +142,8 @@ def dataset_identity(
         "seed_start": seed_start,
         "export_usd": export_usd,
     }
+    if export_mjcf:
+        identity["export_mjcf"] = True
     return hashlib.sha256(canonical_json(identity)).hexdigest()[:16]
 
 
@@ -148,6 +156,7 @@ def make_dataset_metadata(
     count: int,
     seed_start: int,
     export_usd: bool,
+    export_mjcf: bool = False,
     status: str = "in_progress",
 ) -> dict[str, Any]:
     if sum(value is not None for value in (recipe_name, prompt, intent)) != 1:
@@ -158,6 +167,8 @@ def make_dataset_metadata(
         raise DatasetError("seed_start must be an integer")
     if not isinstance(export_usd, bool):
         raise DatasetError("export_usd must be boolean")
+    if not isinstance(export_mjcf, bool):
+        raise DatasetError("export_mjcf must be boolean")
     if status not in {"in_progress", "incomplete", "complete"}:
         raise DatasetError("invalid dataset status")
     if recipe_name is not None:
@@ -204,6 +215,7 @@ def make_dataset_metadata(
         count=count,
         seed_start=seed_start,
         export_usd=export_usd,
+        export_mjcf=export_mjcf,
     )
     return {
         "schema_version": DATASET_SCHEMA_VERSION,
@@ -214,6 +226,7 @@ def make_dataset_metadata(
         "expected_seed_end": seed_start + count - 1,
         "manifest": "manifest.jsonl",
         "export_usd": export_usd,
+        "export_mjcf": export_mjcf,
         "status": status,
         "result": "incomplete" if status != "complete" else "passed",
         "scene_count": 0,
@@ -376,6 +389,8 @@ def _validate_metadata(metadata: Any) -> list[str]:
         errors.append("dataset.json manifest must be manifest.jsonl")
     if not isinstance(metadata.get("export_usd"), bool):
         errors.append("dataset.json export_usd must be boolean")
+    if "export_mjcf" in metadata and not isinstance(metadata.get("export_mjcf"), bool):
+        errors.append("dataset.json export_mjcf must be boolean")
     if metadata.get("status") not in {"in_progress", "incomplete", "complete"}:
         errors.append("dataset.json status is invalid")
     if metadata.get("generation_error") is not None and not isinstance(
@@ -392,6 +407,7 @@ def _validate_metadata(metadata: Any) -> list[str]:
                 count=count,
                 seed_start=seed_start,
                 export_usd=bool(metadata.get("export_usd")),
+                export_mjcf=bool(metadata.get("export_mjcf", False)),
             )
         except (TypeError, ValueError):
             errors.append("dataset.json source is not canonically serializable")
@@ -514,6 +530,8 @@ def _validate_record(root: Path, record: Any, metadata: Mapping[str, Any]) -> tu
         errors.append(f"{scene_id or '<unknown>'}: unknown artifact key")
     if metadata.get("export_usd") is True and "usd" not in files:
         errors.append(f"{scene_id or '<unknown>'}: export_usd dataset requires scene.usd")
+    if metadata.get("export_mjcf") is True and "mjcf" not in files:
+        errors.append(f"{scene_id or '<unknown>'}: export_mjcf dataset requires scene.xml")
     resolved_files: dict[str, Path] = {}
     for name, value in files.items():
         try:
@@ -818,7 +836,12 @@ def reproduce_dataset(path: str | Path) -> DatasetResult:
             try:
                 rebuilt = _reproduction_build(factory, source, seed)
                 scene_dir = Path(temporary_directory) / scene_id
-                rebuilt_files = factory.write_result(rebuilt, scene_dir, export_usd=False)
+                rebuilt_files = factory.write_result(
+                    rebuilt,
+                    scene_dir,
+                    export_usd=False,
+                    export_bundle=False,
+                )
                 reproduced_fingerprint = semantic_fingerprint(rebuilt_files)
                 match = (
                     rebuilt.scene.scene_id == scene_id

@@ -16,12 +16,17 @@ from scene_factory import (
     AssetMetadata,
     AssetRegistry,
     AssetValidator,
+    BUNDLE_SCHEMA,
+    BUNDLE_VERSION,
     DatasetResult,
     ExternalSceneDocument,
     InteractionAction,
     InteractionPlan,
     InteractionPlanningResult,
     InteractionWorldState,
+    MujocoBackend,
+    MujocoMjcfExporter,
+    SceneBundleExporter,
     DryRunInteractionExecutor,
     ExecutionCommand,
     ExecutionResult,
@@ -54,6 +59,10 @@ documented as stable. Names beginning with `_` are internal.
 Isaac-specific backends and exporters are optional runtime integrations. They
 must remain lazily imported and are not part of the pure-Python dependency
 contract.
+
+`MujocoBackend` is also lazy with respect to the third-party `mujoco` runtime:
+importing the package and exporting MJCF remain pure Python, while resetting
+that backend requires the optional simulator extra.
 
 ## Versioned schemas
 

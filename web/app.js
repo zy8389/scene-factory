@@ -1,7 +1,10 @@
+import { SceneViewer } from "/scene-viewer.js";
+
 const form = document.querySelector("#scene-form");
 const promptInput = document.querySelector("#prompt");
 const seedInput = document.querySelector("#seed");
 const countInput = document.querySelector("#count");
+const mjcfInput = document.querySelector("#export-mjcf");
 const usdInput = document.querySelector("#export-usd");
 const generateButton = document.querySelector("#generate");
 const message = document.querySelector("#form-message");
@@ -9,6 +12,8 @@ const emptyState = document.querySelector("#empty-state");
 const resultContent = document.querySelector("#result-content");
 const badge = document.querySelector("#validation-badge");
 const preview = document.querySelector("#preview");
+const threePreview = document.querySelector("#three-preview");
+const viewerStatus = document.querySelector("#viewer-status");
 const variantsSection = document.querySelector("#variants-section");
 const variantGrid = document.querySelector("#variant-grid");
 const inspector = document.querySelector("#inspector");
@@ -28,6 +33,7 @@ const revisionButton = document.querySelector("#revise");
 const revisionMessage = document.querySelector("#revision-message");
 const revisionSource = document.querySelector("#revision-source");
 let currentItem = null;
+const sceneViewer = new SceneViewer(threePreview, viewerStatus);
 
 const escapeHtml = (value) => String(value ?? "")
   .replaceAll("&", "&amp;")
@@ -47,6 +53,18 @@ document.querySelectorAll("[data-revision]").forEach((button) => {
   button.addEventListener("click", () => {
     revisionInput.value = button.dataset.revision;
     revisionInput.focus();
+  });
+});
+
+document.querySelectorAll("[data-preview-mode]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const isThreeDimensional = button.dataset.previewMode === "3d";
+    threePreview.hidden = !isThreeDimensional;
+    preview.hidden = isThreeDimensional;
+    document.querySelectorAll("[data-preview-mode]").forEach((tab) => {
+      tab.setAttribute("aria-selected", String(tab === button));
+    });
+    if (isThreeDimensional) sceneViewer.resize();
   });
 });
 
@@ -110,12 +128,18 @@ function setBusy(busy) {
 }
 
 function fileLinks(files, sceneId) {
-  const labels = { intent: "SceneIntent", revision: "Revision", scene_spec: "SceneSpec", layout: "Layout JSON", validation: "Validation", preview: "SVG Preview", usd: "USD" };
-  const links = Object.entries(files).map(([name, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${labels[name] || escapeHtml(name)} ↗</a>`).join("");
+  const labels = { intent: "SceneIntent", revision: "Revision", scene_spec: "SceneSpec", layout: "Layout JSON", validation: "Validation", preview: "SVG Preview", mjcf: "MuJoCo MJCF", usd: "Isaac USD" };
+  const bundle = files.bundle
+    ? `<a class="scene-bundle-link" href="${escapeHtml(files.bundle)}" download="${escapeHtml(sceneId)}.scene.zip">导出场景包 ↓</a>`
+    : "";
+  const links = Object.entries(files)
+    .filter(([name]) => name !== "bundle")
+    .map(([name, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${labels[name] || escapeHtml(name)} ↗</a>`)
+    .join("");
   const launcher = files.usd
     ? `<button class="open-isaac-button" type="button" data-scene-id="${escapeHtml(sceneId)}">在 Isaac Sim 中看 3D 实体</button>`
     : "";
-  return `${launcher}${links}`;
+  return `${launcher}${bundle}${links}`;
 }
 
 fileLinksContainer.addEventListener("click", async (event) => {
@@ -151,6 +175,7 @@ function renderScene(item) {
   badge.className = `validation-badge ${valid ? "valid" : "invalid"}`;
   badge.textContent = valid ? "✓ 几何校验通过" : "! 需要检查";
   preview.src = `${item.files.preview}?v=${Date.now()}`;
+  sceneViewer.renderScene(scene, item.assets);
   document.querySelector("#matched-recipe").textContent = item.matched_recipe.name;
   document.querySelector("#scene-id").textContent = scene.scene_id;
   document.querySelector("#object-count").textContent = String(scene.objects.length);
@@ -188,6 +213,7 @@ revisionForm.addEventListener("submit", async (event) => {
         scene_id: currentItem.scene.scene_id,
         instruction: revisionInput.value,
         seed: currentItem.scene.seed,
+        export_mjcf: Boolean(currentItem.files.mjcf),
         export_usd: Boolean(currentItem.files.usd),
       }),
     });
@@ -236,6 +262,7 @@ form.addEventListener("submit", async (event) => {
         prompt: promptInput.value,
         seed: Number(seedInput.value),
         count: Number(countInput.value),
+        export_mjcf: mjcfInput.checked,
         export_usd: usdInput.checked,
       }),
     });

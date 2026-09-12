@@ -1,0 +1,26 @@
+{
+  "asset_id": "pot_basic",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Pot Enamel 01",
+  "source_url": "https://polyhaven.com/a/pot_enamel_01",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:84ddd8d2e210d11788dbcb1670b0e530",
+  "source_variant": "gltf/1k",
+  "original_filename": "pot_enamel_01_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/pot_enamel_01/pot_enamel_01_1k.gltf",
+      "sha256": "ba7c8d3edad6c30b9e50dd436249fe980ab8aa860d1f609793d892cc1f7c6ce4",
+      "bytes": 1743188
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

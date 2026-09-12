@@ -818,6 +818,43 @@ class CompiledScene:
     objects: tuple[PlacedObject, ...]
     task: dict[str, Any]
 
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "CompiledScene":
+        if not isinstance(raw, dict):
+            raise TypeError("compiled scene must be a JSON object")
+        objects = tuple(
+            PlacedObject(
+                object_id=str(item["object_id"]),
+                asset_id=str(item["asset_id"]),
+                category=str(item["category"]),
+                bbox_m=_tuple3(item["bbox_m"], "object.bbox_m"),
+                pose=Pose.from_dict(item["pose"]),
+                dynamic=bool(item["dynamic"]),
+                support=item.get("support"),
+                relations=tuple(
+                    Relation.from_dict(relation) for relation in item.get("relations", [])
+                ),
+                fallback_reason=item.get("fallback_reason"),
+                interactions=(
+                    dict(item["interactions"])
+                    if item.get("interactions") is not None
+                    else None
+                ),
+            )
+            for item in raw["objects"]
+        )
+        return cls(
+            scene_id=str(raw["scene_id"]),
+            seed=int(raw["seed"]),
+            recipe_name=str(raw["recipe_name"]),
+            room_type=str(raw["room_type"]),
+            room_dimensions_m=_tuple3(raw["room_dimensions_m"], "room_dimensions_m"),
+            event=str(raw["event"]),
+            description=str(raw.get("description", "")),
+            objects=objects,
+            task=dict(raw.get("task", {})),
+        )
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 

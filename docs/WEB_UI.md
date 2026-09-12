@@ -8,12 +8,16 @@ http://127.0.0.1:8765
 
 ## 启动
 
-使用一键脚本启动；脚本固定调用已经安装好的 Isaac Python，因此勾选“同时导出 USD”时
-不会缺少 `pxr`：
+使用一键脚本启动。脚本优先使用项目 `.venv` 中的 Python；MuJoCo 仅在使用
+`SceneFactoryEnv` 物理环境时需要。如需从页面导出 USD，可通过 `-IsaacPython` 指定能
+导入 `pxr` 的 Isaac Python：
 
 ```powershell
 cd <scene-factory-checkout>
 powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart
+
+# 可选：让页面导出 USD
+powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart -IsaacPython <isaac_python.exe>
 ```
 
 ## 使用方法
@@ -22,12 +26,18 @@ powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart
 2. 设置 seed；同一 seed 会稳定复现同一布局；
 3. “生成变体”可填 1–12，用连续 seed 生成多种摆法；
 4. 按需要勾选 USD，然后点击“生成仿真场景”；
-5. 页面会显示匹配配方、俯视预览、校验结果、物体位姿和下载链接。
+5. 页面会显示匹配配方、俯视预览、校验结果、物体位姿和下载链接；
+6. 点击“导出场景包”下载完整 `.scene.zip`。
 
 左侧的 LLM 状态卡会读取 `config/llm.json`。配置模型后，“测试连接”会发送一次真实
 结构化请求；未配置或调用失败时，系统会显示离线关键词模式及降级原因。
 
 生成文件保存在 `outputs\web\<scene_id>`。
+
+场景包包含 SceneSpec、布局、校验报告、SVG、MuJoCo MJCF、可选 USD 和实际使用的
+本地 GLB。`manifest.json` 记录格式版本、后端说明、文件大小和每个文件的 SHA-256。
+MuJoCo 文件使用包围盒碰撞代理，GLB 用于 Three.js 视觉预览，Isaac USD 仍是可选
+高保真产物。
 
 ## 当前语言能力
 

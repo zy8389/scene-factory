@@ -5,7 +5,6 @@ import json
 import mimetypes
 import os
 import subprocess
-import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -14,6 +13,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 from .factory import SceneFactory
 from .intent import SceneIntent
+from .isaac_runtime import find_isaac_python
 from .paths import default_web_dir, project_root
 
 
@@ -22,6 +22,8 @@ class SceneWebApplication:
         self.factory = factory or SceneFactory()
         self.output_root = Path(output_root).expanduser().resolve()
         self.static_root = default_web_dir().resolve()
+        self.asset_root = (project_root() / "data" / "assets" / "source").resolve()
+        self.visual_assets = self._discover_visual_assets()
         self.output_root.mkdir(parents=True, exist_ok=True)
 
     def recipe_catalog(self) -> list[dict[str, Any]]:
@@ -36,6 +38,12 @@ class SceneWebApplication:
             for recipe in (self.factory.recipes.get(name) for name in self.factory.recipes.names())
         ]
 
+    def asset_catalog(self) -> list[dict[str, Any]]:
+        return [
+            self._asset_payload(record.asset_id)
+            for record in self.factory.registry.list(statuses=("ready", "validated"))
+        ]
+
     def generate(self, payload: dict[str, Any]) -> dict[str, Any]:
         prompt = str(payload.get("prompt", "")).strip()
         if len(prompt) < 2:
@@ -46,6 +54,7 @@ class SceneWebApplication:
         seed = int(payload.get("seed", 42))
         count = int(payload.get("count", 1))
         export_usd = bool(payload.get("export_usd", False))
+        export_mjcf = bool(payload.get("export_mjcf", True))
         if not 0 <= seed <= 2_147_483_647:
             raise ValueError("seed 必须介于 0 和 2147483647 之间")
         if not 1 <= count <= 12:
@@ -57,7 +66,12 @@ class SceneWebApplication:
         for offset in range(count):
             result = self.factory.build_from_prompt(prompt, seed + offset)
             scene_dir = self.output_root / result.scene.scene_id
-            files = self.factory.write_result(result, scene_dir, export_usd=export_usd)
+            files = self.factory.write_result(
+                result,
+                scene_dir,
+                export_usd=export_usd,
+                export_mjcf=export_mjcf,
+            )
             items.append(self._result_payload(result, files))
 
         return {
@@ -65,6 +79,7 @@ class SceneWebApplication:
             "seed_start": seed,
             "count": count,
             "export_usd": export_usd,
+            "export_mjcf": export_mjcf,
             "valid_count": sum(bool(item["validation"]["valid"]) for item in items),
             "items": items,
         }
@@ -99,6 +114,7 @@ class SceneWebApplication:
         source_layout = json.loads(layout_path.read_text(encoding="utf-8"))
         seed = int(payload.get("seed", source_layout.get("seed", 42)))
         export_usd = bool(payload.get("export_usd", (source_dir / "scene.usd").is_file()))
+        export_mjcf = bool(payload.get("export_mjcf", True))
         if not 0 <= seed <= 2_147_483_647:
             raise ValueError("seed 必须介于 0 和 2147483647 之间")
         if export_usd and os.name == "nt" and not str(self.output_root).isascii():
@@ -111,15 +127,19 @@ class SceneWebApplication:
             source_scene_id=source_scene_id,
         )
         scene_dir = self.output_root / result.scene.scene_id
-        files = self.factory.write_result(result, scene_dir, export_usd=export_usd)
+        files = self.factory.write_result(
+            result,
+            scene_dir,
+            export_usd=export_usd,
+            export_mjcf=export_mjcf,
+        )
         return {
             "source_scene_id": source_scene_id,
             "instruction": instruction,
             "item": self._result_payload(result, files),
         }
 
-    @staticmethod
-    def _result_payload(result: Any, files: dict[str, str]) -> dict[str, Any]:
+    def _result_payload(self, result: Any, files: dict[str, str]) -> dict[str, Any]:
         file_urls = {
             name: f"/outputs/{quote(result.scene.scene_id)}/{quote(Path(path).name)}"
             for name, path in files.items()
@@ -132,6 +152,10 @@ class SceneWebApplication:
             }
         return {
             "scene": result.scene.to_dict(),
+            "assets": {
+                item.asset_id: self._asset_payload(item.asset_id)
+                for item in result.scene.objects
+            },
             "validation": result.validation.to_dict(),
             "matched_recipe": {
                 "name": result.recipe.name,
@@ -145,6 +169,44 @@ class SceneWebApplication:
             "files": file_urls,
         }
 
+    def _asset_payload(self, asset_id: str) -> dict[str, Any]:
+        record = self.factory.registry.get(asset_id)
+        visual = self.visual_assets.get(asset_id)
+        return {
+            "asset_id": asset_id,
+            "name": record.name or asset_id,
+            "primitive": record.primitive,
+            "color": list(record.color),
+            "bbox_m": list(record.bbox_m),
+            "source_type": record.source_type,
+            "visual_url": visual["url"] if visual else None,
+            "license": record.license,
+        }
+
+    def _discover_visual_assets(self) -> dict[str, dict[str, Any]]:
+        assets: dict[str, dict[str, Any]] = {}
+        if not self.asset_root.is_dir():
+            return assets
+        for metadata_path in self.asset_root.glob("*/SOURCE.json"):
+            try:
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                asset_id = str(metadata["asset_id"]).strip()
+                relative_geometry = Path(str(metadata["source_geometry"]))
+                geometry_path = (metadata_path.parent / relative_geometry).resolve()
+            except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if (
+                not asset_id
+                or not geometry_path.is_relative_to(self.asset_root)
+                or not geometry_path.is_file()
+            ):
+                continue
+            assets[asset_id] = {
+                "path": geometry_path,
+                "url": f"/assets/{quote(asset_id)}/visual",
+            }
+        return assets
+
     def resolve_output(self, relative_path: str) -> Path:
         requested = (self.output_root / unquote(relative_path)).resolve()
         if not requested.is_relative_to(self.output_root) or not requested.is_file():
@@ -157,6 +219,18 @@ class SceneWebApplication:
         if not requested.is_relative_to(self.static_root) or not requested.is_file():
             raise FileNotFoundError(path)
         return requested
+
+    def resolve_asset(self, relative_path: str) -> Path:
+        parts = relative_path.strip("/").split("/")
+        if len(parts) != 2 or parts[1] != "visual":
+            raise FileNotFoundError(relative_path)
+        asset = self.visual_assets.get(unquote(parts[0]))
+        if asset is None:
+            raise FileNotFoundError(relative_path)
+        path = Path(asset["path"]).resolve()
+        if not path.is_relative_to(self.asset_root) or not path.is_file():
+            raise FileNotFoundError(relative_path)
+        return path
 
     def open_in_isaac(self, payload: dict[str, Any]) -> dict[str, Any]:
         scene_id = str(payload.get("scene_id", "")).strip()
@@ -184,10 +258,11 @@ class SceneWebApplication:
         environment = os.environ.copy()
         environment.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
         creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+        isaac_python = find_isaac_python()
 
         with stdout_path.open("ab") as stdout, stderr_path.open("ab") as stderr:
             process = subprocess.Popen(
-                [sys.executable, str(launcher), str(usd_path)],
+                [str(isaac_python), str(launcher), str(usd_path)],
                 cwd=project_root(),
                 env=environment,
                 stdout=stdout,
@@ -220,6 +295,9 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
                         "ok": True,
                         "output_root": str(self.app.output_root),
                         "prompt_parser": self.app.factory.prompt_parser_mode,
+                        "default_backend": "mujoco",
+                        "preview_backend": "threejs",
+                        "validation_backend": "isaac_optional",
                     },
                 )
                 return
@@ -229,8 +307,14 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             if path == "/api/recipes":
                 self._send_json(HTTPStatus.OK, {"recipes": self.app.recipe_catalog()})
                 return
+            if path == "/api/assets":
+                self._send_json(HTTPStatus.OK, {"assets": self.app.asset_catalog()})
+                return
             if path.startswith("/outputs/"):
                 self._send_file(self.app.resolve_output(path.removeprefix("/outputs/")))
+                return
+            if path.startswith("/assets/"):
+                self._send_file(self.app.resolve_asset(path.removeprefix("/assets/")))
                 return
             self._send_file(self.app.resolve_static(path))
         except FileNotFoundError:
@@ -240,7 +324,12 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlsplit(self.path).path
-        if path not in {"/api/generate", "/api/revise", "/api/open-isaac", "/api/llm/test"}:
+        if path not in {
+            "/api/generate",
+            "/api/revise",
+            "/api/open-isaac",
+            "/api/llm/test",
+        }:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
         try:
@@ -276,10 +365,20 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
     def _send_file(self, path: Path) -> None:
         body = path.read_bytes()
         content_type, _ = mimetypes.guess_type(path.name)
+        if path.suffix.lower() == ".glb":
+            content_type = "model/gltf-binary"
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type or "application/octet-stream")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        if path.suffix.lower() == ".svg":
+            self.send_header("Content-Security-Policy", "sandbox; default-src 'none'")
+        if path.suffix.lower() == ".zip":
+            self.send_header(
+                "Content-Disposition",
+                f'attachment; filename="{path.name}"',
+            )
         self.end_headers()
         self.wfile.write(body)
 

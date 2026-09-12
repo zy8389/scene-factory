@@ -8,8 +8,10 @@ The installed command is `scene-factory`. Every command supports `--help`.
 scene-factory list-recipes
 scene-factory build --recipe NAME --seed INT --output PATH
 scene-factory build --intent PATH --seed INT --output PATH
+scene-factory build --recipe NAME --seed INT --output PATH --no-mjcf
 scene-factory batch --recipe NAME --count INT --seed-start INT --output PATH
 scene-factory batch --intent PATH --count INT --seed-start INT --output PATH
+scene-factory-web --host 127.0.0.1 --port 8765 --output PATH
 scene-factory intent validate PATH
 scene-factory intent inspect PATH
 scene-factory intent schema
@@ -31,8 +33,10 @@ scene-factory llm-status
 scene-factory llm-test
 ```
 
-`build --usd`, `batch --usd`, and the Isaac asset commands require an Isaac/USD
-environment. The command parser itself remains importable in ordinary Python.
+`build` and `batch` export MJCF by default; use `--no-mjcf` to omit it. MJCF
+export does not import MuJoCo. `build --usd`, `batch --usd`, and the Isaac asset
+commands require an Isaac/USD environment. The command parser itself remains
+importable in ordinary Python.
 
 ## Exit codes
 

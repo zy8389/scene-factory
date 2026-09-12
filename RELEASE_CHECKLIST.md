@@ -11,6 +11,8 @@ the evidence. It describes readiness work; it is not a publication record.
 - [ ] fresh installation reports the expected distribution metadata
 - [ ] `pip check` passes
 - [ ] runtime recipes, schemas, web files, registry, and asset resources are present
+- [ ] bundled Three.js modules and all referenced GLB source assets are present
+- [ ] optional MuJoCo environment smoke passes in an environment with `.[mujoco]`
 
 ## Offline SDK
 
@@ -32,6 +34,7 @@ the evidence. It describes readiness work; it is not a publication record.
 - [ ] wheel and sdist contents pass the release artifact audit
 - [ ] artifact SHA-256 and git provenance manifest is generated from a clean tag commit
 - [ ] wheel and sdist-derived fresh installs pass outside the source checkout
+- [ ] `tools/release_smoke.py` is run from a non-editable wheel installation
 
 ## Physical simulator status
 

@@ -1,0 +1,26 @@
+{
+  "asset_id": "entry_bench_basic",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Painted Wooden Bench",
+  "source_url": "https://polyhaven.com/a/painted_wooden_bench",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:784a49250144aa5299a93c1f3b6968d7",
+  "source_variant": "gltf/1k",
+  "original_filename": "painted_wooden_bench_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/painted_wooden_bench/painted_wooden_bench_1k.gltf",
+      "sha256": "07c739a1e5361b878320ed62ea1bc4b68a6268498663198e78266af3b819c172",
+      "bytes": 1988580
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

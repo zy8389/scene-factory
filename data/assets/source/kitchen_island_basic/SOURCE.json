@@ -1,0 +1,26 @@
+{
+  "asset_id": "kitchen_island_basic",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Wooden Table 03",
+  "source_url": "https://polyhaven.com/a/WoodenTable_03",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:7edc11c61cfdf9e47441c6a2b3059db7",
+  "source_variant": "gltf/1k",
+  "original_filename": "WoodenTable_03_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/WoodenTable_03/WoodenTable_03_1k.gltf",
+      "sha256": "99e8494b67187126696aa9dc77596d187f5b8d5dc1f3420d1a5e6afe2747d5b1",
+      "bytes": 634044
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

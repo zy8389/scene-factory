@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <title>SceneFactory · 自然语言场景工厂</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
+    <script type="importmap">
+      {"imports":{"three":"/vendor/three.module.js"}}
+    </script>
   </head>
   <body>
     <div class="page-grid"></div>
@@ -64,7 +68,8 @@
           <div class="controls-row">
             <label class="field"><span>Seed</span><input id="seed" type="number" min="0" max="2147483647" value="42" /></label>
             <label class="field"><span>生成变体</span><input id="count" type="number" min="1" max="12" value="1" /></label>
-            <label class="switch-field"><input id="export-usd" type="checkbox" checked /><span class="switch"></span><span>同时导出 USD</span></label>
+            <label class="switch-field"><input id="export-mjcf" type="checkbox" checked /><span class="switch"></span><span>MuJoCo 执行场景（默认）</span></label>
+            <label class="switch-field"><input id="export-usd" type="checkbox" /><span class="switch"></span><span>Isaac Sim 高保真验证（可选）</span></label>
           </div>
 
           <button id="generate" data-testid="generate" class="generate-button" type="submit">
@@ -88,7 +93,17 @@
         </div>
 
         <div id="result-content" class="result-content" hidden>
-          <div class="preview-frame"><img id="preview" alt="场景俯视布局" /></div>
+          <div class="preview-toolbar">
+            <div class="preview-tabs" role="tablist" aria-label="预览模式">
+              <button type="button" role="tab" aria-selected="true" data-preview-mode="3d">3D</button>
+              <button type="button" role="tab" aria-selected="false" data-preview-mode="2d">2D</button>
+            </div>
+            <span id="viewer-status" data-state="idle">THREE.JS</span>
+          </div>
+          <div class="preview-stage">
+            <div id="three-preview" class="three-preview" role="tabpanel"></div>
+            <img id="preview" class="topdown-preview" alt="场景俯视布局" role="tabpanel" hidden />
+          </div>
           <div class="scene-summary">
             <div><small>MATCHED RECIPE</small><strong id="matched-recipe">—</strong></div>
             <div><small>SCENE ID</small><strong id="scene-id">—</strong></div>
@@ -128,11 +143,11 @@
       </section>
 
       <aside class="scope-note">
-        <strong>NOW / NEXT</strong>
-        <p>现在支持“首次描述 → 生成 → 继续修改”的多轮场景编辑；每次修改会保存为新版本。当前仍使用占位几何，后续可按需接入本地资产。</p>
+        <strong>SIMULATION STACK</strong>
+        <p>MuJoCo 负责默认物理执行，Three.js 使用本地真实资产与代理几何即时预览；需要最终高保真检查时，可单独导出 USD 并启动 Isaac Sim。</p>
       </aside>
     </main>
 
-    <script src="/app.js" defer></script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

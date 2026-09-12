@@ -1,0 +1,26 @@
+{
+  "asset_id": "cutting_board_wood",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Wooden Cutting Board",
+  "source_url": "https://polyhaven.com/a/wooden_cutting_board",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:557750a30841a91f5d9a8f734bd9ee20",
+  "source_variant": "gltf/1k",
+  "original_filename": "wooden_cutting_board_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wooden_cutting_board/wooden_cutting_board_1k.gltf",
+      "sha256": "5bbcbcf22589a9da54cea73ab00983d7521c2cf9ef14673cc2f70f6cfbe53b06",
+      "bytes": 1964720
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

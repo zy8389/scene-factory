@@ -34,6 +34,9 @@ class RecipeLibrary:
             raise KeyError(f"unknown recipe {name!r}; available: {choices}") from exc
 
     def match_prompt(self, prompt: str) -> SceneRecipe:
+        return self.match_prompt_with_score(prompt)[0]
+
+    def match_prompt_with_score(self, prompt: str) -> tuple[SceneRecipe, int]:
         normalized = prompt.lower()
         scored = []
         for recipe in self._recipes.values():
@@ -43,8 +46,9 @@ class RecipeLibrary:
             scored.append((score, recipe.name, recipe))
         scored.sort(key=lambda item: (-item[0], item[1]))
         if scored[0][0] == 0:
-            return self._recipes[sorted(self._recipes)[0]]
-        return scored[0][2]
+            recipe = self._recipes[sorted(self._recipes)[0]]
+            return recipe, 0
+        return scored[0][2], scored[0][0]
 
     def names(self) -> list[str]:
         return sorted(self._recipes)

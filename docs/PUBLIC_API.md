@@ -68,6 +68,20 @@ reproduction = reproduce_dataset("outputs/dataset")
 Dataset reports are structured results with a boolean `valid` field and are
 portable across operating systems.
 
+## Scene bundles and MuJoCo
+
+```python
+from scene_factory import MujocoBackend, MujocoMjcfExporter, SceneBundleExporter
+from scene_factory.agent import DryRunBackend, SceneFactoryEnv
+```
+
+`MujocoMjcfExporter` writes a lightweight MJCF representation with primitive
+collision geometry. `SceneBundleExporter` writes a versioned ZIP containing
+scene artifacts, local visual GLB files when present, and SHA-256 descriptors.
+`MujocoBackend` is imported lazily and requires the optional `mujoco` package
+only when it is reset. `SceneFactoryEnv` uses it by default; pass
+`DryRunBackend` for a dependency-free environment contract.
+
 ## Planning
 
 `InteractionAction`, `InteractionPlan`, `InteractionPlanningResult`, and

@@ -1,0 +1,26 @@
+{
+  "asset_id": "coffee_table_oak",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Modern Coffee Table 01",
+  "source_url": "https://polyhaven.com/a/modern_coffee_table_01",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:f1c079ab5bc307630258cf3b40910511",
+  "source_variant": "gltf/1k",
+  "original_filename": "modern_coffee_table_01_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/modern_coffee_table_01/modern_coffee_table_01_1k.gltf",
+      "sha256": "3bdbf5235bc60553cf9b7174aa907a20d1284e7374a85d71521ff59f57053a8c",
+      "bytes": 1330320
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

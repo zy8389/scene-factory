@@ -446,6 +446,22 @@ def load_llm_settings() -> dict[str, Any]:
     else:
         cache_dir = project_root() / ".cache" / "llm_intents"
 
+    fast_keyword_raw = value(
+        "SCENE_FACTORY_LLM_KEYWORD_FAST_PATH",
+        "keyword_fast_path",
+        True,
+    )
+    if isinstance(fast_keyword_raw, bool):
+        keyword_fast_path = fast_keyword_raw
+    elif str(fast_keyword_raw).strip().lower() in {"1", "true", "yes", "on"}:
+        keyword_fast_path = True
+    elif str(fast_keyword_raw).strip().lower() in {"0", "false", "no", "off"}:
+        keyword_fast_path = False
+    else:
+        raise ValueError(
+            "LLM keyword_fast_path must be a boolean or one of true/false"
+        )
+
     configured_ca = str(
         value("SCENE_FACTORY_LLM_CA_BUNDLE", "ca_bundle", "system")
     ).strip()
@@ -493,6 +509,7 @@ def load_llm_settings() -> dict[str, Any]:
         "api_key_env": api_key_env,
         "timeout_seconds": timeout,
         "cache_dir": cache_dir,
+        "keyword_fast_path": keyword_fast_path,
         "ca_bundle": ca_bundle,
         "transport": transport,
         "proxy_url": proxy_url,

@@ -61,7 +61,11 @@ class SceneFactoryEnv:
 
     def __init__(self, scene_path: str | Path, backend: SimulatorBackend | None = None) -> None:
         self.scene_path = Path(scene_path)
-        self.backend = backend or DryRunBackend()
+        if backend is None:
+            from .backends.mujoco import MujocoBackend
+
+            backend = MujocoBackend()
+        self.backend = backend
         self._scene: dict[str, Any] | None = None
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):

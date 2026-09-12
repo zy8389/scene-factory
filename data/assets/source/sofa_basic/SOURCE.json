@@ -1,0 +1,26 @@
+{
+  "asset_id": "sofa_basic",
+  "batch_id": "high_detail_cc0_v1",
+  "source_name": "Poly Haven Sofa 02",
+  "source_url": "https://polyhaven.com/a/sofa_02",
+  "license": "CC0",
+  "license_source": "https://polyhaven.com/license",
+  "source_revision": "md5:ec2590dc8433a523d0fe9e507766c16f",
+  "source_variant": "gltf/1k",
+  "original_filename": "sofa_02_1k.gltf",
+  "source_geometry": "visual.glb",
+  "conversion": "glTF-Transform 4.5.0 copy to self-contained GLB",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "source_url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/sofa_02/sofa_02_1k.gltf",
+      "sha256": "7fe865939497e32bc2f6f0c3dc519954c7c83eb5b9251dbf8e1fc318f5c5ad1a",
+      "bytes": 425576
+    }
+  ],
+  "retrieved_at": "2026-09-12",
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

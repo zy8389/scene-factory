@@ -113,7 +113,10 @@ class SceneFactoryTests(unittest.TestCase):
             scene_dir.mkdir()
             (scene_dir / "scene.usd").write_bytes(b"dummy usd")
             process = Mock(pid=12345)
-            with patch("scene_factory.webapp.subprocess.Popen", return_value=process) as popen:
+            with (
+                patch("scene_factory.webapp.find_isaac_python", return_value=Path("python.exe")),
+                patch("scene_factory.webapp.subprocess.Popen", return_value=process) as popen,
+            ):
                 response = app.open_in_isaac({"scene_id": "example-scene"})
             self.assertTrue(response["ok"])
             self.assertEqual(response["pid"], 12345)

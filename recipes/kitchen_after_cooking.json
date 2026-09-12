@@ -4,7 +4,7 @@
   "room_dimensions_m": [5.4, 4.2, 2.8],
   "event": "after_cooking",
   "description": "刚做完饭，砧板、刀和蔬菜袋还在台面上，锅盖偏放在岛台。",
-  "keywords": ["厨房", "做饭", "砧板", "锅", "蔬菜", "cooking", "kitchen"],
+  "keywords": ["厨房", "做饭", "做完饭", "砧板", "锅", "蔬菜", "cooking", "kitchen"],
   "objects": [
     {
       "object_id": "counter_1",

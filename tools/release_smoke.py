@@ -193,10 +193,22 @@ def _installed_package_check(source_root: Path) -> dict[str, str]:
         missing = sorted(required_entry_points - entry_points)
         raise RuntimeError(f"installed entry points are missing: {missing}")
 
+    try:
+        direct_url_text = distribution.read_text("direct_url.json")
+        direct_url = json.loads(direct_url_text) if direct_url_text else {}
+    except (OSError, json.JSONDecodeError):
+        direct_url = {}
+    if isinstance(direct_url, dict) and direct_url.get("dir_info", {}).get("editable"):
+        raise RuntimeError(
+            "release smoke requires a non-editable wheel installation; "
+            "create a clean virtual environment and install the built wheel"
+        )
+
     import scene_factory
 
     module_path = Path(scene_factory.__file__).resolve()
-    if module_path.is_relative_to(source_root):
+    source_package = (source_root / "scene_factory").resolve()
+    if module_path.is_relative_to(source_package):
         raise RuntimeError(f"release smoke imported repository source: {module_path}")
     if scene_factory.__version__ != version:
         raise RuntimeError(
@@ -254,7 +266,7 @@ def run() -> dict[str, Any]:
         if cwd.is_relative_to(source_root):
             raise RuntimeError(f"release smoke cwd is inside repository: {cwd}")
         module_probe = _run([sys.executable, "-c", "import scene_factory; print(scene_factory.__file__)"], cwd=cwd, env=environment)
-        if Path(module_probe.strip()).resolve().is_relative_to(source_root):
+        if Path(module_probe.strip()).resolve().is_relative_to(source_root / "scene_factory"):
             raise RuntimeError("release smoke subprocess resolved the repository source")
         checks["cwd_outside_repository"] = "passed"
         checks["installed_import"] = "passed"

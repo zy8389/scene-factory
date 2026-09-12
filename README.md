@@ -32,12 +32,22 @@ v0.1 候选版本提供离线 Python SDK，可在无需 Isaac Sim、GPU、NumPy�
 
 ## 安装
 
-SceneFactory 支持 Python 3.12 或更高版本，核心 SDK 没有必需的运行时依赖：
+SceneFactory 支持 Python 3.12 或更高版本，核心编译 SDK 没有必需的运行时依赖：
 
 ```bash
 python -m pip install .
 scene-factory list-recipes
 ```
+
+默认 `SceneFactoryEnv` 后端使用 MuJoCo；要创建该环境并调用 `reset()`，请安装模拟器扩展：
+
+```bash
+python -m pip install ".[mujoco]"
+```
+
+Web UI、SVG/Three.js 预览、MJCF 导出和场景包导出本身不需要安装 MuJoCo；它们会使用
+随包的浏览器资源和本地 GLB，缺少 GLB 时会显示包围盒代理。只需离线契约环境时，可向
+`SceneFactoryEnv` 显式传入 `DryRunBackend`。
 
 开发检查环境可使用：
 
@@ -59,8 +69,13 @@ scene-factory build \
   --output outputs/basic-scene
 ```
 
-输出包含 `scene_spec.json`、`layout.json`、`validation.json` 和离线
-`preview.svg`。安装后，相同命令可在任意当前目录中运行。
+输出包含 `scene_spec.json`、`layout.json`、`validation.json`、离线
+`preview.svg`、默认生成的 MuJoCo `scene.xml`，以及可移植的
+`<scene_id>.scene.zip`。场景包带版本清单和 SHA-256 校验，包含当前场景使用的本地
+GLB；可在 Web UI 中点击“导出场景包”直接下载。安装后，相同命令可在任意当前目录
+中运行。
+
+如不需要 MJCF，可在 CLI 中添加 `--no-mjcf`。
 
 等价的 Python API 为：
 
