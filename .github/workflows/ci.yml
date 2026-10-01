@@ -43,6 +43,7 @@ jobs:
           python -m venv "$RUNNER_TEMP/release-venv-sdist"
           "$RUNNER_TEMP/release-venv-sdist/bin/python" -m pip install --no-index --no-deps "$RUNNER_TEMP"/sdist-wheel/scene_factory-0.1.0-py3-none-any.whl
           "$RUNNER_TEMP/release-venv-sdist/bin/python" "$GITHUB_WORKSPACE/tools/release_smoke.py"
+          "$RUNNER_TEMP/release-venv-sdist/bin/python" "$GITHUB_WORKSPACE/tools/smoke_test_installed_package.py"
           "$RUNNER_TEMP/release-venv-sdist/bin/python" -m pip check
       - name: Structural release check
         run: python tools/check_release.py
@@ -52,3 +53,18 @@ jobs:
         run: python -m compileall -q scene_factory tools tests
       - name: Test
         run: python -B -m pytest -p no:cacheprovider -q
+
+  mujoco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install MuJoCo integration dependencies
+        run: python -m pip install ".[dev,mujoco]"
+      - name: Verify simulator dependencies
+        run: python -c "import mujoco; import numpy"
+      - name: Test MuJoCo integration
+        run: python -B -m pytest -p no:cacheprovider -q tests/test_mujoco.py

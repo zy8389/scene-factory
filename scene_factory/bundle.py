@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import re
+import subprocess
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 from .models import CompiledScene
+from .isaac_runtime import package_usd_with_isaac
 from .paths import project_root
 from .registry import AssetRegistry
 
@@ -24,7 +27,7 @@ ARTIFACT_PATHS = {
     "intent": "scene/scene_intent.json",
     "revision": "scene/revision.json",
     "mjcf": "scene/scene.xml",
-    "usd": "scene/scene.usd",
+    "usd": "scene/scene.usdz",
 }
 REQUIRED_ARTIFACTS = {"scene_spec", "layout", "validation", "preview"}
 _SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -49,6 +52,47 @@ def _safe_component(value: str) -> str:
     if candidate != value:
         candidate = f"{candidate}-{sha256_bytes(value.encode('utf-8'))[:8]}"
     return candidate
+
+
+def _portable_usd_package(source: Path) -> tuple[bytes, list[dict[str, Any]]]:
+    try:
+        package = package_usd_with_isaac(source)
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        raise SceneBundleError(f"cannot bundle USD dependencies: {exc}") from exc
+    dependencies: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    root_name = f"scene{source.suffix.lower()}"
+    has_root = False
+    try:
+        with zipfile.ZipFile(io.BytesIO(package)) as archive:
+            for member in archive.infolist():
+                name = member.orig_filename
+                if (
+                    PurePosixPath(name).is_absolute()
+                    or "\\" in name
+                    or ":" in name
+                    or any(part in {"", ".", ".."} for part in name.rstrip("/").split("/"))
+                ):
+                    raise SceneBundleError(f"unsafe USD dependency path: {name!r}")
+                if member.is_dir():
+                    continue
+                key = name.casefold()
+                if key in seen:
+                    raise SceneBundleError(f"conflicting USD dependency path: {name!r}")
+                seen.add(key)
+                content = archive.read(member)
+                if name == root_name:
+                    has_root = True
+                else:
+                    dependencies.append({
+                        **_file_descriptor(name, content),
+                        "package": ARTIFACT_PATHS["usd"],
+                    })
+    except zipfile.BadZipFile as exc:
+        raise SceneBundleError("USD worker returned an invalid package") from exc
+    if not has_root:
+        raise SceneBundleError(f"USD package is missing its {root_name} root layer")
+    return package, sorted(dependencies, key=lambda item: item["path"])
 
 
 def _load_visual_assets(asset_root: Path) -> dict[str, dict[str, Any]]:
@@ -116,6 +160,7 @@ class SceneBundleExporter:
 
         archive_files: dict[str, bytes] = {}
         artifacts: dict[str, dict[str, Any]] = {}
+        usd_dependencies: list[dict[str, Any]] = []
         for name, archive_path in ARTIFACT_PATHS.items():
             raw_path = files.get(name)
             if raw_path is None:
@@ -123,7 +168,10 @@ class SceneBundleExporter:
             source = Path(raw_path)
             if not source.is_file():
                 raise SceneBundleError(f"scene artifact is missing: {name}")
-            data = source.read_bytes()
+            if name == "usd":
+                data, usd_dependencies = _portable_usd_package(source)
+            else:
+                data = source.read_bytes()
             archive_files[archive_path] = data
             artifacts[name] = _file_descriptor(archive_path, data)
         missing = sorted(REQUIRED_ARTIFACTS - set(artifacts))
@@ -168,6 +216,7 @@ class SceneBundleExporter:
                 "collision_geometry": "bounding_box_proxy",
             },
             "artifacts": artifacts,
+            "usd_dependencies": usd_dependencies,
             "assets": assets,
         }
         manifest_data = (

@@ -180,7 +180,8 @@ class SceneFactory:
         parser_warning = None
         matched_recipe, keyword_score = self.recipes.match_prompt_with_score(prompt)
         if (
-            self.llm_settings["keyword_fast_path"]
+            not self.llm_required
+            and self.llm_settings["keyword_fast_path"]
             and isinstance(self.intent_parser, StructuredLLMIntentParser)
             and keyword_score >= 3
         ):

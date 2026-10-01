@@ -13,7 +13,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 from .factory import SceneFactory
 from .intent import SceneIntent
-from .isaac_runtime import find_isaac_python
+from .isaac_runtime import find_isaac_python, isaac_process_environment
 from .paths import default_web_dir, project_root
 
 
@@ -268,23 +268,19 @@ class SceneWebApplication:
                 "This scene has no USD file. Generate it again with USD export enabled."
             )
 
-        launcher = project_root() / "tools" / "open_in_isaac.py"
-        if not launcher.is_file():
-            raise FileNotFoundError(launcher)
-
         log_dir = self.output_root / "_isaac_logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         safe_log_name = "".join(character if character.isalnum() else "_" for character in scene_id)
         stdout_path = log_dir / f"{safe_log_name}.stdout.log"
         stderr_path = log_dir / f"{safe_log_name}.stderr.log"
-        environment = os.environ.copy()
+        environment = isaac_process_environment()
         environment.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
         creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
         isaac_python = find_isaac_python()
 
         with stdout_path.open("ab") as stdout, stderr_path.open("ab") as stderr:
             process = subprocess.Popen(
-                [str(isaac_python), str(launcher), str(usd_path)],
+                [str(isaac_python), "-m", "scene_factory.isaac_preview", str(usd_path)],
                 cwd=project_root(),
                 env=environment,
                 stdout=stdout,
@@ -424,7 +420,10 @@ def _default_output() -> Path:
     configured = os.environ.get("SCENE_FACTORY_WEB_OUTPUT")
     if configured:
         return Path(configured)
-    return Path("outputs/web")
+    output = Path("outputs/web")
+    if os.name == "nt" and not str(output.absolute()).isascii():
+        return Path(output.absolute().anchor) / "scene_factory_runtime" / "web"
+    return output
 
 
 def main(argv: list[str] | None = None) -> int:

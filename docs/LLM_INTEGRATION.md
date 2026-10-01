@@ -74,7 +74,8 @@ $env:SCENE_FACTORY_LLM_API_KEY = "..."
 
 - `auto`：配置完整时调用 LLM；调用、Schema 或布局失败时回退关键词配方；
 - `off`：始终使用离线关键词配方；
-- `required`：必须成功使用 LLM，失败则返回错误，适合验收环境。
+- `required`：必须成功使用 LLM，失败则返回错误，适合验收环境；即使命中关键词，
+  也不使用 `keyword_fast_path` 绕过模型解析。模型解析器自己的已验证缓存仍可使用。
 
 可选配置：
 

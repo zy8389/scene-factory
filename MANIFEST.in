@@ -8,6 +8,7 @@ prune logs
 prune release-dist
 prune local_assets
 prune isaac_local_assets
+prune local_resources
 global-exclude *.aria2
 global-exclude *.part
 global-exclude *.tmp

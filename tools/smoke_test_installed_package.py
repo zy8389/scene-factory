@@ -20,6 +20,16 @@ from scene_factory.trajectory import EpisodeRecorder, load_episode
 
 
 def main() -> int:
+    with tempfile.TemporaryDirectory(prefix="scene_factory_workers_") as directory:
+        for module in ("scene_factory.isaac_export", "scene_factory.isaac_preview"):
+            subprocess.run(
+                [sys.executable, "-m", module, "--help"],
+                cwd=directory,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
     registry = default_registry_path()
     recipes = default_recipes_dir()
     web = default_web_dir()

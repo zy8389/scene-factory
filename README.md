@@ -56,7 +56,10 @@ python -m pip install ".[dev]"
 ```
 
 wheel 包含配方、模式、Web 文件、资产注册表，以及离线工作流所需的已提交资产
-元数据；不包含 Isaac Sim 或 NVIDIA Local Assets。
+元数据；不包含 Isaac Sim、个人运行目录或 NVIDIA Local Assets。USD 导出和编辑器启动
+使用随 wheel 安装的模块，不再依赖源码仓库中的 `tools` 目录。
+
+CI 的核心测试不安装模拟器；MuJoCo 物理测试在单独安装 `.[dev,mujoco]` 的任务中执行。
 
 ## 5 分钟快速上手
 
@@ -72,8 +75,10 @@ scene-factory build \
 输出包含 `scene_spec.json`、`layout.json`、`validation.json`、离线
 `preview.svg`、默认生成的 MuJoCo `scene.xml`，以及可移植的
 `<scene_id>.scene.zip`。场景包带版本清单和 SHA-256 校验，包含当前场景使用的本地
-GLB；可在 Web UI 中点击“导出场景包”直接下载。安装后，相同命令可在任意当前目录
-中运行。
+GLB；可在 Web UI 中点击“导出场景包”直接下载。如果启用 USD 导出，ZIP 内的
+`scene/scene.usdz` 会封装所引用的 USD、碰撞层和纹理；解压外层 ZIP 后直接打开这个
+USDZ，不要再拆开 USDZ。缺失的依赖会使打包报错，而不是生成不完整的下载文件。
+单独导出的 `scene.usd` 仍可能引用本机资产。安装后，相同命令可在任意当前目录中运行。
 
 如不需要 MJCF，可在 CLI 中添加 `--no-mjcf`。
 

@@ -38,6 +38,13 @@ export does not import MuJoCo. `build --usd`, `batch --usd`, and the Isaac asset
 commands require an Isaac/USD environment. The command parser itself remains
 importable in ordinary Python.
 
+When USD is requested, the scene ZIP stores a self-contained `scene/scene.usdz`
+with referenced layers and textures. Open the USDZ after extracting the outer
+ZIP; do not unpack its internal USD files. The separate `scene.usd` output
+can still reference local assets. Missing USD dependencies fail bundle creation.
+Installed USD export and editor launch use `scene_factory.isaac_export` and
+`scene_factory.isaac_preview`, not scripts under the checkout's `tools` directory.
+
 ## Exit codes
 
 - `0`: command completed successfully;

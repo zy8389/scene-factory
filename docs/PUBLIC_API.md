@@ -78,6 +78,12 @@ from scene_factory.agent import DryRunBackend, SceneFactoryEnv
 `MujocoMjcfExporter` writes a lightweight MJCF representation with primitive
 collision geometry. `SceneBundleExporter` writes a versioned ZIP containing
 scene artifacts, local visual GLB files when present, and SHA-256 descriptors.
+For a USD scene it packages referenced layers and textures inside
+`scene/scene.usdz`; `artifacts.usd` identifies that package and `usd_dependencies`
+records each dependency's internal `path`, containing `package`, size and hash.
+Unresolved dependencies raise `SceneBundleError` without replacing an existing
+bundle. USD bundling requires the optional OpenUSD/Isaac environment; bundles
+without USD remain dependency-free.
 `MujocoBackend` is imported lazily and requires the optional `mujoco` package
 only when it is reset. `SceneFactoryEnv` uses it by default; pass
 `DryRunBackend` for a dependency-free environment contract.

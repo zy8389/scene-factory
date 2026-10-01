@@ -86,12 +86,18 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/collision/mug_001_collision.usd",
     "data/assets/usd/mug_001.usd",
 )
+REQUIRED_PACKAGE_FILES = (
+    "scene_factory/isaac_export.py",
+    "scene_factory/isaac_preview.py",
+    "scene_factory/isaac_runtime.py",
+)
 SDIST_REQUIRED_FILES = (
     "MANIFEST.in",
     "pyproject.toml",
     "README.md",
     "LICENSE",
     "scene_factory/__init__.py",
+    *REQUIRED_PACKAGE_FILES,
     *WHEEL_REQUIRED_FILES,
 )
 FORBIDDEN_COMMON_SEGMENTS = {
@@ -107,6 +113,7 @@ FORBIDDEN_COMMON_SEGMENTS = {
     "credentials",
     "credential",
     "local_assets",
+    "local_resources",
     "isaac_local_assets",
     "tests",
     "test",
@@ -265,6 +272,7 @@ def _audit_wheel_content(path: Path) -> dict[str, object]:
                 if (resource := _wheel_resource_name(name)) is not None
             )
             _require_members(resources, (f"share/scene-factory/{item}" for item in WHEEL_REQUIRED_FILES), label="wheel resources")
+            _require_members(names, REQUIRED_PACKAGE_FILES, label="wheel runtime modules")
             if not any(name.rsplit("/", 1)[-1].upper() == "LICENSE" for name in names):
                 raise ArtifactError("wheel does not contain a LICENSE file")
             if path.stat().st_size > MAX_WHEEL_BYTES:

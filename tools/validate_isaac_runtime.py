@@ -82,7 +82,8 @@ def main() -> int:
 
     os.environ.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
     # SimulationApp must be constructed before importing omni or pxr modules.
-    from isaacsim import SimulationApp
+    from isaac_kit_compat import load_simulation_app
+    SimulationApp = load_simulation_app()
 
     app = SimulationApp(
         {

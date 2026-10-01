@@ -26,6 +26,13 @@ simulator. `SceneFactoryEnv` selects `MujocoBackend` by default, so calling
 `reset()` on that default environment requires the extra. Applications that
 only need the portable contract can pass `DryRunBackend` explicitly.
 
+Core CI skips simulator-only tests when the MuJoCo extra is absent; a separate
+CI job installs and exercises the extra. Scene ZIPs with USD require OpenUSD
+to localize dependencies into an embedded USDZ; MJCF/GLB-only bundles do not.
+Windows Isaac bootstrap temporarily preserves the ASCII environment alias
+only for paths within that environment. Its `realpath` hook is restored after
+the import, including failed imports, and does not alter unrelated paths.
+
 LLM, Isaac Sim, USD and Gymnasium workflows remain optional integrations with
 their own environment requirements. The bundled Three.js modules and local GLB
 files are visual resources; current MuJoCo collision geometry remains derived

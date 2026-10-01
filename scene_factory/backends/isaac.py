@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from ..exporters.isaac_usd import IsaacBackendUnavailable
+from ..isaac_runtime import isaac_kit_runtime
 from ..robotics import (
     MugLiftController,
     MugLiftPhase,
@@ -42,8 +43,9 @@ def _franka_kinematics_frame(asset_source: str | None) -> str:
 
 def _load_simulation_app():
     try:
-        module = import_module("isaacsim")
-        return module.SimulationApp
+        with isaac_kit_runtime():
+            module = import_module("isaacsim")
+            return module.SimulationApp
     except (AttributeError, ImportError, ModuleNotFoundError) as exc:
         raise IsaacBackendUnavailable(
             "IsaacSimBackend requires the Isaac Sim Python environment. "

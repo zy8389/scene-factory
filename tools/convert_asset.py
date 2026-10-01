@@ -88,7 +88,8 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
     app = None
     try:
-        from isaacsim import SimulationApp
+        from isaac_kit_compat import load_simulation_app
+        SimulationApp = load_simulation_app()
 
         app = SimulationApp(
             {

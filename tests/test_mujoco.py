@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -18,6 +19,7 @@ class MujocoIntegrationTests(unittest.TestCase):
         with patch.dict("os.environ", {"SCENE_FACTORY_LLM_MODE": "off"}):
             cls.factory = SceneFactory()
 
+    @unittest.skipUnless(importlib.util.find_spec("mujoco"), "MuJoCo extra is not installed")
     def test_mjcf_loads_and_steps_in_mujoco(self) -> None:
         import mujoco
         import numpy as np
@@ -34,6 +36,7 @@ class MujocoIntegrationTests(unittest.TestCase):
             mujoco.mj_step(model, data)
         self.assertTrue(np.isfinite(data.qpos).all())
 
+    @unittest.skipUnless(importlib.util.find_spec("mujoco"), "MuJoCo extra is not installed")
     def test_scene_factory_env_uses_mujoco_by_default(self) -> None:
         import numpy as np
 

@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 from scene_factory.agent import DryRunBackend, SceneFactoryEnv
 from scene_factory.asset_pipeline import build_asset_record
 from scene_factory.factory import SceneFactory
-from scene_factory.intent import SceneIntent
+from scene_factory.intent import IntentObject, SceneIntent
 from scene_factory.llm import (
     LLMConfig,
     LLMParserError,
@@ -138,6 +138,55 @@ class SceneFactoryTests(unittest.TestCase):
             self.assertTrue(response["ok"])
             self.assertEqual(response["pid"], 12345)
             popen.assert_called_once()
+            self.assertEqual(
+                popen.call_args.args[0],
+                ["python.exe", "-m", "scene_factory.isaac_preview", str(scene_dir / "scene.usd")],
+            )
+            self.assertIn("SCENE_FACTORY_HOME", popen.call_args.kwargs["env"])
+
+    def test_required_llm_never_uses_keyword_fast_path(self) -> None:
+        parser = Mock(spec=StructuredLLMIntentParser)
+        parser.name = "llm:regression"
+        parser.parse.return_value = SceneIntent(
+            room_type="living_room",
+            event="returned_home",
+            description="背包留在入口。",
+            objects=(IntentObject("backpack_1", "backpack", support_hint="floor"),),
+            relations=(),
+        )
+        with patch.dict(os.environ, {"SCENE_FACTORY_LLM_MODE": "required"}):
+            factory = SceneFactory(intent_parser=parser)
+        factory.llm_settings["keyword_fast_path"] = True
+        prompt = "刚回家，客厅沙发茶几上有杯子，背包在地上。"
+        recipe = factory.recipes.get("living_room_returned_home")
+        with patch.object(factory.recipes, "match_prompt_with_score", return_value=(recipe, 5)):
+            result = factory.build_from_prompt(prompt, 42)
+        parser.parse.assert_called_once_with(prompt)
+        self.assertEqual(result.prompt_parser, parser.name)
+        self.assertIsNotNone(result.intent)
+
+    def test_required_llm_propagates_failure_even_for_keyword_match(self) -> None:
+        parser = Mock(spec=StructuredLLMIntentParser)
+        parser.parse.side_effect = LLMParserError("service unavailable")
+        with patch.dict(os.environ, {"SCENE_FACTORY_LLM_MODE": "required"}):
+            factory = SceneFactory(intent_parser=parser)
+        factory.llm_settings["keyword_fast_path"] = True
+        recipe = factory.recipes.get("living_room_returned_home")
+        with patch.object(factory.recipes, "match_prompt_with_score", return_value=(recipe, 5)):
+            with self.assertRaisesRegex(RuntimeError, "required LLM scene parsing failed"):
+                factory.build_from_prompt("刚回家，客厅沙发茶几上有杯子。", 42)
+        parser.parse.assert_called_once()
+
+    def test_auto_llm_retains_keyword_fast_path(self) -> None:
+        parser = Mock(spec=StructuredLLMIntentParser)
+        with patch.dict(os.environ, {"SCENE_FACTORY_LLM_MODE": "auto"}):
+            factory = SceneFactory(intent_parser=parser)
+        factory.llm_settings["keyword_fast_path"] = True
+        recipe = factory.recipes.get("living_room_returned_home")
+        with patch.object(factory.recipes, "match_prompt_with_score", return_value=(recipe, 5)):
+            result = factory.build_from_prompt("刚回家，客厅沙发茶几上有杯子。", 42)
+        parser.parse.assert_not_called()
+        self.assertEqual(result.prompt_parser, "keyword_fast")
 
     def test_scene_intent_compiles_to_valid_seed_variants(self) -> None:
         intent = SceneIntent.from_dict(

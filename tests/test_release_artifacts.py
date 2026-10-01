@@ -30,6 +30,8 @@ def _wheel_members() -> dict[str, bytes]:
     }
     for relative in release_artifacts.WHEEL_REQUIRED_FILES:
         members[f"scene_factory-0.1.0.data/data/share/scene-factory/{relative}"] = b"resource\n"
+    for relative in release_artifacts.REQUIRED_PACKAGE_FILES:
+        members[relative] = b"runtime\n"
     return members
 
 
@@ -44,6 +46,8 @@ def _sdist_members() -> dict[str, bytes]:
     }
     for relative in release_artifacts.WHEEL_REQUIRED_FILES:
         members[f"{root}/{relative}"] = b"resource\n"
+    for relative in release_artifacts.REQUIRED_PACKAGE_FILES:
+        members[f"{root}/{relative}"] = b"runtime\n"
     return members
 
 
@@ -110,6 +114,15 @@ class ReleaseArtifactTests(unittest.TestCase):
             members["tests/leaked.py"] = b"temporary\n"
             _write_wheel(path, members)
             with self.assertRaises(release_artifacts.ArtifactError):
+                release_artifacts.audit_wheel(path)
+
+    def test_missing_installed_isaac_module_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="scene_factory_artifact_test_") as directory:
+            path = Path(directory) / release_artifacts.EXPECTED_WHEEL
+            members = _wheel_members()
+            del members["scene_factory/isaac_preview.py"]
+            _write_wheel(path, members)
+            with self.assertRaisesRegex(release_artifacts.ArtifactError, "runtime modules"):
                 release_artifacts.audit_wheel(path)
 
     def test_forbidden_sdist_member_is_rejected(self) -> None:

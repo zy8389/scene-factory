@@ -20,6 +20,44 @@ function Test-PxrRuntime {
     return $LASTEXITCODE -eq 0
 }
 
+function Prepare-IsaacPython {
+    param([string]$Candidate)
+
+    if (-not (Test-Path -LiteralPath $Candidate -PathType Leaf)) {
+        return $Candidate
+    }
+    $fullCandidate = [IO.Path]::GetFullPath($Candidate)
+    if ($fullCandidate -notmatch '[^\x00-\x7F]') {
+        return $fullCandidate
+    }
+
+    # Ask the project helper to create/use a junction only. It never copies or
+    # recreates Isaac Sim. Keep the original spelling; Resolve-Path would undo
+    # the ASCII junction workaround on Windows.
+    $env:SCENE_FACTORY_ISAAC_PYTHON_CANDIDATE = $fullCandidate
+    $oldPythonPath = $env:PYTHONPATH
+    $env:PYTHONPATH = if ($oldPythonPath) {
+        "$ProjectRoot$([IO.Path]::PathSeparator)$oldPythonPath"
+    } else {
+        $ProjectRoot
+    }
+    try {
+        $prepared = & $Python -c "import os; from scene_factory.isaac_runtime import prepare_isaac_python; print(prepare_isaac_python(os.environ['SCENE_FACTORY_ISAAC_PYTHON_CANDIDATE']))" 2>$null
+        $prepareExitCode = $LASTEXITCODE
+    } finally {
+        Remove-Item Env:SCENE_FACTORY_ISAAC_PYTHON_CANDIDATE -ErrorAction SilentlyContinue
+        if ($null -eq $oldPythonPath) {
+            Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+        } else {
+            $env:PYTHONPATH = $oldPythonPath
+        }
+    }
+    if ($prepareExitCode -eq 0 -and $prepared) {
+        return ($prepared | Select-Object -Last 1).ToString().Trim()
+    }
+    return $fullCandidate
+}
+
 if ([string]::IsNullOrWhiteSpace($Python)) {
     $projectPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
     if (Test-Path -LiteralPath $projectPython -PathType Leaf) {
@@ -39,6 +77,7 @@ if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
 $MujocoAvailable = $LASTEXITCODE -eq 0
 
 if (-not [string]::IsNullOrWhiteSpace($IsaacPython)) {
+    $IsaacPython = Prepare-IsaacPython $IsaacPython
     if (-not (Test-PxrRuntime $IsaacPython)) {
         throw "Isaac Python cannot import pxr: $IsaacPython"
     }
@@ -49,16 +88,23 @@ if (-not [string]::IsNullOrWhiteSpace($IsaacPython)) {
         "Process"
     )
     if (-not [string]::IsNullOrWhiteSpace($configuredIsaacPython)) {
-        $candidates += $configuredIsaacPython
+        $candidates += [PSCustomObject]@{ Path = $configuredIsaacPython; Prepare = $true }
     }
-    $workspaceParent = Split-Path $ProjectRoot -Parent
-    $candidates += Join-Path $workspaceParent "scene_factory_isaac_py312\Scripts\python.exe"
+    $candidates += [PSCustomObject]@{
+        Path = Join-Path $ProjectRoot "local_resources\environments\scene_factory_isaac_py312\Scripts\python.exe"
+        Prepare = $true
+    }
     $fallbackPython = Get-Command python -ErrorAction SilentlyContinue
     if ($null -ne $fallbackPython) {
-        $candidates += $fallbackPython.Source
+        $candidates += [PSCustomObject]@{ Path = $fallbackPython.Source; Prepare = $false }
     }
 
-    foreach ($candidate in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+    foreach ($entry in $candidates) {
+        $candidate = if ($entry.Prepare) {
+            Prepare-IsaacPython $entry.Path
+        } else {
+            [IO.Path]::GetFullPath($entry.Path)
+        }
         if (Test-PxrRuntime $candidate) {
             $IsaacPython = $candidate
             break
@@ -71,9 +117,10 @@ if (-not [string]::IsNullOrWhiteSpace($IsaacPython)) {
 if ([string]::IsNullOrWhiteSpace($Output)) {
     $Output = Join-Path $ProjectRoot "outputs\web"
     if ($Output -match '[^\x00-\x7F]') {
-        $Output = Join-Path (Split-Path $ProjectRoot -Parent) "scene_factory_runtime\web"
+        $Output = Join-Path ([IO.Path]::GetPathRoot($ProjectRoot)) "scene_factory_runtime\web"
     }
 }
+$Output = [IO.Path]::GetFullPath($Output)
 
 if ($Port -lt 1 -or $Port -gt 65535) {
     throw "Port must be between 1 and 65535"

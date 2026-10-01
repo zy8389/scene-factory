@@ -32,12 +32,26 @@ powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart -IsaacPyth
 左侧的 LLM 状态卡会读取 `config/llm.json`。配置模型后，“测试连接”会发送一次真实
 结构化请求；未配置或调用失败时，系统会显示离线关键词模式及降级原因。
 
-生成文件保存在 `outputs\web\<scene_id>`。
+默认生成文件保存在 `outputs\web\<scene_id>`。Windows 下若默认绝对路径含中文，
+启动脚本和 Python 入口会改用项目/当前工作目录所在盘的
+`scene_factory_runtime\web\<scene_id>` 目录（位于盘根目录下）。
+可用脚本的 `-Output` 或 Python 入口的 `--output` 指定另一个 ASCII 路径。
 
 场景包包含 SceneSpec、布局、校验报告、SVG、MuJoCo MJCF、可选 USD 和实际使用的
-本地 GLB。`manifest.json` 记录格式版本、后端说明、文件大小和每个文件的 SHA-256。
+本地 GLB。可选 USD 在包内保存为 `scene/scene.usdz`，其引用层、碰撞文件和材质纹理
+一起封装，不依赖原机器上的资产路径。解压外层 ZIP 后在 Isaac 中打开 USDZ；不要将
+USDZ 内部文件拆成普通目录，以免破坏封装内的引用解析。单独下载的 `scene.usd` 不会
+自动获得这些依赖，跨机器分享请使用场景包。
+
+`manifest.json` 记录格式版本、后端说明、文件大小和每个文件的 SHA-256。
+`artifacts.usd` 指向完整 USDZ；`usd_dependencies` 的每项用 `package` 标明所属 USDZ，
+用 `path` 标明包内成员，并记录成员大小和 SHA-256。缺少引用或打包失败时不会覆盖
+已有的有效 ZIP。
 MuJoCo 文件使用包围盒碰撞代理，GLB 用于 Three.js 视觉预览，Isaac USD 仍是可选
 高保真产物。
+
+安装版使用 `python -m scene_factory.isaac_export` 和
+`python -m scene_factory.isaac_preview` 调用独立 Isaac 环境，无需源码中的 `tools`。
 
 Three.js 会读取每个 GLB 来源清单中的轴向变换，并以等比缩放、底部对齐方式放入场景；
 它不会为了填满碰撞代理而拉伸模型。厨房预览还包含地板、两面墙、挡板和局部顶灯，便于
