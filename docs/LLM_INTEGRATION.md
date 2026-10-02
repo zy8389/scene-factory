@@ -51,7 +51,7 @@ powershell -ExecutionPolicy Bypass -File tools\start_web.ps1 -Restart
   "ca_bundle": "system",
   "transport": "urllib",
   "proxy_url": "",
-  "cache_dir": "../../scene_factory_runtime/llm_cache"
+  "cache_dir": "../local_resources/runtime/scene_factory_runtime/llm_cache"
 }
 ```
 

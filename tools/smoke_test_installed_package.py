@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 from scene_factory import ArticulationJoint
@@ -50,6 +51,25 @@ def main() -> int:
         raise FileNotFoundError(f"installed SceneFactory resources are missing: {missing}")
 
     factory = SceneFactory()
+    with tempfile.TemporaryDirectory(prefix="scene_factory_installed_blender_") as directory:
+        case = factory.build_from_recipe("kitchen_after_cooking", 42)
+        files = factory.write_result(
+            case, directory, export_bundle=False, export_blender=True,
+        )
+        manifest = json.loads(Path(files["blender_manifest"]).read_text(encoding="utf-8"))
+        with zipfile.ZipFile(files["blender_case"]) as archive:
+            members = set(archive.namelist())
+            required_case = {"blender_manifest.json", "blender_render.py"}
+            required_case.update(item["visual"] for item in manifest["objects"] if item["visual"])
+            if members != required_case or not any(item["visual"] for item in manifest["objects"]):
+                raise RuntimeError("installed Blender case is missing its renderer or GLB assets")
+        diagnosis = subprocess.run(
+            [sys.executable, "-m", "scene_factory.cli", "doctor", "--json"],
+            cwd=directory, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=150, check=True,
+        )
+        if not json.loads(diagnosis.stdout)["core_ready"]:
+            raise RuntimeError("installed doctor failed to detect packaged core resources")
     result = factory.build_from_recipe("kitchen_franka_mug_lift", 77)
     mug = next(item for item in result.scene.objects if item.object_id == "mug_1")
     if not result.valid or mug.asset_id != "mug_001":

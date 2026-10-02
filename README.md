@@ -30,6 +30,27 @@ v0.1 候选版本提供离线 Python SDK，可在无需 Isaac Sim、GPU、NumPy�
 - 执行轨迹验证及核心执行器一致性套件；
 - 可选的 Isaac Sim USD 导出和依赖环境的机器人集成。
 
+## 当前集成边界与 Blender case
+
+- 机器人本体：**1 种，Franka Emika Panda**（Isaac Sim 内的抓杯、搬放与 RGB-D 验收）；UR/xArm、移动底盘、双臂、人形与真实硬件均未接入。机器人有独立的 `RobotSpec` / `RobotAdapter` 接口，不等于新增机器人已经支持。
+- Blender：`--blender` 生成 `blender_manifest.json`、独立 `blender_render.py` 与所需 GLB 副本；**不需要 Blender 即可准备 case**。装好 Blender 后通过 `scene-factory blender render` 得到 `.blend` 和 PNG。静态场景可视化不包含 Franka 机器人模型、动作轨迹或物理验收。
+- 生成后的 case 位于指定输出目录，可先查看 `preview.svg` 与同目录清单。截至 2026-10-02，参考机器未安装 Blender，因而 `.blend` / PNG 尚未实机渲染验证。
+
+### 推荐的 uv / .venv 工作流（PowerShell）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\bootstrap_uv.ps1
+# 若 uv 已安装：uv run scene-factory doctor
+py -3.12 -m uv run scene-factory doctor
+py -3.12 -m uv run scene-factory build --recipe kitchen_after_cooking --seed 42 --output outputs\kitchen_blender_case --blender
+# 安装 Blender 后：
+py -3.12 -m uv run scene-factory blender render outputs\kitchen_blender_case\blender_manifest.json --blender-exe C:\path\to\blender.exe
+```
+
+启动脚本在 `.venv` 中同步锁定的开发依赖与 MuJoCo；没有 uv 时将它安装在当前用户的 Python 3.12 中。Isaac Sim 使用单独的本地 Python（优先读取 `SCENE_FACTORY_ISAAC_PYTHON`，其次检测 `local_resources/environments/scene_factory_isaac_py312`），不会被 `uv sync` 覆盖。可选 `-InstallIsaacProject` 将本项目以无依赖模式安装到已经存在的 Isaac 环境。CUDA 12.8 是本地 Isaac/PyTorch 验证基线，不是纯 Python 编译器的硬依赖。
+
+**Isaac 路径兼容处理**：参考机器在 Windows 中文路径下遇到 `pxr` 可导入但无法创建 USD Stage 的问题，已通过复用现有 Isaac 环境并创建 ASCII-only Junction 解决，未复制、删除或重建 Isaac Sim。2026-10-01 的 fresh `build --usd` 和 headless Kit/PhysX 检查已通过；这不代表其他机器或所有机器人任务已通过验收。Windows 下请让脚本自动准备该 Junction，并继续使用 ASCII-only USD/输出路径。
+
 ## 安装
 
 SceneFactory 支持 Python 3.12 或更高版本，核心编译 SDK 没有必需的运行时依赖：

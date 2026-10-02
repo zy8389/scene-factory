@@ -6,6 +6,7 @@ const seedInput = document.querySelector("#seed");
 const countInput = document.querySelector("#count");
 const mjcfInput = document.querySelector("#export-mjcf");
 const usdInput = document.querySelector("#export-usd");
+const blenderInput = document.querySelector("#export-blender");
 const generateButton = document.querySelector("#generate");
 const message = document.querySelector("#form-message");
 const emptyState = document.querySelector("#empty-state");
@@ -128,21 +129,66 @@ function setBusy(busy) {
 }
 
 function fileLinks(files, sceneId) {
-  const labels = { intent: "SceneIntent", revision: "Revision", scene_spec: "SceneSpec", layout: "Layout JSON", validation: "Validation", preview: "SVG Preview", mjcf: "MuJoCo MJCF", usd: "Isaac USD" };
+  const labels = {
+    intent: "SceneIntent",
+    revision: "Revision",
+    scene_spec: "SceneSpec",
+    layout: "Layout JSON",
+    validation: "Validation",
+    preview: "SVG Preview",
+    mjcf: "MuJoCo MJCF",
+    usd: "Isaac USD",
+    blender_manifest: "Blender Manifest",
+    blender_script: "Blender Render Script",
+  };
   const bundle = files.bundle
     ? `<a class="scene-bundle-link" href="${escapeHtml(files.bundle)}" download="${escapeHtml(sceneId)}.scene.zip">导出场景包 ↓</a>`
     : "";
+  const blenderCase = files.blender_case
+    ? `<a class="blender-case-link" href="${escapeHtml(files.blender_case)}" download="${escapeHtml(sceneId)}.blender-case.zip">下载 Blender Case ZIP ↓</a>`
+    : `<button class="export-blender-button" type="button" data-export-blender-scene-id="${escapeHtml(sceneId)}">导出 Blender Case</button>`;
   const links = Object.entries(files)
-    .filter(([name]) => name !== "bundle")
+    .filter(([name]) => name !== "bundle" && name !== "blender_case")
     .map(([name, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${labels[name] || escapeHtml(name)} ↗</a>`)
     .join("");
   const launcher = files.usd
     ? `<button class="open-isaac-button" type="button" data-scene-id="${escapeHtml(sceneId)}">在 Isaac Sim 中看 3D 实体</button>`
     : "";
-  return `${launcher}${bundle}${links}`;
+  return `${launcher}${blenderCase}${bundle}${links}`;
 }
 
 fileLinksContainer.addEventListener("click", async (event) => {
+  const blenderButton = event.target.closest("[data-export-blender-scene-id]");
+  if (blenderButton) {
+    const item = currentItem;
+    if (!item || item.scene.scene_id !== blenderButton.dataset.exportBlenderSceneId) return;
+    blenderButton.disabled = true;
+    const original = blenderButton.textContent;
+    blenderButton.textContent = "正在准备 Blender Case…";
+    try {
+      const response = await fetch("/api/export-blender", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: item.scene.scene_id }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Blender Case 导出失败");
+      item.files = { ...item.files, ...payload.files };
+      if (currentItem !== item) return;
+      fileLinksContainer.innerHTML = fileLinks(item.files, item.scene.scene_id);
+      message.className = "form-message";
+      message.textContent = "Blender Case 已生成，可下载 ZIP；其中包含 Manifest、渲染脚本和 GLB 资产。";
+    } catch (error) {
+      if (currentItem !== item) return;
+      message.className = "form-message error";
+      message.textContent = error.message;
+    } finally {
+      blenderButton.disabled = false;
+      blenderButton.textContent = original;
+    }
+    return;
+  }
+
   const button = event.target.closest("[data-scene-id]");
   if (!button) return;
   button.disabled = true;
@@ -215,6 +261,7 @@ revisionForm.addEventListener("submit", async (event) => {
         seed: currentItem.scene.seed,
         export_mjcf: Boolean(currentItem.files.mjcf),
         export_usd: Boolean(currentItem.files.usd),
+        export_blender: Boolean(currentItem.files.blender_case),
       }),
     });
     const payload = await response.json();
@@ -264,6 +311,7 @@ form.addEventListener("submit", async (event) => {
         count: Number(countInput.value),
         export_mjcf: mjcfInput.checked,
         export_usd: usdInput.checked,
+        export_blender: blenderInput.checked,
       }),
     });
     const payload = await response.json();

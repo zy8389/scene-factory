@@ -13,6 +13,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 from .factory import SceneFactory
 from .intent import SceneIntent
+from .models import CompiledScene
 from .isaac_runtime import find_isaac_python, isaac_process_environment
 from .paths import default_web_dir, project_root
 
@@ -55,6 +56,7 @@ class SceneWebApplication:
         count = int(payload.get("count", 1))
         export_usd = bool(payload.get("export_usd", False))
         export_mjcf = bool(payload.get("export_mjcf", True))
+        export_blender = bool(payload.get("export_blender", False))
         if not 0 <= seed <= 2_147_483_647:
             raise ValueError("seed 必须介于 0 和 2147483647 之间")
         if not 1 <= count <= 12:
@@ -71,6 +73,7 @@ class SceneWebApplication:
                 scene_dir,
                 export_usd=export_usd,
                 export_mjcf=export_mjcf,
+                export_blender=export_blender,
             )
             items.append(self._result_payload(result, files))
 
@@ -80,6 +83,7 @@ class SceneWebApplication:
             "count": count,
             "export_usd": export_usd,
             "export_mjcf": export_mjcf,
+            "export_blender": export_blender,
             "valid_count": sum(bool(item["validation"]["valid"]) for item in items),
             "items": items,
         }
@@ -115,6 +119,9 @@ class SceneWebApplication:
         seed = int(payload.get("seed", source_layout.get("seed", 42)))
         export_usd = bool(payload.get("export_usd", (source_dir / "scene.usd").is_file()))
         export_mjcf = bool(payload.get("export_mjcf", True))
+        export_blender = bool(
+            payload.get("export_blender", (source_dir / "blender_manifest.json").is_file())
+        )
         if not 0 <= seed <= 2_147_483_647:
             raise ValueError("seed 必须介于 0 和 2147483647 之间")
         if export_usd and os.name == "nt" and not str(self.output_root).isascii():
@@ -132,6 +139,7 @@ class SceneWebApplication:
             scene_dir,
             export_usd=export_usd,
             export_mjcf=export_mjcf,
+            export_blender=export_blender,
         )
         return {
             "source_scene_id": source_scene_id,
@@ -139,11 +147,34 @@ class SceneWebApplication:
             "item": self._result_payload(result, files),
         }
 
-    def _result_payload(self, result: Any, files: dict[str, str]) -> dict[str, Any]:
-        file_urls = {
-            name: f"/outputs/{quote(result.scene.scene_id)}/{quote(Path(path).name)}"
+    def export_blender_case(self, payload: dict[str, Any]) -> dict[str, Any]:
+        scene_id = str(payload.get("scene_id", "")).strip()
+        if not scene_id:
+            raise ValueError("scene_id is required")
+        scene_dir = (self.output_root / scene_id).resolve()
+        if not scene_dir.is_relative_to(self.output_root):
+            raise ValueError("invalid scene_id")
+        layout_path = scene_dir / "layout.json"
+        if not layout_path.is_file():
+            raise FileNotFoundError("当前场景缺少 layout.json")
+        raw_scene = json.loads(layout_path.read_text(encoding="utf-8"))
+        scene = CompiledScene.from_dict(raw_scene)
+        if scene.scene_id != scene_id:
+            raise ValueError("layout.json 中的 scene_id 与请求不一致")
+        from .exporters.blender import BlenderExporter
+
+        files = BlenderExporter(self.factory.registry).export(scene, scene_dir)
+        return {"scene_id": scene_id, "files": self._file_urls(scene_id, files)}
+
+    @staticmethod
+    def _file_urls(scene_id: str, files: dict[str, str]) -> dict[str, str]:
+        return {
+            name: f"/outputs/{quote(scene_id, safe='')}/{quote(Path(path).name, safe='')}"
             for name, path in files.items()
         }
+
+    def _result_payload(self, result: Any, files: dict[str, str]) -> dict[str, Any]:
+        file_urls = self._file_urls(result.scene.scene_id, files)
         revision = None
         if result.revision_of is not None:
             revision = {
@@ -346,6 +377,7 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             "/api/generate",
             "/api/revise",
             "/api/open-isaac",
+            "/api/export-blender",
             "/api/llm/test",
         }:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
@@ -363,6 +395,8 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
                 result = self.app.revise(payload)
             elif path == "/api/open-isaac":
                 result = self.app.open_in_isaac(payload)
+            elif path == "/api/export-blender":
+                result = self.app.export_blender_case(payload)
             else:
                 result = self.app.factory.test_llm_connection()
             self._send_json(HTTPStatus.OK, result)

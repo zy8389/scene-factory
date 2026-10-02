@@ -276,6 +276,7 @@ class SceneFactory:
         export_usd: bool = False,
         export_mjcf: bool = False,
         export_bundle: bool = True,
+        export_blender: bool = False,
     ) -> dict[str, str]:
         output = Path(output_dir)
         output.mkdir(parents=True, exist_ok=True)
@@ -347,6 +348,11 @@ class SceneFactory:
             mjcf_path = output / "scene.xml"
             MujocoMjcfExporter(self.registry).export(result.scene, mjcf_path)
             files["mjcf"] = str(mjcf_path.resolve())
+
+        if export_blender:
+            from .exporters.blender import BlenderExporter
+
+            files.update(BlenderExporter(self.registry).export(result.scene, output))
 
         if export_bundle:
             from .bundle import SceneBundleExporter

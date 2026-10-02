@@ -87,6 +87,10 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/usd/mug_001.usd",
 )
 REQUIRED_PACKAGE_FILES = (
+    "scene_factory/doctor.py",
+    "scene_factory/robot_specs.py",
+    "scene_factory/exporters/blender.py",
+    "scene_factory/exporters/blender_render.py",
     "scene_factory/isaac_export.py",
     "scene_factory/isaac_preview.py",
     "scene_factory/isaac_runtime.py",

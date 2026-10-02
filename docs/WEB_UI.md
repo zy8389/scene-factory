@@ -88,3 +88,14 @@ LLM 场景生成成功后，预览下方会出现“继续修改当前场景”�
 系统会把当前 `scene_intent.json` 和修改要求一起发给 LLM，要求模型返回完整的新
 `SceneIntent`。未提到的物体与关系会保留，修改结果写入新的场景目录，同时生成
 `revision.json` 记录来源场景。原版本不会被覆盖，可以连续修改多轮。
+
+## Blender Case 导出与渲染
+
+网页支持在生成前勾选“Blender Case（Manifest + GLB + ZIP）”，也支持在结果区域对已经生成的场景点击“导出 Blender Case”。导出结果包含：
+
+- `blender_manifest.json`：场景尺寸、物体位姿、颜色和 GLB 资产映射；
+- `blender_render.py`：可由 Blender CLI 或 GUI 执行的导入与渲染脚本；
+- `blender_assets/*.glb`：当前场景引用的可视化资产；
+- `<scene_id>.blender-case.zip`：以上内容的便携压缩包。
+
+解压后，安装 Blender 的机器可以在解压目录运行 `blender -b --python-exit-code 1 --python blender_render.py -- --manifest blender_manifest.json --blend scene.blend --png render.png`，或使用 `scene-factory blender render blender_manifest.json --blender-exe PATH`。脚本需要显式传入清单与输出路径，不能在 Blender GUI 中不带参数直接运行。网页导出本身不要求本机安装 Blender；没有 Blender 时只能准备 Case，不能在本机生成 `.blend` 和 PNG。该 Blender Case 是静态可视化场景，不包含 Franka 机器人模型、动作轨迹或物理验收。

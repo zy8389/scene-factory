@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from .robot_specs import FRANKA_SPEC
+
 
 Vec3 = tuple[float, float, float]
 
@@ -495,7 +497,7 @@ def build_robot_acceptance_report(
     return {
         "scene_id": scene_id,
         "backend": "isaac",
-        "robot": "franka",
+        "robot": FRANKA_SPEC.name,
         "target_object": target_object,
         "asset_id": asset_id,
         "initial_target_position": initial_position or [],
@@ -557,7 +559,7 @@ def build_pick_place_acceptance_report(
     return {
         "scene_id": scene_id,
         "backend": "isaac",
-        "robot": "franka",
+        "robot": FRANKA_SPEC.name,
         "task": "pick_and_place",
         "target_object": target_object,
         "asset_id": asset_id,

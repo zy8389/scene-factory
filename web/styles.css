@@ -163,6 +163,11 @@ textarea:focus, input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px r
 .open-isaac-button { flex-basis: 100%; min-height: 46px; border: 0; background: var(--teal); color: white; cursor: pointer; font: 800 13px inherit; margin-bottom: 6px; transition: .2s; }
 .open-isaac-button:hover { background: var(--ink); transform: translateY(-1px); }
 .open-isaac-button:disabled { cursor: wait; opacity: .72; transform: none; }
+.file-links .blender-case-link { flex-basis: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; border: 0; background: var(--acid); color: var(--ink); font-size: 13px; margin-bottom: 6px; padding: 0 14px; }
+.file-links .blender-case-link:hover { background: var(--teal); color: white; }
+.export-blender-button { flex-basis: 100%; min-height: 46px; border: 0; background: var(--acid); color: var(--ink); cursor: pointer; font: 800 13px inherit; margin-bottom: 6px; transition: .2s; }
+.export-blender-button:hover { background: var(--teal); color: white; transform: translateY(-1px); }
+.export-blender-button:disabled { cursor: wait; opacity: .72; transform: none; }
 
 .revision-form { margin: 22px 30px 30px; border: 1px solid var(--line); border-left: 5px solid var(--acid); background: #f8f7f2; padding: 17px; }
 .revision-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }

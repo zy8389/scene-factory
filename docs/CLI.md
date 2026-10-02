@@ -6,6 +6,9 @@ The installed command is `scene-factory`. Every command supports `--help`.
 
 ```text
 scene-factory list-recipes
+scene-factory doctor [--json]
+scene-factory build --recipe NAME --output PATH --blender
+scene-factory blender render PATH/to/blender_manifest.json [--blender-exe PATH] [--no-png]
 scene-factory build --recipe NAME --seed INT --output PATH
 scene-factory build --intent PATH --seed INT --output PATH
 scene-factory build --recipe NAME --seed INT --output PATH --no-mjcf
@@ -36,7 +39,13 @@ scene-factory llm-test
 `build` and `batch` export MJCF by default; use `--no-mjcf` to omit it. MJCF
 export does not import MuJoCo. `build --usd`, `batch --usd`, and the Isaac asset
 commands require an Isaac/USD environment. The command parser itself remains
-importable in ordinary Python.
+importable in ordinary Python. `build --blender` prepares a portable visual case
+(manifest, renderer script, GLB copies) without Blender or `bpy`; `blender render`
+requires an installed Blender executable and produces `scene.blend` and,
+unless `--no-png` is used, `render.png`. This is a static view, not robot
+physics. `doctor` reports the core setup and optional Isaac, CUDA, MuJoCo, uv,
+Blender, and an actual USD Stage creation probe. The core-ready status is
+separate from optional runtime readiness.
 
 When USD is requested, the scene ZIP stores a self-contained `scene/scene.usdz`
 with referenced layers and textures. Open the USDZ after extracting the outer

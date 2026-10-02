@@ -64,6 +64,14 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("list-recipes", help="List available event recipes")
+    doctor = subparsers.add_parser("doctor", help="Diagnose optional local runtimes")
+    doctor.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    blender = subparsers.add_parser("blender", help="Render a prepared Blender manifest")
+    blender_commands = blender.add_subparsers(dest="blender_command", required=True)
+    blender_render = blender_commands.add_parser("render", help="Create .blend and optional PNG")
+    blender_render.add_argument("manifest", type=Path)
+    blender_render.add_argument("--blender-exe", type=Path)
+    blender_render.add_argument("--no-png", action="store_true")
     subparsers.add_parser("llm-status", help="Show natural-language parser configuration")
     subparsers.add_parser("llm-test", help="Test the configured LLM with one structured request")
 
@@ -89,6 +97,10 @@ def _parser() -> argparse.ArgumentParser:
         help="Export MuJoCo MJCF (enabled by default)",
     )
     build.add_argument("--usd", action="store_true", help="Export USD using Isaac Sim pxr")
+    build.add_argument(
+        "--blender", action="store_true",
+        help="Prepare a Blender manifest and render script (Blender not required)",
+    )
 
     batch = subparsers.add_parser("batch", help="Build multiple deterministic scenes")
     source = batch.add_mutually_exclusive_group(required=True)
@@ -219,6 +231,27 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "blender":
+        from .exporters.blender import render_manifest
+
+        try:
+            print(json.dumps(
+                render_manifest(args.manifest, blender_exe=args.blender_exe, png=not args.no_png),
+                ensure_ascii=False, indent=2,
+            ))
+            return 0
+        except (OSError, RuntimeError) as exc:
+            print(f"scene-factory: {exc}", file=sys.stderr)
+            return 1
+    if args.command == "doctor":
+        from .doctor import diagnose, format_report
+
+        report = diagnose()
+        print(
+            json.dumps(report, ensure_ascii=False, indent=2)
+            if args.json else format_report(report)
+        )
+        return 0 if report["core_ready"] else 1
     try:
         if args.command == "asset":
             if args.asset_command == "normalize":
@@ -436,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.output,
                 export_usd=args.usd,
                 export_mjcf=args.mjcf,
+                export_blender=args.blender,
             )
             print(
                 json.dumps(

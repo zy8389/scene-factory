@@ -1,3 +1,5 @@
+> 此页原有流程刻意不下载依赖。新机器若希望自动同步 `.venv` / MuJoCo，请改用根目录 README 中的 `tools/bootstrap_uv.ps1`；该命令需要网络，不会重装已存在的 Isaac Sim。执行 `scene-factory doctor` 可以检查 CUDA 12.8、Blender 和 USD Stage 的实际可用性。Windows 中文路径会让 Isaac 的 USD/Kit 路径解析失效；脚本会复用现有环境并自动创建 ASCII Junction，不会重建 Isaac Sim。
+
 # SceneFactory 本地无下载部署
 
 这套部署只复用当前电脑已经存在的代码、Isaac Python、OpenUSD/pxr 和 Isaac Sim，

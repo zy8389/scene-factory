@@ -19,6 +19,7 @@ from ..robotics import (
     quaternion_angular_distance,
 )
 from ..tasks import TaskEvaluator
+from ..robot_specs import FRANKA_SPEC
 
 
 _BUNDLED_FRANKA_ARM_STIFFNESS = 1000.0
@@ -34,11 +35,7 @@ _GRASP_HOLD_CLOSING_MARGIN_M = 0.007
 
 
 def _franka_kinematics_frame(asset_source: str | None) -> str:
-    return (
-        "panda_hand"
-        if asset_source == "isaacsim_bundled_franka_urdf"
-        else "right_gripper"
-    )
+    return FRANKA_SPEC.kinematics_frame(asset_source)
 
 
 def _load_simulation_app():
@@ -85,7 +82,7 @@ def build_observation(
             for object_id, position in object_positions.items()
         },
         "robot": {
-            "name": "franka",
+            "name": FRANKA_SPEC.name,
             "joint_positions": [float(value) for value in joint_positions],
             "joint_velocities": [float(value) for value in (joint_velocities or [])],
             "end_effector_pose": {
@@ -578,7 +575,7 @@ class IsaacSimBackend:
             )
         self._robot = SingleArticulation(
             robot_prim_path,
-            name="franka",
+            name=FRANKA_SPEC.name,
             position=np.asarray(base_position, dtype=float),
             orientation=np.asarray(base_orientation, dtype=float),
         )
@@ -603,7 +600,7 @@ class IsaacSimBackend:
             orientation=base_orientation,
         )
         default_joints = np.asarray(
-            [0.0, -0.3, 0.0, -2.0, 0.0, 1.7, 0.8, 0.0, 0.0], dtype=float
+            FRANKA_SPEC.default_joint_positions, dtype=float
         )
         for index, position in zip(
             self._finger_gripper_config["indices"],
@@ -616,7 +613,7 @@ class IsaacSimBackend:
 
         self._gripper = ParallelGripper(
             end_effector_prim_path=self._hand_root_path,
-            joint_prim_names=["panda_finger_joint1", "panda_finger_joint2"],
+            joint_prim_names=list(FRANKA_SPEC.gripper.joint_names),
             joint_opened_positions=np.asarray(
                 self._finger_gripper_config["open_positions"], dtype=float
             ),

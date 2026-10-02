@@ -15,6 +15,7 @@ config/llm.json
 dist/
 build/
 outputs/
+local_resources/
 *.usd
 *.usda
 *.usdc
