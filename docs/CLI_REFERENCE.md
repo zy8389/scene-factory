@@ -19,6 +19,9 @@ scene-factory dataset inspect PATH
 scene-factory dataset validate PATH
 scene-factory dataset reproduce PATH
 scene-factory dataset audit PATH --minimum-level layout --deduplicate --output REPORT_PATH
+scene-factory dataset sample PLAN_PATH --output COLLECTION_PATH [--resume]
+scene-factory dataset sampling-validate COLLECTION_PATH
+scene-factory dataset sampling-reproduce COLLECTION_PATH
 scene-factory task plan --scene PATH --object ID --state NAME --output PATH
 scene-factory task validate --scene PATH --plan PATH
 scene-factory task replay --scene PATH --plan PATH
@@ -56,6 +59,13 @@ records. Exit `0` means at least one scene was selected, not that every source
 scene passed; exit `2` means invalid/incomplete source data or no eligible scenes.
 Physics and task evidence are not run or imported by this offline command.
 See [the data workflow](DATA_WORKFLOW.md) for selection and compatibility semantics.
+
+`dataset sample` uses a `scene_factory.sampling_plan.v1` input with bounded
+candidate budgets and per-stratum quotas. Output contains a collection report
+and ordinary v1 child datasets. Exit `2` means generation failed or a quota was
+not met; no partial selection is released. `--resume` requires unchanged plan,
+recipe and registry fingerprints. `sampling-validate` checks stored evidence
+and quotas; `sampling-reproduce` rebuilds all candidate datasets offline.
 
 Validation and build commands print JSON. `list-recipes` prints one recipe name
 per line for shell-friendly use. Generated datasets, traces, and reports should

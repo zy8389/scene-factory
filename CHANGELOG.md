@@ -4,6 +4,10 @@
 
 ### Added
 
+- stratified sampling plans with bounded candidate pools, quality quotas,
+  region filtering, cross-stratum deduplication, coverage reports and resumable
+  collection generation; candidate datasets retain their existing v1 contract.
+
 - separate mug-lift and pick-and-place data recipes with seeded start positions
   outside the placement target; fixed robot acceptance recipes remain available.
 

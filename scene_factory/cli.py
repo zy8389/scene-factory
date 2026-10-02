@@ -22,6 +22,12 @@ from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
 from .paths import default_registry_path
 from .quality import QUALITY_LEVELS
+from .sampling import (
+    build_sampling_collection,
+    load_sampling_plan,
+    reproduce_sampling_collection,
+    validate_sampling_collection,
+)
 from .planning import (
     plan_interaction,
     replay_interaction_plan,
@@ -135,6 +141,17 @@ def _parser() -> argparse.ArgumentParser:
     audit.add_argument("--minimum-level", choices=QUALITY_LEVELS, default="layout")
     audit.add_argument("--deduplicate", action="store_true", help="Select only the first eligible exact layout")
     audit.add_argument("--output", type=Path, help="Write an audit JSON outside the source dataset")
+
+    sample = dataset_commands.add_parser("sample", help="Build a collection with per-stratum quality quotas")
+    sample.add_argument("path", type=Path, help="Sampling plan JSON")
+    sample.add_argument("--output", type=Path, required=True)
+    sample.add_argument("--resume", action="store_true")
+    for name, help_text in (
+        ("sampling-validate", "Validate a collection, its quotas and source selection"),
+        ("sampling-reproduce", "Reproduce the candidate datasets of a validated collection"),
+    ):
+        command = dataset_commands.add_parser(name, help=help_text)
+        command.add_argument("path", type=Path)
 
     task = subparsers.add_parser(
         "task", help="Plan and replay deterministic symbolic interaction tasks"
@@ -305,6 +322,18 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if report.valid else 2
 
         if args.command == "dataset":
+            if args.dataset_command == "sample":
+                report = build_sampling_collection(
+                    load_sampling_plan(args.path), args.output, resume=args.resume,
+                    factory=SceneFactory(args.registry, args.recipes),
+                )
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.valid else 2
+            if args.dataset_command in {"sampling-validate", "sampling-reproduce"}:
+                operation = validate_sampling_collection if args.dataset_command == "sampling-validate" else reproduce_sampling_collection
+                report = operation(args.path)
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.valid else 2
             if args.dataset_command == "audit":
                 output = args.output.expanduser().resolve() if args.output is not None else None
                 if output is not None and output.is_relative_to(args.path.expanduser().resolve()):

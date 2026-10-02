@@ -173,6 +173,16 @@ scene-factory dataset audit outputs/dataset --minimum-level layout --deduplicate
 新配方只提供布局候选，物理和任务验收仍需单独执行。布局采样失败会进行有次数上限的
 重新布局；已成功种子的布局保持原采样结果。
 
+分层采样计划可为不同配方及起点区域设置合格配额，按有限候选预算生成、过滤和跨组去重。
+任一配额不足时，整个集合保持未完成；通过后输出均衡选择索引和覆盖报告。
+参见[分层数据示例](examples/stratified_dataset/README.md)：
+
+```bash
+scene-factory dataset sample examples/stratified_dataset/plan.json --output outputs/stratified
+scene-factory dataset sampling-validate outputs/stratified
+scene-factory dataset sampling-reproduce outputs/stratified
+```
+
 ## 可动部件规划与执行
 
 符号规划器使用可动部件元数据生成 `InteractionPlan`。干运行执行器会应用

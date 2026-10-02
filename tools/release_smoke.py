@@ -49,6 +49,9 @@ HELP_COMMANDS = (
     ("dataset", "validate"),
     ("dataset", "reproduce"),
     ("dataset", "audit"),
+    ("dataset", "sample"),
+    ("dataset", "sampling-validate"),
+    ("dataset", "sampling-reproduce"),
     ("task",),
     ("task", "plan"),
     ("task", "validate"),
@@ -355,6 +358,30 @@ def run() -> dict[str, Any]:
                 [cli, "dataset", "reproduce", str(data_root)], cwd=cwd, env=environment,
             ), f"{recipe_name} reproduction")
         checks["randomized_data_recipes"] = "passed"
+
+        sampling_plan_path = cwd / "sampling-plan.json"
+        collection_root = cwd / "sampling-collection"
+        _write_json(sampling_plan_path, {
+            "schema_version": "scene_factory.sampling_plan.v1",
+            "strata": [
+                {"id": "lift", "recipe": "kitchen_franka_mug_lift_data", "quota": 2,
+                 "candidate_count": 3, "seed_start": 1000},
+                {"id": "placement", "recipe": "kitchen_franka_mug_pick_place_data", "quota": 2,
+                 "candidate_count": 3, "seed_start": 1000},
+            ],
+        })
+        collection = _json_command(
+            [cli, "dataset", "sample", str(sampling_plan_path), "--output", str(collection_root)],
+            cwd=cwd, env=environment,
+        )
+        _assert_valid(collection, "sampling collection")
+        if collection["summary"]["selected_count"] != 4:
+            raise RuntimeError("sampling collection did not satisfy its quotas")
+        for operation in ("sampling-validate", "sampling-reproduce"):
+            _assert_valid(_json_command(
+                [cli, "dataset", operation, str(collection_root)], cwd=cwd, env=environment,
+            ), operation)
+        checks["stratified_sampling"] = "passed"
 
         scene_path = cwd / "articulated-scene.json"
         plan_path = cwd / "interaction-plan.json"

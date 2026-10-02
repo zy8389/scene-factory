@@ -1,0 +1,38 @@
+{
+  "schema_version": "scene_factory.sampling_plan.v1",
+  "minimum_level": "layout",
+  "strata": [
+    {
+      "id": "lift_left",
+      "recipe": "kitchen_franka_mug_lift_data",
+      "quota": 10,
+      "candidate_count": 40,
+      "seed_start": 1000,
+      "filter": {"object_id": "mug_1", "region_xy": [0.56, 0.60, -0.08, 0.02]}
+    },
+    {
+      "id": "lift_right",
+      "recipe": "kitchen_franka_mug_lift_data",
+      "quota": 10,
+      "candidate_count": 40,
+      "seed_start": 2000,
+      "filter": {"object_id": "mug_1", "region_xy": [0.60, 0.64, -0.08, 0.02]}
+    },
+    {
+      "id": "placement_left",
+      "recipe": "kitchen_franka_mug_pick_place_data",
+      "quota": 10,
+      "candidate_count": 40,
+      "seed_start": 1000,
+      "filter": {"object_id": "mug_1", "region_xy": [0.56, 0.60, -0.08, 0.02]}
+    },
+    {
+      "id": "placement_right",
+      "recipe": "kitchen_franka_mug_pick_place_data",
+      "quota": 10,
+      "candidate_count": 40,
+      "seed_start": 2000,
+      "filter": {"object_id": "mug_1", "region_xy": [0.60, 0.64, -0.08, 0.02]}
+    }
+  ]
+}

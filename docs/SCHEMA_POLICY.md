@@ -15,6 +15,12 @@ Dataset v1 keeps its existing artifact map and semantic fingerprint definition.
 New quality files use an optional top-level `quality_report` descriptor, which
 older v1 readers ignore. New readers verify its path, hash, and recorded evidence.
 
+Sampling plans and collection reports use separate
+`scene_factory.sampling_plan.v1` and `scene_factory.sampling_collection.v1`
+versions. Child datasets keep the original v1 format; the collection is not
+passed to the single-dataset reader. Selection references are recomputed from
+verified candidates rather than trusted as independent evidence.
+
 ## Compatibility rules
 
 - Unknown schema versions fail closed.

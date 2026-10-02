@@ -39,6 +39,12 @@ source integrity before computing quality selection and coverage statistics.
 It preserves source files and reproducibility fingerprints; physical evidence
 integration and trajectory collection remain separate stages.
 
+`Sampling` composes existing v1 batch datasets into an ordered collection with
+explicit candidate budgets, region filters and quality quotas. It releases no
+partial selection if any quota is unmet and verifies stored selection references
+against child dataset evidence. It adds collection bookkeeping without changing
+the compiler, robot executor or trajectory protocols.
+
 `SimulatorBackend` is the environment-level abstraction for reset, step,
 render, and close. `InteractionExecutor` is the semantic interaction-plan
 abstraction for reset, command execution, snapshots, and close. They are

@@ -37,6 +37,7 @@ WHEEL_REQUIRED_FILES = (
     "schemas/interaction_plan.schema.json",
     "schemas/scene_intent.schema.json",
     "schemas/scene_spec.schema.json",
+    "schemas/sampling_plan.schema.json",
     "web/index.html",
     "web/styles.css",
     "web/app.js",
@@ -87,6 +88,7 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/usd/mug_001.usd",
 )
 REQUIRED_PACKAGE_FILES = (
+    "scene_factory/sampling.py",
     "scene_factory/doctor.py",
     "scene_factory/robot_specs.py",
     "scene_factory/exporters/blender.py",

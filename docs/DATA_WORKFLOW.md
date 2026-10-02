@@ -120,9 +120,52 @@ scene-factory dataset audit outputs/data/snacking --minimum-level task
 `dataset_id` 是原有生成调用身份，不是全内容哈希；请结合清单及文件哈希使用。
 报告不证明外部输入本身可信，也不读取用户附加的任意“物理成功”声明。
 
+## 分层配额与覆盖报告
+
+`scene_factory.sampling_plan.v1` 按配方和起点区域定义候选池与合格配额。
+示例 [plan.json](../examples/stratified_dataset/plan.json) 将抓杯、抓取放置各分为左右两组，
+每组生成 40 个候选，选出 10 个不重复的布局合格场景，共生成 160 个、选出 40 个。
+
+```powershell
+scene-factory dataset sample examples/stratified_dataset/plan.json --output outputs/stratified
+scene-factory dataset sampling-validate outputs/stratified
+scene-factory dataset sampling-reproduce outputs/stratified
+scene-factory dataset sample examples/stratified_dataset/plan.json --output outputs/stratified --resume
+```
+
+计划字段：`minimum_level` 指定最低质量层级（默认 `layout`）；`strata` 是有顺序的分组列表。
+每组的 `id` 是跨平台安全目录名，`recipe` 指定原有配方，`quota` 是最终合格数量，
+`candidate_count` 是有限的候选预算，`seed_start` 指定首个种子。可选 `filter` 使用
+`object_id` 和世界坐标 `region_xy` 过滤物体中心，不修改配方或原候选布局。
+区域采用左闭右开边界，同一配方各组的种子区间必须不重叠。
+
+按计划顺序、组内种子升序选择，复用原质量门槛和精确内容指纹，并在组间去重。
+任何一组配额不足时，整体标记未完成，`selected` 为空；候选及每组缺口仍保留。
+不按候选通过率替换配额，也不无限补采。修改配额、预算或区域时使用新输出目录。
+
+`collection.json` 的版本为 `scene_factory.sampling_collection.v1`。主要内容包括：
+
+- `sources`：规范化配方和资产注册记录的语义哈希，恢复时检查它们是否变化；不代表资产二进制或物理验收证明。
+- `summary`：候选总数、总配额、能满足条件的暂选数量 `qualified_count`、实际放行数量 `selected_count`。
+- `strata`：每组候选、质量通过、区域匹配、去重、可用数量、配额是否满足及拒绝原因。
+- `strata[].position_bounds_xy`：该组暂选起点的实际最小/最大坐标，用于检查覆盖，不能解释为机器人工作范围。
+- `coverage`：已放行样本的配方、房间、事件分布与资产实例数。未完成集合不发布部分覆盖。
+- `selected`：每条包含分组、子数据集位置、内容指纹和原始场景记录；文件路径相对子数据集，不是集合根目录。
+
+子目录 `datasets/<分组 id>/` 继续使用原数据集 v1 格式。`sampling-validate` 重新审计
+候选文件、哈希、门槛、区域与配额，并检查存储的选择索引与推导结果一致；不重写文件。
+`sampling-reproduce` 在集合验证通过后，复用原复现流程重建所有候选，检查语义指纹。
+它不是物理回放；如果候选池中保留了被拒绝的布局失败样本，原复现检查仍可能失败。
+复现使用当前默认资源库；定制配方或注册表需在匹配的 `SCENE_FACTORY_HOME` 环境下运行。
+
+生成中断可用原计划 `--resume` 恢复。恢复前拒绝损坏候选、不同计划或变化的配方/注册记录；
+已完成的候选批次不重写，未完成批次复用原恢复机制。数据集合目录不是原单配方数据集，
+请使用 `sampling-validate` 检查集合；原 `dataset validate` 仍可用于其各个子数据集。
+采样结构见 [sampling_plan.schema.json](../schemas/sampling_plan.schema.json)，跨字段配额、区间和有限数值由运行时进一步检查。
+
 ## 后续数据路线
 
-1. 根据覆盖统计制定房间、任务、资产和摆放难度的分层采样配额，而不只是增加 seed。
+1. 根据覆盖报告增加房间、任务和资产的采样分组，再以实际任务结果评估难度。
 2. 接入实际运行且绑定场景指纹的物理与任务证据，建立严格筛选入口。
 3. 复用已有 `EpisodeRecorder` 和轨迹加载/回放协议，采集可回放、带失败标签的小批示教。
 4. 验证任务与轨迹后再做训练/验证/测试划分及防泄漏检查，不把当前场景索引冒充训练集。

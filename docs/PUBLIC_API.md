@@ -85,6 +85,26 @@ or incomplete generation. Selection paths remain relative to the source root.
 Requiring `physics` or `task` rejects scenes without corresponding evidence;
 this offline version only has layout evidence. See [DATA_WORKFLOW.md](DATA_WORKFLOW.md).
 
+```python
+from scene_factory import (
+    build_sampling_collection, load_sampling_plan,
+    validate_sampling_collection, reproduce_sampling_collection,
+)
+
+plan = load_sampling_plan("examples/stratified_dataset/plan.json")
+collection = build_sampling_collection(plan, "outputs/stratified")
+validation = validate_sampling_collection("outputs/stratified")
+reproduction = reproduce_sampling_collection("outputs/stratified")
+```
+
+`normalize_sampling_plan` validates mapping inputs without simulator imports.
+The build generates bounded candidate pools using existing batch datasets and
+releases a selection only if every stratum meets its quality and uniqueness quota.
+Region filters operate on object centers using half-open world XY bounds.
+`resume=True` requires matching plan and source fingerprints and preserves completed
+candidates. Validation recomputes the stored selection; reproduction uses the
+existing offline candidate fingerprint checks. Physical evidence is not added.
+
 ## Scene bundles and MuJoCo
 
 ```python

@@ -11,6 +11,15 @@ from .asset_validator import AssetValidator, validate_asset, validate_usd
 from .asset_pipeline import AssetNormalizer, CollisionProcessor
 from .dataset import DatasetResult, audit_dataset, inspect_dataset, reproduce_dataset, validate_dataset
 from .quality import QUALITY_SCHEMA_VERSION, assess_scene_quality
+from .sampling import (
+    SAMPLING_PLAN_SCHEMA_VERSION,
+    SAMPLING_COLLECTION_SCHEMA_VERSION,
+    build_sampling_collection,
+    load_sampling_plan,
+    normalize_sampling_plan,
+    reproduce_sampling_collection,
+    validate_sampling_collection,
+)
 from .external import (
     ENVELOPE_SOURCE_FORMAT,
     EXTERNAL_SCHEMA_VERSION,
@@ -107,6 +116,13 @@ __all__ = [
     "QUALITY_SCHEMA_VERSION",
     "assess_scene_quality",
     "audit_dataset",
+    "SAMPLING_PLAN_SCHEMA_VERSION",
+    "SAMPLING_COLLECTION_SCHEMA_VERSION",
+    "build_sampling_collection",
+    "load_sampling_plan",
+    "normalize_sampling_plan",
+    "reproduce_sampling_collection",
+    "validate_sampling_collection",
     "ExternalSceneDocument",
     "ExternalSceneError",
     "ENVELOPE_SOURCE_FORMAT",
