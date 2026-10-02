@@ -1,0 +1,71 @@
+{
+  "name": "kitchen_franka_mug_pick_place_data",
+  "room_type": "kitchen",
+  "room_dimensions_m": [4.0, 3.0, 2.8],
+  "event": "robot_mug_pick_place",
+  "description": "抓取放置任务的数据候选场景：杯子在目标区域外随机生成，放置目标和相机保持固定。",
+  "keywords": ["抓取放置数据", "mug pick place data"],
+  "objects": [
+    {
+      "object_id": "robot_mount_1",
+      "category": "side_cabinet",
+      "asset_id": "side_cabinet_basic",
+      "dynamic": false,
+      "fixed_pose": {"position": [-0.05, 0.0, 0.39], "yaw_deg": 0}
+    },
+    {
+      "object_id": "island_1",
+      "category": "kitchen_island",
+      "asset_id": "kitchen_island_basic",
+      "dynamic": false,
+      "fixed_pose": {"position": [1.15, 0.0, 0.46], "yaw_deg": 0}
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "asset_id": "mug_001",
+      "support": "island_1:top",
+      "dynamic": true,
+      "region_xy": [0.56, 0.64, -0.08, 0.02],
+      "yaw_range_deg": [0, 0]
+    }
+  ],
+  "task": {
+    "instruction": "把杯子拿起来，移动到目标区域并放下。",
+    "target_object": "mug_1",
+    "asset_id": "mug_001",
+    "robot": "franka",
+    "robot_base_position_m": [-0.05, 0.0, 0.78],
+    "robot_base_orientation_wxyz": [1.0, 0.0, 0.0, 0.0],
+    "camera": {
+      "prim_path": "/World/Sensors/SceneFactoryRGBD",
+      "name": "scene_factory_rgbd",
+      "resolution": [160, 120],
+      "position": [0.65, -1.50, 1.50],
+      "orientation_wxyz": [
+        0.6756562964518921,
+        -0.12356351618216324,
+        0.11637191972696767,
+        0.7174107629752103
+      ],
+      "frequency_hz": 60
+    },
+    "grasp_offset_m": [0.053, 0.007, 0.0],
+    "grasp_orientation_wxyz": [0.0, 1.0, 0.0, 0.0],
+    "success": {
+      "predicate": "pick_and_place",
+      "subject": "mug_1",
+      "source_support": "island_1",
+      "target_support": "island_1",
+      "target_support_surface": "top",
+      "target_position_m": [0.68, 0.15, 0.9665395013],
+      "target_region_xy": [0.60, 0.76, 0.06, 0.24],
+      "target_tolerance_m": [0.09, 0.09, 0.03],
+      "min_lift_delta_m": 0.10,
+      "lift_height_m": 0.14,
+      "transfer_clearance_m": 0.10,
+      "settle_steps": 20,
+      "max_settle_step_distance_m": 0.005
+    }
+  }
+}

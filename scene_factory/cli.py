@@ -16,11 +16,12 @@ from .conformance import (
     validate_conformance_report,
     write_conformance_report_atomic,
 )
-from .dataset import inspect_dataset, reproduce_dataset, validate_dataset
+from .dataset import audit_dataset, inspect_dataset, reproduce_dataset, validate_dataset, write_json_atomic
 from .external import ExternalSceneError, external_scene_schema, load_external_scene
 from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
 from .paths import default_registry_path
+from .quality import QUALITY_LEVELS
 from .planning import (
     plan_interaction,
     replay_interaction_plan,
@@ -128,6 +129,12 @@ def _parser() -> argparse.ArgumentParser:
     ):
         command = dataset_commands.add_parser(name, help=help_text)
         command.add_argument("path", type=Path)
+
+    audit = dataset_commands.add_parser("audit", help="Audit quality, diversity and scene selection")
+    audit.add_argument("path", type=Path)
+    audit.add_argument("--minimum-level", choices=QUALITY_LEVELS, default="layout")
+    audit.add_argument("--deduplicate", action="store_true", help="Select only the first eligible exact layout")
+    audit.add_argument("--output", type=Path, help="Write an audit JSON outside the source dataset")
 
     task = subparsers.add_parser(
         "task", help="Plan and replay deterministic symbolic interaction tasks"
@@ -298,6 +305,17 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if report.valid else 2
 
         if args.command == "dataset":
+            if args.dataset_command == "audit":
+                output = args.output.expanduser().resolve() if args.output is not None else None
+                if output is not None and output.is_relative_to(args.path.expanduser().resolve()):
+                    raise ValueError("audit output must be outside the source dataset")
+                report = audit_dataset(
+                    args.path, minimum_level=args.minimum_level, deduplicate=args.deduplicate
+                )
+                if output is not None:
+                    write_json_atomic(output, report.to_dict())
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.valid else 2
             handler = {
                 "inspect": inspect_dataset,
                 "validate": validate_dataset,
@@ -477,6 +495,7 @@ def main(argv: list[str] | None = None) -> int:
                         "scene_id": result.scene.scene_id,
                         "recipe": result.scene.recipe_name,
                         "valid": result.valid,
+                        "quality": result.quality,
                         "files": files,
                     },
                     ensure_ascii=False,

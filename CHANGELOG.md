@@ -4,6 +4,13 @@
 
 ### Added
 
+- separate mug-lift and pick-and-place data recipes with seeded start positions
+  outside the placement target; fixed robot acceptance recipes remain available.
+
+- offline layered scene quality reports, dataset quality selection, failure
+  taxonomy, coverage statistics and opt-in exact-layout deduplication; physics
+  and task checks remain explicitly unverified, with existing v1 datasets supported.
+
 - MuJoCo MJCF export and a lazy MuJoCo environment backend;
 - portable scene bundles with artifact hashes, asset metadata and local GLB
   visual files;
@@ -14,6 +21,10 @@
   cookware, food and utensil meshes.
 
 ### Changed
+
+- layout sampling exhaustion retries bounded full layouts while preserving
+  selected assets and fixtures; retries constrain regional sampling to usable
+  support bounds, and previously successful layouts keep their original output.
 
 - scene builds and the Web UI export MJCF by default;
 - `SceneFactoryEnv` selects the MuJoCo backend by default, while explicit

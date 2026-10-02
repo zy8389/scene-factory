@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
@@ -20,10 +21,13 @@ from .external import (
     normalize_producer,
 )
 from .intent import SceneIntent
+from .models import CompiledScene
+from .quality import QUALITY_LEVELS, QUALITY_STATUSES, assess_scene_quality, quality_rejection_codes
 
 
 DATASET_SCHEMA_VERSION = "scene_factory.dataset.v1"
 SCENE_SCHEMA_VERSION = "scene_factory.dataset_scene.v1"
+DATASET_AUDIT_SCHEMA_VERSION = "scene_factory.dataset_audit.v1"
 _REQUIRED_FILES = ("scene_spec", "layout", "validation", "preview")
 _OPTIONAL_FILE_NAMES = {
     "intent": "scene_intent.json",
@@ -36,6 +40,7 @@ _FILE_NAMES = {
     "layout": "layout.json",
     "validation": "validation.json",
     "preview": "preview.svg",
+    "quality": "quality.json",
     **_OPTIONAL_FILE_NAMES,
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -484,7 +489,7 @@ def make_manifest_record(
     for name in _REQUIRED_FILES:
         if name not in actual_paths:
             raise DatasetError(f"required scene artifact is missing: {name}")
-    return {
+    record = {
         "schema_version": SCENE_SCHEMA_VERSION,
         "scene_id": scene_id,
         "seed": int(result.scene.seed),
@@ -492,10 +497,18 @@ def make_manifest_record(
         "valid": bool(result.valid),
         "prompt_parser": str(result.prompt_parser),
         "parser_warning": result.parser_warning,
-        "files": portable_files,
-        "sha256": {name: sha256_file(path) for name, path in actual_paths.items()},
+        "files": {name: path for name, path in portable_files.items() if name != "quality"},
+        "sha256": {
+            name: sha256_file(path) for name, path in actual_paths.items() if name != "quality"
+        },
         "fingerprint": semantic_fingerprint(actual_paths),
     }
+    if "quality" in actual_paths:
+        record["quality_report"] = {
+            "path": portable_files["quality"],
+            "sha256": sha256_file(actual_paths["quality"]),
+        }
+    return record
 
 
 def _validate_record(root: Path, record: Any, metadata: Mapping[str, Any]) -> tuple[str | None, int | None, list[str]]:
@@ -558,6 +571,23 @@ def _validate_record(root: Path, record: Any, metadata: Mapping[str, Any]) -> tu
                     errors.append(
                         f"{scene_id} {name}: sha256 mismatch expected={expected_hash} actual={actual_hash}"
                     )
+    if "quality_report" in record:
+        descriptor = record["quality_report"]
+        if not isinstance(descriptor, dict):
+            errors.append(f"{scene_id}: quality_report must be an object")
+        else:
+            try:
+                relative, quality_path = _resolve_manifest_file(root, descriptor.get("path"))
+                if relative.as_posix() != f"{scene_id}/quality.json":
+                    raise DatasetError("quality_report path is not the canonical scene path")
+                expected_hash = descriptor.get("sha256")
+                if not isinstance(expected_hash, str) or not _SHA256_RE.fullmatch(expected_hash):
+                    raise DatasetError("quality_report has invalid sha256")
+                if sha256_file(quality_path) != expected_hash:
+                    raise DatasetError("quality_report sha256 mismatch")
+                resolved_files["quality"] = quality_path
+            except (DatasetError, OSError) as exc:
+                errors.append(f"{scene_id}: {exc}")
     fingerprint = record.get("fingerprint")
     if not isinstance(fingerprint, str) or not _SHA256_RE.fullmatch(fingerprint):
         errors.append(f"{scene_id or '<unknown>'}: invalid fingerprint")
@@ -600,6 +630,15 @@ def _validate_record(root: Path, record: Any, metadata: Mapping[str, Any]) -> tu
                 errors.append(f"{scene_id}: validation.valid does not match manifest.valid")
         except DatasetError as exc:
             errors.append(f"{scene_id}: {exc}")
+    if resolved_files.get("layout") and resolved_files.get("validation"):
+        try:
+            quality = assess_scene_quality(
+                _read_json(resolved_files["layout"]), _read_json(resolved_files["validation"])
+            )
+            if "quality" in resolved_files and _read_json(resolved_files["quality"]) != quality:
+                errors.append(f"{scene_id}: quality report does not match recorded evidence")
+        except (TypeError, ValueError) as exc:
+            errors.append(f"{scene_id}: invalid quality evidence: {exc}")
     source = metadata.get("source")
     if isinstance(source, dict) and source.get("type") == "recipe" and record.get("recipe") != source.get("recipe"):
         errors.append(f"{scene_id}: record recipe does not match dataset source")
@@ -775,6 +814,159 @@ def validate_dataset(path: str | Path, *, allow_incomplete: bool = False) -> Dat
             "errors": errors,
         },
     )
+
+
+def _layout_content_fingerprint(layout: Mapping[str, Any]) -> str:
+    payload = {
+        key: value for key, value in layout.items()
+        if key not in {"scene_id", "seed", "description"}
+    }
+    payload["objects"] = sorted(layout["objects"], key=lambda item: item["object_id"])
+    return hashlib.sha256(canonical_json(payload)).hexdigest()
+
+
+def _diversity_summary(scenes: list[tuple[CompiledScene, str]]) -> dict[str, Any]:
+    categories: Counter[str] = Counter()
+    assets: Counter[str] = Counter()
+    for scene, _fingerprint in scenes:
+        categories.update(item.category for item in scene.objects)
+        assets.update(item.asset_id for item in scene.objects)
+    return {
+        "scene_count": len(scenes),
+        "unique_layout_count": len({fingerprint for _scene, fingerprint in scenes}),
+        "unique_asset_count": len(assets),
+        "room_type_counts": dict(sorted(Counter(scene.room_type for scene, _ in scenes).items())),
+        "event_counts": dict(sorted(Counter(scene.event for scene, _ in scenes).items())),
+        "recipe_counts": dict(sorted(Counter(scene.recipe_name for scene, _ in scenes).items())),
+        "object_category_counts": dict(sorted(categories.items())),
+        "asset_instance_counts": dict(sorted(assets.items())),
+    }
+
+
+def audit_dataset(
+    path: str | Path, *, minimum_level: str = "layout", deduplicate: bool = False
+) -> DatasetResult:
+    """Select scenes using verified files and recorded, explicitly scoped evidence."""
+    if minimum_level not in QUALITY_LEVELS:
+        raise DatasetError(f"unknown minimum quality level: {minimum_level!r}")
+    if not isinstance(deduplicate, bool):
+        raise DatasetError("deduplicate must be boolean")
+    details: dict[str, Any] = {
+        "schema_version": DATASET_AUDIT_SCHEMA_VERSION,
+        "minimum_level": minimum_level,
+        "deduplicate": deduplicate,
+        "evidence_scope": "offline_recorded_layout_only",
+        "selected": [],
+        "scenes": [],
+    }
+    try:
+        root, metadata, records, errors, summary = _collect_dataset(path, allow_incomplete=True)
+        details["generation"] = {
+            "status": metadata.get("status"),
+            "error_type": metadata.get("generation_error"),
+            "expected_count": summary.get("expected_count"),
+            "generated_count": summary.get("scene_count", 0),
+            "missing_seeds": summary.get("missing_seeds", []),
+        }
+        if metadata.get("status") != "complete":
+            errors.append("quality selection requires a complete dataset")
+        if summary.get("missing_seeds"):
+            errors.append(f"missing expected seeds: {summary['missing_seeds']}")
+        if errors:
+            return DatasetResult("failed", False, {
+                **details, "integrity": "failed", "reason": "dataset_integrity_failed", "errors": errors,
+            })
+        details.update({
+            "dataset_id": metadata["dataset_id"],
+            "manifest_sha256": sha256_file(root / "manifest.jsonl"),
+            "integrity": "passed",
+        })
+        selected: list[dict[str, Any]] = []
+        scenes: list[dict[str, Any]] = []
+        all_layouts: list[tuple[CompiledScene, str]] = []
+        selected_layouts: list[tuple[CompiledScene, str]] = []
+        duplicate_groups: dict[str, list[str]] = {}
+        first_selected: dict[str, str] = {}
+        failure_counts: Counter[str] = Counter()
+        failure_categories: Counter[str] = Counter()
+        warning_counts: Counter[str] = Counter()
+        rejection_counts: Counter[str] = Counter()
+        layer_counts = {
+            level: dict.fromkeys(QUALITY_STATUSES, 0) for level in QUALITY_LEVELS
+        }
+        eligible_count = 0
+        for record in records:
+            _, layout_path = _resolve_manifest_file(root, record["files"]["layout"])
+            _, validation_path = _resolve_manifest_file(root, record["files"]["validation"])
+            layout = _read_json(layout_path)
+            quality = assess_scene_quality(layout, _read_json(validation_path))
+            scene = CompiledScene.from_dict(layout)
+            content_fingerprint = _layout_content_fingerprint(layout)
+            all_layouts.append((scene, content_fingerprint))
+            duplicate_groups.setdefault(content_fingerprint, []).append(record["scene_id"])
+            for level in QUALITY_LEVELS:
+                layer_counts[level][quality["layers"][level]["status"]] += 1
+            issues = quality["layers"]["layout"]["issues"]
+            failure_counts.update({issue["code"] for issue in issues if issue["severity"] == "error"})
+            failure_categories.update({
+                issue["category"] for issue in issues if issue["severity"] == "error"
+            })
+            warning_counts.update({issue["code"] for issue in issues if issue["severity"] == "warning"})
+            reasons = quality_rejection_codes(quality, minimum_level)
+            eligible = not reasons
+            eligible_count += int(eligible)
+            duplicate_of = None
+            if eligible and deduplicate and content_fingerprint in first_selected:
+                duplicate_of = first_selected[content_fingerprint]
+                reasons.append("duplicate_layout")
+            if not reasons:
+                selected.append(dict(record))
+                selected_layouts.append((scene, content_fingerprint))
+                first_selected.setdefault(content_fingerprint, record["scene_id"])
+            rejection_counts.update(reasons)
+            scenes.append({
+                "scene_id": record["scene_id"],
+                "seed": record["seed"],
+                "fingerprint": record["fingerprint"],
+                "content_fingerprint": content_fingerprint,
+                "eligible": eligible,
+                "selected": not reasons,
+                "rejection_codes": reasons,
+                "duplicate_of": duplicate_of,
+                "quality": quality,
+            })
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, OverflowError) as exc:
+        return DatasetResult("failed", False, {
+            **details, "integrity": "failed", "reason": "dataset_integrity_failed",
+            "errors": [str(exc)],
+        })
+    return DatasetResult("passed" if selected else "failed", bool(selected), {
+        **details,
+        "reason": "selection_available" if selected else "no_eligible_scenes",
+        "summary": {
+            "scene_count": len(records),
+            "eligible_count": eligible_count,
+            "selected_count": len(selected),
+            "rejected_count": len(records) - len(selected),
+            "layer_counts": layer_counts,
+            "failure_counts": dict(sorted(failure_counts.items())),
+            "failure_category_counts": dict(sorted(failure_categories.items())),
+            "warning_counts": dict(sorted(warning_counts.items())),
+            "rejection_counts": dict(sorted(rejection_counts.items())),
+        },
+        "diversity": {
+            "all": _diversity_summary(all_layouts),
+            "selected": _diversity_summary(selected_layouts),
+            "exact_duplicate_groups": [
+                {"content_fingerprint": fingerprint, "scene_ids": scene_ids}
+                for fingerprint, scene_ids in sorted(duplicate_groups.items())
+                if len(scene_ids) > 1
+            ],
+        },
+        "selected": selected,
+        "scenes": scenes,
+        "errors": [],
+    })
 
 
 def _reproduction_build(factory: Any, source: Mapping[str, Any], seed: int) -> Any:

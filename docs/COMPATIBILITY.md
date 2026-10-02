@@ -9,6 +9,7 @@ imply physical task success.
 | Scene generation, validation and SVG preview | none | PASS |
 | External `SceneIntent` | none | PASS |
 | Batch datasets, validation and reproduction | none | PASS |
+| Layered quality reports, dataset audit and exact-layout selection | none | offline layout evidence only; physics/task not verified |
 | Articulation metadata, symbolic planner and dry-run executor | none | PASS |
 | Executor conformance | none | PASS |
 | MJCF export and portable scene bundles | none | PASS |

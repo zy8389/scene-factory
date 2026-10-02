@@ -18,6 +18,8 @@ assert result.valid
 
 `SceneFactory` is the main compiler. `BuildResult` contains the compiled scene,
 validation details, and optional output information.
+`result.quality` returns a `scene_factory.quality.v1` report derived from the
+recorded layout validation; physics and task layers are explicitly unverified.
 
 ## Assets
 
@@ -67,6 +69,21 @@ reproduction = reproduce_dataset("outputs/dataset")
 
 Dataset reports are structured results with a boolean `valid` field and are
 portable across operating systems.
+
+```python
+from scene_factory import audit_dataset, assess_scene_quality
+
+quality = assess_scene_quality(result.scene.to_dict(), result.validation.to_dict())
+selection = audit_dataset("outputs/dataset", minimum_level="layout", deduplicate=True)
+selected_records = selection["selected"]
+```
+
+`audit_dataset` is read-only. Its `valid` means source integrity passed and at
+least one scene was selected; rejected source scenes remain in the audit report.
+It accepts complete datasets containing layout failures, but rejects corruption
+or incomplete generation. Selection paths remain relative to the source root.
+Requiring `physics` or `task` rejects scenes without corresponding evidence;
+this offline version only has layout evidence. See [DATA_WORKFLOW.md](DATA_WORKFLOW.md).
 
 ## Scene bundles and MuJoCo
 

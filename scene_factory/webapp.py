@@ -188,6 +188,7 @@ class SceneWebApplication:
                 for item in result.scene.objects
             },
             "validation": result.validation.to_dict(),
+            "quality": result.quality,
             "matched_recipe": {
                 "name": result.recipe.name,
                 "room_type": result.recipe.room_type,

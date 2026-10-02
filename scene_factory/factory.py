@@ -33,6 +33,7 @@ from .llm import (
 )
 from .models import CompiledScene, SceneRecipe, ValidationReport
 from .paths import default_recipes_dir, default_registry_path
+from .quality import assess_scene_quality
 from .recipes import RecipeLibrary
 from .registry import AssetRegistry
 from .validation import SceneValidator
@@ -53,6 +54,10 @@ class BuildResult:
     @property
     def valid(self) -> bool:
         return self.validation.valid
+
+    @property
+    def quality(self) -> dict[str, Any]:
+        return assess_scene_quality(self.scene.to_dict(), self.validation.to_dict())
 
 
 class SceneFactory:
@@ -285,6 +290,7 @@ class SceneFactory:
         spec_path = output / "scene_spec.json"
         layout_path = output / "layout.json"
         validation_path = output / "validation.json"
+        quality_path = output / "quality.json"
         self._write_json(
             spec_path,
             {
@@ -301,6 +307,7 @@ class SceneFactory:
         )
         self._write_json(layout_path, result.scene.to_dict())
         self._write_json(validation_path, result.validation.to_dict())
+        self._write_json(quality_path, result.quality)
         from .exporters.topdown_svg import TopDownSvgExporter
 
         preview_path = output / "preview.svg"
@@ -309,6 +316,7 @@ class SceneFactory:
             scene_spec=str(spec_path.resolve()),
             layout=str(layout_path.resolve()),
             validation=str(validation_path.resolve()),
+            quality=str(quality_path.resolve()),
             preview=str(preview_path.resolve()),
         )
 

@@ -87,6 +87,7 @@ body {
 .validation-badge.idle { background: #ebe8df; color: var(--muted); }
 .validation-badge.valid { color: #176642; background: #dff7e9; }
 .validation-badge.invalid { color: #923c28; background: #fee5dd; }
+.quality-summary { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
 
 .llm-connect { border: 1px solid var(--line); background: #f8f7f2; margin: -4px 0 22px; }
 .llm-status-row { display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: center; padding: 13px; }

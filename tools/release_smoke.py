@@ -23,7 +23,9 @@ RECIPE = "living_room_recent_snacking"
 REQUIRED_RECIPES = {
     "kitchen_after_cooking.json",
     "kitchen_franka_mug_lift.json",
+    "kitchen_franka_mug_lift_data.json",
     "kitchen_franka_mug_pick_place.json",
+    "kitchen_franka_mug_pick_place_data.json",
     "living_room_recent_snacking.json",
     "living_room_returned_home.json",
 }
@@ -46,6 +48,7 @@ HELP_COMMANDS = (
     ("dataset", "inspect"),
     ("dataset", "validate"),
     ("dataset", "reproduce"),
+    ("dataset", "audit"),
     ("task",),
     ("task", "plan"),
     ("task", "validate"),
@@ -325,6 +328,33 @@ def run() -> dict[str, Any]:
         checks["dataset_validate"] = "passed"
         _assert_valid(_json_command([cli, "dataset", "reproduce", str(dataset_root)], cwd=cwd, env=environment), "dataset reproduction")
         checks["dataset_reproduce"] = "passed"
+
+        quality_report = _json_command(
+            [cli, "dataset", "audit", str(dataset_root), "--deduplicate"],
+            cwd=cwd, env=environment,
+        )
+        _assert_valid(quality_report, "dataset quality audit")
+        if quality_report["summary"]["layer_counts"]["physics"]["not_verified"] != 3:
+            raise RuntimeError("dataset quality audit overstates physical evidence")
+        checks["dataset_audit"] = "passed"
+
+        for recipe_name in ("kitchen_franka_mug_lift_data", "kitchen_franka_mug_pick_place_data"):
+            data_root = cwd / recipe_name
+            _json_command([
+                cli, "batch", "--recipe", recipe_name, "--count", "3",
+                "--seed-start", "1000", "--output", str(data_root),
+            ], cwd=cwd, env=environment)
+            data_audit = _json_command(
+                [cli, "dataset", "audit", str(data_root), "--deduplicate"],
+                cwd=cwd, env=environment,
+            )
+            _assert_valid(data_audit, recipe_name)
+            if data_audit["summary"]["selected_count"] != 3:
+                raise RuntimeError(f"data recipe did not produce three distinct layouts: {recipe_name}")
+            _assert_valid(_json_command(
+                [cli, "dataset", "reproduce", str(data_root)], cwd=cwd, env=environment,
+            ), f"{recipe_name} reproduction")
+        checks["randomized_data_recipes"] = "passed"
 
         scene_path = cwd / "articulated-scene.json"
         plan_path = cwd / "interaction-plan.json"

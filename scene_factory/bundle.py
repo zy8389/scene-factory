@@ -23,6 +23,7 @@ ARTIFACT_PATHS = {
     "scene_spec": "scene/scene_spec.json",
     "layout": "scene/layout.json",
     "validation": "scene/validation.json",
+    "quality": "scene/quality.json",
     "preview": "scene/preview.svg",
     "intent": "scene/scene_intent.json",
     "revision": "scene/revision.json",

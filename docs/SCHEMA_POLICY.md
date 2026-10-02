@@ -9,7 +9,11 @@ schemas: scene_factory.<domain>.v1
 
 Current versioned contracts include scene intent, scene specification,
 interaction plans, execution traces, executor capabilities, and executor
-conformance reports.
+conformance reports, scene quality reports, and dataset audit reports.
+
+Dataset v1 keeps its existing artifact map and semantic fingerprint definition.
+New quality files use an optional top-level `quality_report` descriptor, which
+older v1 readers ignore. New readers verify its path, hash, and recorded evidence.
 
 ## Compatibility rules
 

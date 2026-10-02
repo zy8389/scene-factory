@@ -18,6 +18,7 @@ scene-factory intent schema
 scene-factory dataset inspect PATH
 scene-factory dataset validate PATH
 scene-factory dataset reproduce PATH
+scene-factory dataset audit PATH --minimum-level layout --deduplicate --output REPORT_PATH
 scene-factory task plan --scene PATH --object ID --state NAME --output PATH
 scene-factory task validate --scene PATH --plan PATH
 scene-factory task replay --scene PATH --plan PATH
@@ -46,6 +47,15 @@ schemas, web files, registry, and asset resources from the platform data
 directory.
 
 ## Machine-readable output
+
+`dataset audit` accepts `--minimum-level layout|physics|task` (default: `layout`).
+`--deduplicate` keeps the first quality-eligible exact layout in seed order.
+`--output` is optional and must be outside the source dataset. The JSON includes
+layer status counts, failure reasons, diversity statistics and selected source
+records. Exit `0` means at least one scene was selected, not that every source
+scene passed; exit `2` means invalid/incomplete source data or no eligible scenes.
+Physics and task evidence are not run or imported by this offline command.
+See [the data workflow](DATA_WORKFLOW.md) for selection and compatibility semantics.
 
 Validation and build commands print JSON. `list-recipes` prints one recipe name
 per line for shell-friendly use. Generated datasets, traces, and reports should

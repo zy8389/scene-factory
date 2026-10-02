@@ -22,10 +22,20 @@ class LayoutError(RuntimeError):
     pass
 
 
+class _PlacementExhausted(LayoutError):
+    pass
+
+
 class LayoutSolver:
-    def __init__(self, registry: AssetRegistry, max_attempts: int = 192) -> None:
+    def __init__(
+        self, registry: AssetRegistry, max_attempts: int = 192, max_layout_attempts: int = 16
+    ) -> None:
+        for name, value in (("max_attempts", max_attempts), ("max_layout_attempts", max_layout_attempts)):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
         self.registry = registry
         self.max_attempts = max_attempts
+        self.max_layout_attempts = max_layout_attempts
 
     def compile(
         self,
@@ -35,16 +45,56 @@ class LayoutSolver:
     ) -> CompiledScene:
         rng = random.Random(seed)
         requests = self._dependency_order(recipe.objects)
+        asset_choices: dict[str, tuple[AssetRecord, str | None]] = {}
+        for layout_attempt in range(self.max_layout_attempts):
+            try:
+                placed = self._place_objects(
+                    requests, recipe.room_dimensions_m, rng, asset_choices,
+                    constrain_region=layout_attempt > 0,
+                )
+            except _PlacementExhausted as exc:
+                if layout_attempt + 1 == self.max_layout_attempts:
+                    raise LayoutError(
+                        f"{exc}; exhausted {self.max_layout_attempts} layout attempts"
+                    ) from exc
+            else:
+                break
+
+        scene_identity = f"{recipe.name}:{seed}:{description_override or recipe.description}"
+        scene_hash = hashlib.sha256(scene_identity.encode("utf-8")).hexdigest()[:12]
+        return CompiledScene(
+            scene_id=f"{recipe.name}-{scene_hash}",
+            seed=seed,
+            recipe_name=recipe.name,
+            room_type=recipe.room_type,
+            room_dimensions_m=recipe.room_dimensions_m,
+            event=recipe.event,
+            description=description_override or recipe.description,
+            objects=tuple(placed),
+            task=recipe.task,
+        )
+
+    def _place_objects(
+        self,
+        requests: list[ObjectRequest],
+        room_dimensions: tuple[float, float, float],
+        rng: random.Random,
+        asset_choices: dict[str, tuple[AssetRecord, str | None]],
+        *,
+        constrain_region: bool,
+    ) -> list[PlacedObject]:
         placed: list[PlacedObject] = []
         placed_by_id: dict[str, PlacedObject] = {}
 
         for request in requests:
-            asset, fallback_reason = self.registry.resolve_with_fallback(
-                request.category,
-                request.asset_id,
-                rng,
-                fallback_policy=request.fallback_policy,
-            )
+            if request.object_id not in asset_choices:
+                asset_choices[request.object_id] = self.registry.resolve_with_fallback(
+                    request.category,
+                    request.asset_id,
+                    rng,
+                    fallback_policy=request.fallback_policy,
+                )
+            asset, fallback_reason = asset_choices[request.object_id]
             if request.fixed_pose is not None:
                 candidate = self._make_placed(
                     request, asset, request.fixed_pose, fallback_reason=fallback_reason
@@ -60,28 +110,16 @@ class LayoutSolver:
                 candidate = self._sample_object(
                     request=request,
                     asset=asset,
-                    room_dimensions=recipe.room_dimensions_m,
+                    room_dimensions=room_dimensions,
                     placed=placed,
                     placed_by_id=placed_by_id,
                     rng=rng,
                     fallback_reason=fallback_reason,
+                    constrain_region=constrain_region,
                 )
             placed.append(candidate)
             placed_by_id[candidate.object_id] = candidate
-
-        scene_identity = f"{recipe.name}:{seed}:{description_override or recipe.description}"
-        scene_hash = hashlib.sha256(scene_identity.encode("utf-8")).hexdigest()[:12]
-        return CompiledScene(
-            scene_id=f"{recipe.name}-{scene_hash}",
-            seed=seed,
-            recipe_name=recipe.name,
-            room_type=recipe.room_type,
-            room_dimensions_m=recipe.room_dimensions_m,
-            event=recipe.event,
-            description=description_override or recipe.description,
-            objects=tuple(placed),
-            task=recipe.task,
-        )
+        return placed
 
     def _dependency_order(self, requests: tuple[ObjectRequest, ...]) -> list[ObjectRequest]:
         by_id = {request.object_id: request for request in requests}
@@ -123,6 +161,7 @@ class LayoutSolver:
         placed_by_id: dict[str, PlacedObject],
         rng: random.Random,
         fallback_reason: str | None = None,
+        constrain_region: bool = False,
     ) -> PlacedObject:
         support_object, surface, surface_center, support_yaw = self._resolve_support(
             request.support or "floor", room_dimensions, placed_by_id
@@ -139,9 +178,13 @@ class LayoutSolver:
                     f"asset {asset.asset_id} does not fit support {request.support}"
                 )
 
-            local_x, local_y = self._sample_local_xy(
-                request, surface_center, support_yaw, margin_x, margin_y, placed_by_id, rng
+            local_xy = self._sample_local_xy(
+                request, surface_center, support_yaw, margin_x, margin_y, placed_by_id, rng,
+                constrain_region=constrain_region,
             )
+            if local_xy is None:
+                continue
+            local_x, local_y = local_xy
             if request.edge_bias:
                 if rng.random() < 0.5:
                     local_x = math.copysign(margin_x * rng.uniform(0.82, 1.0), rng.choice([-1, 1]))
@@ -171,7 +214,7 @@ class LayoutSolver:
                 continue
             return candidate
 
-        raise LayoutError(
+        raise _PlacementExhausted(
             f"could not place {request.object_id} after {self.max_attempts} attempts"
         )
 
@@ -184,10 +227,28 @@ class LayoutSolver:
         margin_y: float,
         placed_by_id: dict[str, PlacedObject],
         rng: random.Random,
-    ) -> tuple[float, float]:
+        *,
+        constrain_region: bool = False,
+    ) -> tuple[float, float] | None:
         near_relations = [relation for relation in request.relations if relation.kind == "near"]
         if not near_relations:
-            return (rng.uniform(-margin_x, margin_x), rng.uniform(-margin_y, margin_y))
+            xmin, xmax, ymin, ymax = -margin_x, margin_x, -margin_y, margin_y
+            if request.region_xy is not None and constrain_region:
+                region_xmin, region_xmax, region_ymin, region_ymax = request.region_xy
+                corners = [
+                    inverse_rotate_xy(
+                        (world_x - surface_center[0], world_y - surface_center[1]), support_yaw
+                    )
+                    for world_x in (region_xmin, region_xmax)
+                    for world_y in (region_ymin, region_ymax)
+                ]
+                xmin = max(xmin, min(point[0] for point in corners))
+                xmax = min(xmax, max(point[0] for point in corners))
+                ymin = max(ymin, min(point[1] for point in corners))
+                ymax = min(ymax, max(point[1] for point in corners))
+                if xmin > xmax or ymin > ymax:
+                    return None
+            return (rng.uniform(xmin, xmax), rng.uniform(ymin, ymax))
 
         relation = near_relations[0]
         target = placed_by_id.get(relation.target)

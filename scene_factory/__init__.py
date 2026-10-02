@@ -9,7 +9,8 @@ from .bundle import (
 )
 from .asset_validator import AssetValidator, validate_asset, validate_usd
 from .asset_pipeline import AssetNormalizer, CollisionProcessor
-from .dataset import DatasetResult, inspect_dataset, reproduce_dataset, validate_dataset
+from .dataset import DatasetResult, audit_dataset, inspect_dataset, reproduce_dataset, validate_dataset
+from .quality import QUALITY_SCHEMA_VERSION, assess_scene_quality
 from .external import (
     ENVELOPE_SOURCE_FORMAT,
     EXTERNAL_SCHEMA_VERSION,
@@ -103,6 +104,9 @@ __all__ = [
     "MujocoMjcfExporter",
     "CollisionProcessor",
     "DatasetResult",
+    "QUALITY_SCHEMA_VERSION",
+    "assess_scene_quality",
+    "audit_dataset",
     "ExternalSceneDocument",
     "ExternalSceneError",
     "ENVELOPE_SOURCE_FORMAT",

@@ -33,6 +33,12 @@ portable scene outputs. `Dataset` builds and validates collections of those
 outputs. `TaskEvaluator` and task models describe goals without claiming that a
 robot can physically execute them.
 
+`Quality` derives a versioned report from recorded layout validation without
+upgrading it to physics or task acceptance. `Dataset.audit_dataset` verifies
+source integrity before computing quality selection and coverage statistics.
+It preserves source files and reproducibility fingerprints; physical evidence
+integration and trajectory collection remain separate stages.
+
 `SimulatorBackend` is the environment-level abstraction for reset, step,
 render, and close. `InteractionExecutor` is the semantic interaction-plan
 abstraction for reset, command execution, snapshots, and close. They are

@@ -26,6 +26,7 @@ v0.1 候选版本提供离线 Python SDK，可在无需 Isaac Sim、GPU、NumPy�
 - 根据配方或外部 JSON 生成确定性的家庭场景；
 - 资产注册表、元数据、支撑面和可动部件契约；
 - 具备可移植清单、验证和复现能力的批量数据集；
+- 分层质量报告、失败原因汇总、精确去重筛选与数据多样性统计；
 - 符号化可动部件规划与离线干运行执行；
 - 执行轨迹验证及核心执行器一致性套件；
 - 可选的 Isaac Sim USD 导出和依赖环境的机器人集成。
@@ -155,6 +156,22 @@ scene-factory dataset reproduce outputs/dataset
 
 数据集清单使用可移植的相对路径、内容哈希和语义指纹。验证和复现完全离线，
 不会调用 LLM 或外部服务。
+
+### 数据质量与筛选
+
+```bash
+scene-factory dataset audit outputs/dataset --minimum-level layout --deduplicate --output outputs/reports/dataset-quality.json
+```
+
+每个新场景输出 `quality.json`，明确区分布局通过、物理未验证和任务未验证。
+审计先检查源文件完整性，再输出合格场景索引、失败原因及筛选前后的多样性统计，
+不删除源数据。`--minimum-level physics` 或 `task` 不会把缺失证据当作通过。
+报告写在源数据集目录以外；旧 v1 数据仍可读取。详见[数据路线工作流](docs/DATA_WORKFLOW.md)。
+
+抓杯与抓取放置数据可使用独立的 `kitchen_franka_mug_lift_data`、
+`kitchen_franka_mug_pick_place_data` 配方，按种子随机化杯子起点。原固定验收配方保留。
+新配方只提供布局候选，物理和任务验收仍需单独执行。布局采样失败会进行有次数上限的
+重新布局；已成功种子的布局保持原采样结果。
 
 ## 可动部件规划与执行
 

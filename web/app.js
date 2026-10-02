@@ -135,6 +135,7 @@ function fileLinks(files, sceneId) {
     scene_spec: "SceneSpec",
     layout: "Layout JSON",
     validation: "Validation",
+    quality: "分层质量报告",
     preview: "SVG Preview",
     mjcf: "MuJoCo MJCF",
     usd: "Isaac USD",
@@ -220,6 +221,9 @@ function renderScene(item) {
   inspector.hidden = false;
   badge.className = `validation-badge ${valid ? "valid" : "invalid"}`;
   badge.textContent = valid ? "✓ 几何校验通过" : "! 需要检查";
+  document.querySelector("#quality-summary").textContent = item.quality
+    ? `布局${item.quality.layers.layout.status === "passed" ? "通过" : "未通过"} · 物理未验证 · 任务未验证`
+    : "仅有几何校验结果，物理与任务质量尚未验证";
   preview.src = `${item.files.preview}?v=${Date.now()}`;
   sceneViewer.renderScene(scene, item.assets);
   document.querySelector("#matched-recipe").textContent = item.matched_recipe.name;
