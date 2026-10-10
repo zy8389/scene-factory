@@ -81,6 +81,9 @@ class MugLiftController:
         place_target_position: Vec3 | None = None,
         transfer_clearance_m: float = 0.2,
         lift_height_m: float | None = None,
+        pre_grasp_position_tolerance_m: float = 0.04,
+        approach_position_tolerance_m: float = 0.025,
+        max_reach_steps: int = _MAX_REACH_STEPS,
     ) -> None:
         if max_steps < 1:
             raise ValueError("max_steps must be positive")
@@ -107,7 +110,30 @@ class MugLiftController:
         )
         if self.lift_height_m <= 0.0:
             raise ValueError("lift_height_m must be positive")
+        if (
+            isinstance(pre_grasp_position_tolerance_m, bool)
+            or not isinstance(pre_grasp_position_tolerance_m, (int, float))
+            or not math.isfinite(pre_grasp_position_tolerance_m)
+            or pre_grasp_position_tolerance_m <= 0.0
+        ):
+            raise ValueError("pre_grasp_position_tolerance_m must be positive")
+        if (
+            isinstance(approach_position_tolerance_m, bool)
+            or not isinstance(approach_position_tolerance_m, (int, float))
+            or not math.isfinite(approach_position_tolerance_m)
+            or approach_position_tolerance_m <= 0.0
+        ):
+            raise ValueError("approach_position_tolerance_m must be positive")
+        if (
+            isinstance(max_reach_steps, bool)
+            or not isinstance(max_reach_steps, int)
+            or max_reach_steps < self._MIN_REACH_STEPS
+        ):
+            raise ValueError("max_reach_steps must be at least the minimum reach steps")
         self.max_steps = max_steps
+        self.pre_grasp_position_tolerance_m = float(pre_grasp_position_tolerance_m)
+        self.approach_position_tolerance_m = float(approach_position_tolerance_m)
+        self.max_reach_steps = int(max_reach_steps)
         self.phase = MugLiftPhase.PRE_GRASP
         self.total_steps = 0
         self.phase_steps = 0
@@ -295,14 +321,18 @@ class MugLiftController:
             if command.goal_position is None:
                 raise RuntimeError("reach phase has no goal position")
             distance = math.dist(end_effector_position, command.goal_position)
-            tolerance = 0.04 if self.phase == MugLiftPhase.PRE_GRASP else 0.025
+            tolerance = (
+                self.pre_grasp_position_tolerance_m
+                if self.phase == MugLiftPhase.PRE_GRASP
+                else self.approach_position_tolerance_m
+            )
             pose_reached = (
                 distance <= tolerance
                 and orientation_error_rad <= self._ORIENTATION_TOLERANCE_RAD
             )
             if self.phase_steps >= self._MIN_REACH_STEPS and pose_reached:
                 self._next_phase()
-            elif self.phase_steps >= self._MAX_REACH_STEPS:
+            elif self.phase_steps >= self.max_reach_steps:
                 self.fail(f"{self.phase.value.lower()}_timeout")
         elif self.phase == MugLiftPhase.GRASP and self.phase_steps >= self._GRASP_STEPS:
             self.grasp_status = "verifying"

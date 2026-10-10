@@ -105,6 +105,31 @@ Region filters operate on object centers using half-open world XY bounds.
 candidates. Validation recomputes the stored selection; reproduction uses the
 existing offline candidate fingerprint checks. Physical evidence is not added.
 
+```python
+from scene_factory import (
+    configuration_fingerprint, split_sampling_collection, validate_sampling_split,
+    export_sampling_selection, validate_curated_dataset,
+)
+
+split = split_sampling_collection("outputs/stratified", seed=42)
+checked = validate_sampling_split("outputs/stratified", split.to_dict())
+export = export_sampling_selection("outputs/stratified", "outputs/curated", seed=42)
+checked_export = validate_curated_dataset("outputs/curated")
+```
+
+Configuration grouping ignores task, provenance and object labels while retaining
+registered assets, transforms, bounds, dynamic flags, interaction snapshots and
+room properties. Groups remain whole across splits; ratios apply to group counts,
+with actual scene and stratum counts reported. Nonzero requested splits require
+enough independent groups. This detects exact recorded configurations, not visual
+or spatial similarity. Splitting preserves source data and generation seeds.
+
+Export copies selected existing artifacts through a verified staging directory,
+preserves hashes and semantic fingerprints, and publishes to a new directory.
+The resulting candidate package validates without the original pool and includes
+an offline HTML preview. It does not bundle additional asset binaries, simulators
+or robot trajectories and does not imply training readiness.
+
 ## Scene bundles and MuJoCo
 
 ```python

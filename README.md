@@ -183,6 +183,37 @@ scene-factory dataset sampling-validate outputs/stratified
 scene-factory dataset sampling-reproduce outputs/stratified
 ```
 
+选中的场景可以按配置分组划分并独立导出。同一起点的不同任务样本一起分配，
+导出包保留原始产物和哈希，并提供可离线打开的中文预览：
+
+```bash
+scene-factory dataset sampling-export outputs/stratified --output outputs/curated --seed 42
+scene-factory dataset curated-validate outputs/curated
+```
+
+打开 `outputs/curated/index.html` 查看划分数量和场景。当前仍是布局候选，物理、任务
+和训练就绪状态尚未验证；导出不额外复制资产二进制或机器人轨迹。
+
+## 候选场景的真实运行
+
+抓杯和抓取放置的分层候选集合可以顺序进入 Isaac Sim / PhysX，先检查静置
+稳定性，再运行官方 Franka 和现有控制器。结果保存为关联源场景哈希的独立运行
+报告和逐步轨迹，明确区分成功、失败及未验证。
+
+```powershell
+scene-factory dataset run-isaac outputs/data_route_sampling_20261003/collection --output <ASCII_RUNTIME_DIR>/mug-pilot --limit-layouts 5 --asset-root <OFFICIAL_LOCAL_ASSETS>
+scene-factory dataset runtime-validate <ASCII_RUNTIME_DIR>/mug-pilot
+```
+
+运行输出使用 ASCII 路径，官方资产入口指定自己的 Local Assets 根目录。
+`runtime-validate` 完全离线；证据校验通过不代表所有任务成功。
+完整流程及门槛见[真实运行工作流](docs/RUNTIME_DATA_WORKFLOW.md)。
+
+另有独立的[Franka 跟踪与夹持保持示例](examples/franka_tracking/README.md)，通过
+`_tracking_data` 配方指定控制参数。参考机器上，同一组20个初始布局的40个抓杯/
+搬放组合全部执行成功；原配置为4个成功。预抓取门槛和任务成功条件保持一致，
+原配方继续保留旧控制参数。该结果适用于当前 Franka/YCB 杯子仿真切片。
+
 ## 可动部件规划与执行
 
 符号规划器使用可动部件元数据生成 `InteractionPlan`。干运行执行器会应用

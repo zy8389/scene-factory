@@ -163,9 +163,52 @@ scene-factory dataset sample examples/stratified_dataset/plan.json --output outp
 请使用 `sampling-validate` 检查集合；原 `dataset validate` 仍可用于其各个子数据集。
 采样结构见 [sampling_plan.schema.json](../schemas/sampling_plan.schema.json)，跨字段配额、区间和有限数值由运行时进一步检查。
 
+## 按场景配置划分与独立导出
+
+旧的精确内容指纹保留任务和配方。两种任务可能共享同一初始布局，因此不能只按
+任务标签或记录 ID 随机拆分后就认为评测没有泄漏。
+
+新增 `scene_factory.configuration_group.v1` 配置指纹，包含房间类型与尺寸、资产 ID、
+包围尺寸、位置、方向、动态标记及交互状态。忽略场景/物体 ID、种子、说明文字、
+任务、相机、配方和支持/关系标签；物体顺序不影响指纹，整圈角度和零坐标规范化。
+同一配置的所有任务样本必须进入同一份候选子集。
+
+```powershell
+scene-factory dataset sampling-split outputs/stratified --output outputs/reports/split.json --seed 42
+scene-factory dataset sampling-split-validate outputs/stratified outputs/reports/split.json
+scene-factory dataset sampling-export outputs/stratified --output outputs/curated --seed 42
+scene-factory dataset curated-validate outputs/curated
+```
+
+默认比例 `--ratios 0.7 0.15 0.15` 对应 `train`、`validation`、`test`，先按配置组分配，
+再尽量平衡每个采样组的样本分布。每个非零比例至少需要一个独立配置组；组太少时
+拒绝划分。组的样本数不同时，实际样本比例可以偏离设定比例，以报告中的实际数量为准。
+`--seed` 只控制划分，不重生成或更改原布局。相同输入和参数得到相同结果。
+
+划分报告版本为 `scene_factory.sampling_split.v1`，绑定源集合的文件哈希，包含分组版本、
+比例、划分种子、每条赋值及实际数量。验证时重新推导选择与赋值，拒绝过期源数据、未知
+版本和被改动的划分。划分侧文件必须放在源集合之外。
+
+导出包使用独立的 `scene_factory.curated_dataset.v1` 格式，只复制已选中的现有产物，
+保留场景身份、原始文件哈希和复现语义指纹。目录包含：
+
+- `manifest.json`：划分、配置组、来源集合/计划哈希、场景索引与数量。
+- `scenes/<采样组>/<场景 id>/`：原场景规范、布局、校验、预览及已有可选产物。
+- `index.html`：无需网络或前端依赖即可打开的中文预览，展示数量、分组分布、场景卡片和数据链接。
+
+导出先在临时目录复制并逐文件校验，整个包验证通过后才发布到目标目录；目标必须是
+源集合之外的新目录，既有目标不覆盖。失败时保留临时路径供检查，源候选不会改写。
+`curated-validate` 在不访问原候选池的情况下校验导出文件、索引、配置组、划分、汇总
+和预览页哈希，并拒绝多余文件及目录重定向。整个包可搬迁后再校验。
+
+这是一份可独立校验的**场景候选包**，不是原单配方批次 v1 数据集。它不追加资产二进制、
+模拟器、机器人轨迹或物理验收证据；渲染/仿真仍需相应资源和环境。预览会明确显示这些边界。
+配置分组只处理上述字段的精确一致，尚未处理资产别名、视觉近似或位置接近的泄漏。
+训练就绪状态、实际任务难度、轨迹之间的关联还需要后续验收。
+
 ## 后续数据路线
 
 1. 根据覆盖报告增加房间、任务和资产的采样分组，再以实际任务结果评估难度。
 2. 接入实际运行且绑定场景指纹的物理与任务证据，建立严格筛选入口。
 3. 复用已有 `EpisodeRecorder` 和轨迹加载/回放协议，采集可回放、带失败标签的小批示教。
-4. 验证任务与轨迹后再做训练/验证/测试划分及防泄漏检查，不把当前场景索引冒充训练集。
+4. 在现有配置分组划分上加入资产家族、空间近似和轨迹关联的防泄漏检查，再验收训练数据。

@@ -22,6 +22,12 @@ scene-factory dataset audit PATH --minimum-level layout --deduplicate --output R
 scene-factory dataset sample PLAN_PATH --output COLLECTION_PATH [--resume]
 scene-factory dataset sampling-validate COLLECTION_PATH
 scene-factory dataset sampling-reproduce COLLECTION_PATH
+scene-factory dataset sampling-split COLLECTION_PATH --output REPORT_PATH [--seed INT] [--ratios TRAIN VALIDATION TEST]
+scene-factory dataset sampling-split-validate COLLECTION_PATH REPORT_PATH
+scene-factory dataset sampling-export COLLECTION_PATH --output NEW_DIRECTORY [--seed INT] [--ratios TRAIN VALIDATION TEST]
+scene-factory dataset curated-validate EXPORTED_DIRECTORY
+scene-factory dataset run-isaac COLLECTION_PATH --output ASCII_RUNTIME_DIRECTORY [--limit-layouts INT] [--isaac-python PATH] [--asset-root PATH] [--stage-timeout SECONDS] [--resume]
+scene-factory dataset runtime-validate RUNTIME_DIRECTORY
 scene-factory task plan --scene PATH --object ID --state NAME --output PATH
 scene-factory task validate --scene PATH --plan PATH
 scene-factory task replay --scene PATH --plan PATH
@@ -66,6 +72,14 @@ and ordinary v1 child datasets. Exit `2` means generation failed or a quota was
 not met; no partial selection is released. `--resume` requires unchanged plan,
 recipe and registry fingerprints. `sampling-validate` checks stored evidence
 and quotas; `sampling-reproduce` rebuilds all candidate datasets offline.
+
+`sampling-split` groups exact recorded scene configurations before assigning
+train/validation/test candidates. Default ratios are `0.7 0.15 0.15`, and `--seed`
+controls only assignment. Split reports must be outside the source collection.
+`sampling-export` copies only selected existing artifacts to a new output directory
+and adds a standalone HTML preview. `curated-validate` verifies the package without
+the source pool. These workflows retain layout-only evidence and do not imply
+training readiness; see the data workflow for grouping and runtime limitations.
 
 Validation and build commands print JSON. `list-recipes` prints one recipe name
 per line for shell-friendly use. Generated datasets, traces, and reports should

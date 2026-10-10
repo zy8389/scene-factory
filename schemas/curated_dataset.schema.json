@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneFactory curated candidate dataset v1",
+  "type": "object",
+  "required": ["schema_version", "grouping_version", "source_collection_sha256", "source_plan_sha256", "ratios", "seed", "evidence_scope", "summary", "entries", "index_sha256"],
+  "properties": {
+    "schema_version": {"const": "scene_factory.curated_dataset.v1"},
+    "grouping_version": {"const": "scene_factory.configuration_group.v1"},
+    "source_collection_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "index_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ratios": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 3, "maxItems": 3},
+    "seed": {"type": "integer"},
+    "evidence_scope": {"const": "offline_recorded_layout_only"},
+    "summary": {"type": "object"},
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["stratum_id", "split", "configuration_fingerprint", "record"],
+        "properties": {
+          "stratum_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"},
+          "split": {"enum": ["train", "validation", "test"]},
+          "configuration_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "record": {"type": "object"}
+        }
+      }
+    }
+  }
+}

@@ -377,6 +377,32 @@ class RobotRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(controller.phase, MugLiftPhase.APPROACH)
 
+    def test_reach_tolerances_are_configurable_without_changing_defaults(self) -> None:
+        initial = (0.5, 0.0, 0.9)
+        default = MugLiftController(initial)
+        relaxed = MugLiftController(initial, pre_grasp_position_tolerance_m=0.05)
+        command = default.command(initial)
+        end_effector = (
+            command.goal_position[0], command.goal_position[1], command.goal_position[2] - 0.045
+        )
+        for controller in (default, relaxed):
+            for _ in range(20):
+                controller.advance(
+                    target_position=initial,
+                    end_effector_position=end_effector,
+                    orientation_error_rad=0.1,
+                    ik_success=True,
+                    task_success=False,
+                )
+        self.assertEqual(default.phase, MugLiftPhase.PRE_GRASP)
+        self.assertEqual(relaxed.phase, MugLiftPhase.APPROACH)
+
+    def test_controller_rejects_negative_grasp_hold_margin(self) -> None:
+        from scene_factory.backends.isaac import _controller_reach_config
+
+        with self.assertRaises(ValueError):
+            _controller_reach_config({"controller": {"grasp_hold_closing_margin_m": -0.001}})
+
     def test_quaternion_distance_is_sign_invariant(self) -> None:
         self.assertAlmostEqual(
             quaternion_angular_distance((0.0, 1.0, 0.0, 0.0), (0.0, -1.0, 0.0, 0.0)),

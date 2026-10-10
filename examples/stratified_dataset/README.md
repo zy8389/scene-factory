@@ -9,6 +9,8 @@ scene-factory dataset sample examples/stratified_dataset/plan.json --output outp
 scene-factory dataset sampling-validate outputs/stratified
 scene-factory dataset sampling-reproduce outputs/stratified
 scene-factory dataset sample examples/stratified_dataset/plan.json --output outputs/stratified --resume
+scene-factory dataset sampling-export outputs/stratified --output outputs/curated --seed 42
+scene-factory dataset curated-validate outputs/curated
 ```
 
 `collection.json` holds the selection index, source fingerprints, coverage and
@@ -25,5 +27,12 @@ If any quota is short, the collection is incomplete and releases no selection.
 Increase the candidate budget in a new output directory to try a revised plan.
 Resume requires the same plan, recipe and registry fingerprints and preserves
 completed candidates. Physics and task evidence remain unverified.
+
+The example's 40 selected task samples share 20 exact scene configuration groups.
+Export keeps each group in one candidate split, producing 28 train, 6 validation
+and 6 test records with default ratios and seed 42. Open the exported `index.html`
+for the counts, scene previews and artifact links. The package validates after
+copying elsewhere without the source pool; it does not include additional mesh
+binaries, simulators or robot trajectories.
 
 See [the data workflow](../../docs/DATA_WORKFLOW.md) for field and validation semantics.

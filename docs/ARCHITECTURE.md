@@ -45,6 +45,11 @@ partial selection if any quota is unmet and verifies stored selection references
 against child dataset evidence. It adds collection bookkeeping without changing
 the compiler, robot executor or trajectory protocols.
 
+`Curation` groups recorded scene configurations independently of task labels,
+keeps groups together across candidate splits, and materializes selected artifacts
+through verified staging. Curated packages validate without the original pool,
+while meshes, simulator integration and trajectories remain separate resources.
+
 `SimulatorBackend` is the environment-level abstraction for reset, step,
 render, and close. `InteractionExecutor` is the semantic interaction-plan
 abstraction for reset, command execution, snapshots, and close. They are

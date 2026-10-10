@@ -4,6 +4,18 @@
 
 ### Added
 
+- opt-in Franka controller settings with strict finite-value validation, active
+  drive-gain readback, and separate tracking/hold recipes for paired comparisons
+  against unchanged baseline layouts and task success conditions.
+
+- sequential Isaac acceptance for paired sampled mug-lift/place candidates,
+  source and asset fingerprints, real settling/contact/state traces, independently
+  recomputed quality, offline validation, resumable batches and a Chinese results
+  preview; Windows launcher/worker identity is verified through the live process tree.
+
+- configuration-grouped candidate splits that keep shared initial layouts together
+  across tasks, plus verified selected-artifact export and an offline HTML preview.
+
 - stratified sampling plans with bounded candidate pools, quality quotas,
   region filtering, cross-stratum deduplication, coverage reports and resumable
   collection generation; candidate datasets retain their existing v1 contract.

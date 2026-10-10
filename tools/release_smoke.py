@@ -52,6 +52,12 @@ HELP_COMMANDS = (
     ("dataset", "sample"),
     ("dataset", "sampling-validate"),
     ("dataset", "sampling-reproduce"),
+    ("dataset", "sampling-split"),
+    ("dataset", "sampling-split-validate"),
+    ("dataset", "sampling-export"),
+    ("dataset", "curated-validate"),
+    ("dataset", "run-isaac"),
+    ("dataset", "runtime-validate"),
     ("task",),
     ("task", "plan"),
     ("task", "validate"),
@@ -364,9 +370,9 @@ def run() -> dict[str, Any]:
         _write_json(sampling_plan_path, {
             "schema_version": "scene_factory.sampling_plan.v1",
             "strata": [
-                {"id": "lift", "recipe": "kitchen_franka_mug_lift_data", "quota": 2,
+                {"id": "lift", "recipe": "kitchen_franka_mug_lift_data", "quota": 3,
                  "candidate_count": 3, "seed_start": 1000},
-                {"id": "placement", "recipe": "kitchen_franka_mug_pick_place_data", "quota": 2,
+                {"id": "placement", "recipe": "kitchen_franka_mug_pick_place_data", "quota": 3,
                  "candidate_count": 3, "seed_start": 1000},
             ],
         })
@@ -375,13 +381,35 @@ def run() -> dict[str, Any]:
             cwd=cwd, env=environment,
         )
         _assert_valid(collection, "sampling collection")
-        if collection["summary"]["selected_count"] != 4:
+        if collection["summary"]["selected_count"] != 6:
             raise RuntimeError("sampling collection did not satisfy its quotas")
         for operation in ("sampling-validate", "sampling-reproduce"):
             _assert_valid(_json_command(
                 [cli, "dataset", operation, str(collection_root)], cwd=cwd, env=environment,
             ), operation)
         checks["stratified_sampling"] = "passed"
+
+        split_path = cwd / "sampling-split.json"
+        split_report = _json_command(
+            [cli, "dataset", "sampling-split", str(collection_root), "--output", str(split_path), "--seed", "42"],
+            cwd=cwd, env=environment,
+        )
+        _assert_valid(split_report, "grouped split")
+        if split_report["summary"]["configuration_group_count"] != 3:
+            raise RuntimeError("grouped split did not combine shared configurations across tasks")
+        _assert_valid(_json_command(
+            [cli, "dataset", "sampling-split-validate", str(collection_root), str(split_path)],
+            cwd=cwd, env=environment,
+        ), "split validation")
+        curated_root = cwd / "curated-package"
+        _assert_valid(_json_command(
+            [cli, "dataset", "sampling-export", str(collection_root), "--output", str(curated_root), "--seed", "42"],
+            cwd=cwd, env=environment,
+        ), "curated export")
+        _assert_valid(_json_command(
+            [cli, "dataset", "curated-validate", str(curated_root)], cwd=cwd, env=environment,
+        ), "curated validation")
+        checks["curation_and_grouped_splits"] = "passed"
 
         scene_path = cwd / "articulated-scene.json"
         plan_path = cwd / "interaction-plan.json"

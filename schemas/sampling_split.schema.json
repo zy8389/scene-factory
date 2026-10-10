@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SceneFactory grouped sampling split v1",
+  "type": "object",
+  "required": ["schema_version", "grouping_version", "source_collection_sha256", "ratios", "seed", "summary", "assignments"],
+  "properties": {
+    "schema_version": {"const": "scene_factory.sampling_split.v1"},
+    "grouping_version": {"const": "scene_factory.configuration_group.v1"},
+    "source_collection_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "seed": {"type": "integer"},
+    "ratios": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 3, "maxItems": 3},
+    "summary": {"type": "object"},
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stratum_id", "scene_id", "fingerprint", "configuration_fingerprint", "split"],
+        "properties": {
+          "stratum_id": {"type": "string"},
+          "scene_id": {"type": "string"},
+          "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "configuration_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "split": {"enum": ["train", "validation", "test"]}
+        }
+      }
+    }
+  }
+}

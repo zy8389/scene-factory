@@ -234,8 +234,10 @@ def export_usd_with_isaac(
     layout_path: str | Path,
     registry_path: str | Path,
     output_path: str | Path,
+    *,
+    isaac_python: str | Path | None = None,
 ) -> Path:
-    runtime = find_isaac_python()
+    runtime = prepare_isaac_python(isaac_python) if isaac_python else find_isaac_python()
     command = [
         str(runtime),
         "-m",

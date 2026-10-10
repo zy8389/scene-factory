@@ -20,6 +20,7 @@ from ..robotics import (
 )
 from ..tasks import TaskEvaluator
 from ..robot_specs import FRANKA_SPEC
+from ..controller_settings import controller_reach_kwargs, normalize_controller_settings
 
 
 _BUNDLED_FRANKA_ARM_STIFFNESS = 1000.0
@@ -162,6 +163,9 @@ class IsaacSimBackend:
         self._last_ik_target_joint_positions: list[float] | None = None
         self._last_applied_joint_position_targets: list[float] | None = None
         self._grasp_hold_positions: list[float] | None = None
+        self._grasp_hold_closing_margin_m = _GRASP_HOLD_CLOSING_MARGIN_M
+        self._controller_settings = normalize_controller_settings(None)
+        self._runtime_drive_gains: dict[str, Any] = {}
         self._contact_subscription = None
         self._contact_interface = None
         self._contact_events: list[dict[str, Any]] = []
@@ -197,6 +201,8 @@ class IsaacSimBackend:
             "released": controller.released if controller else False,
             "robot_asset_source": self._robot_asset_source,
             "action": self._last_command,
+            "controller_settings": dict(self._controller_settings),
+            "runtime_drive_gains": self._runtime_drive_gains,
             **self._asset_root_diagnostics,
         }
 
@@ -240,6 +246,7 @@ class IsaacSimBackend:
             raise ValueError("Isaac Sim requires an ASCII-only root USD path on Windows")
         _validate_scene_payload(scene)
         self.scene = scene
+        self._controller_settings = normalize_controller_settings(scene["task"].get("controller"))
         self.steps = 0
         os.environ.setdefault("OMNI_KIT_ACCEPT_EULA", "YES")
         try:
@@ -320,7 +327,9 @@ class IsaacSimBackend:
                 place_target_position=_pick_place_target_position(scene["task"]),
                 transfer_clearance_m=_pick_place_transfer_clearance(scene["task"]),
                 lift_height_m=_pick_place_lift_height(scene["task"]),
+                **controller_reach_kwargs(self._controller_settings),
             )
+            self._grasp_hold_closing_margin_m = self._controller_settings["grasp_hold_closing_margin_m"]
             self._target_root_path = str(self._object_prims[target_id].GetPath())
             self._refresh_grasp_diagnostics()
             observation = self._observation(task_success=False)
@@ -412,7 +421,7 @@ class IsaacSimBackend:
             )
             values = positions[np.asarray(indices, dtype=int)]
             if np.all(values >= lower - 1e-6) and np.all(values <= upper + 1e-6):
-                values = np.maximum(lower, values - _GRASP_HOLD_CLOSING_MARGIN_M)
+                values = np.maximum(lower, values - self._grasp_hold_closing_margin_m)
                 self._grasp_hold_positions = [float(value) for value in values]
         except (AttributeError, KeyError, RuntimeError, TypeError, ValueError):
             self._grasp_hold_positions = None
@@ -476,6 +485,9 @@ class IsaacSimBackend:
         self._last_ik_target_joint_positions = None
         self._last_applied_joint_position_targets = None
         self._grasp_hold_positions = None
+        self._grasp_hold_closing_margin_m = _GRASP_HOLD_CLOSING_MARGIN_M
+        self._controller_settings = normalize_controller_settings(None)
+        self._runtime_drive_gains = {}
         self._contact_subscription = None
         self._contact_interface = None
         self._contact_events = []
@@ -639,9 +651,10 @@ class IsaacSimBackend:
         )
         self._simulation.play()
         self._app.update()
-        _configure_franka_runtime_drives(
+        self._runtime_drive_gains = _configure_franka_runtime_drives(
             self._robot,
             self._finger_gripper_config["indices"],
+            self._controller_settings,
         )
         self._robot.set_world_pose(position=base_position, orientation=base_orientation)
         self._robot.set_joint_positions(default_joints)
@@ -1430,9 +1443,13 @@ def _configure_bundled_franka_drives(stage: Any, robot_root: str, UsdPhysics) ->
         drive.GetMaxForceAttr().Set(_BUNDLED_FRANKA_ARM_MAX_FORCE)
 
 
-def _configure_franka_runtime_drives(robot: Any, finger_indices: Any) -> None:
+def _configure_franka_runtime_drives(
+    robot: Any, finger_indices: Any, controller_settings: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Update active Franka arm and finger PhysX gains after initialization."""
     import numpy as np
+
+    settings = normalize_controller_settings(controller_settings)
 
     view = getattr(robot, "_articulation_view", None)
     set_gains = getattr(view, "set_gains", None)
@@ -1441,12 +1458,12 @@ def _configure_franka_runtime_drives(robot: Any, finger_indices: Any) -> None:
         raise RuntimeError("Isaac articulation view cannot configure Franka arm drives")
     arm_indices = np.arange(7, dtype=int)
     set_gains(
-        kps=np.full((1, 7), _BUNDLED_FRANKA_ARM_STIFFNESS, dtype=float),
-        kds=np.full((1, 7), _BUNDLED_FRANKA_ARM_DAMPING, dtype=float),
+        kps=np.full((1, 7), settings["arm_stiffness"], dtype=float),
+        kds=np.full((1, 7), settings["arm_damping"], dtype=float),
         joint_indices=arm_indices,
     )
     set_max_efforts(
-        values=np.full((1, 7), _BUNDLED_FRANKA_ARM_MAX_FORCE, dtype=float),
+        values=np.full((1, 7), settings["arm_max_force"], dtype=float),
         joint_indices=arm_indices,
     )
     finger_indices = np.asarray(finger_indices, dtype=int)
@@ -1461,6 +1478,27 @@ def _configure_franka_runtime_drives(robot: Any, finger_indices: Any) -> None:
         values=np.full((1, 2), _FRANKA_FINGER_MAX_FORCE, dtype=float),
         joint_indices=finger_indices,
     )
+    get_gains = getattr(view, "get_gains", None)
+    get_max_efforts = getattr(view, "get_max_efforts", None)
+    if not callable(get_gains) or not callable(get_max_efforts):
+        raise RuntimeError("Isaac articulation view cannot verify active drive gains")
+    observed = {}
+    for name, indices, expected in (
+        ("arm", arm_indices, (settings["arm_stiffness"], settings["arm_damping"], settings["arm_max_force"])),
+        ("fingers", finger_indices, (_FRANKA_FINGER_STIFFNESS, _FRANKA_FINGER_DAMPING, _FRANKA_FINGER_MAX_FORCE)),
+    ):
+        kps, kds = get_gains(joint_indices=indices)
+        arrays = [np.asarray(kps).reshape(-1), np.asarray(kds).reshape(-1),
+                  np.asarray(get_max_efforts(joint_indices=indices)).reshape(-1)]
+        if any(values.size != indices.size or not np.all(np.isfinite(values))
+               or not np.allclose(values, target, rtol=1e-5, atol=1e-5)
+               for values, target in zip(arrays, expected)):
+            raise RuntimeError(f"active {name} drive gains differ from requested settings")
+        observed[name] = {
+            "joint_indices": indices.tolist(), "stiffness": arrays[0].tolist(),
+            "damping": arrays[1].tolist(), "max_force": arrays[2].tolist(),
+        }
+    return {"source": "Isaac articulation runtime API", "verified": True, **observed}
 
 
 def _action_joint_positions(action: Any) -> list[float] | None:
@@ -1527,6 +1565,11 @@ def _pick_place_lift_height(task: dict[str, Any]) -> float | None:
     if value <= 0.0:
         raise ValueError("pick_and_place requires a positive lift_height_m")
     return value
+
+
+def _controller_reach_config(task: dict[str, Any]) -> dict[str, Any]:
+    """Read optional controller reach settings while preserving old defaults."""
+    return controller_reach_kwargs(normalize_controller_settings(task.get("controller")))
 
 
 def _rgbd_camera_config(task: dict[str, Any]) -> dict[str, Any] | None:

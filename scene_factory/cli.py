@@ -22,6 +22,12 @@ from .exporters.isaac_usd import IsaacBackendUnavailable
 from .factory import SceneFactory
 from .paths import default_registry_path
 from .quality import QUALITY_LEVELS
+from .curation import (
+    export_sampling_selection,
+    split_sampling_collection,
+    validate_curated_dataset,
+    validate_sampling_split,
+)
 from .sampling import (
     build_sampling_collection,
     load_sampling_plan,
@@ -146,12 +152,42 @@ def _parser() -> argparse.ArgumentParser:
     sample.add_argument("path", type=Path, help="Sampling plan JSON")
     sample.add_argument("--output", type=Path, required=True)
     sample.add_argument("--resume", action="store_true")
+    run_isaac = dataset_commands.add_parser(
+        "run-isaac", help="Run selected lift/place candidates sequentially in real Isaac Sim"
+    )
+    run_isaac.add_argument("path", type=Path, help="Validated sampling collection")
+    run_isaac.add_argument("--output", type=Path, required=True)
+    run_isaac.add_argument("--limit-layouts", type=int, default=20)
+    run_isaac.add_argument("--isaac-python", type=Path)
+    run_isaac.add_argument("--asset-root", type=Path, help="Official local Isaac assets root")
+    run_isaac.add_argument("--stage-timeout", type=float, default=300.0)
+    run_isaac.add_argument("--resume", action="store_true")
+    runtime_validate = dataset_commands.add_parser(
+        "runtime-validate", help="Recheck runtime evidence and quality without starting Isaac"
+    )
+    runtime_validate.add_argument("path", type=Path)
     for name, help_text in (
         ("sampling-validate", "Validate a collection, its quotas and source selection"),
         ("sampling-reproduce", "Reproduce the candidate datasets of a validated collection"),
     ):
         command = dataset_commands.add_parser(name, help=help_text)
         command.add_argument("path", type=Path)
+
+    for name, help_text in (
+        ("sampling-split", "Group scene configurations into train, validation and test candidates"),
+        ("sampling-export", "Export selected artifacts with grouped splits and a standalone preview"),
+    ):
+        command = dataset_commands.add_parser(name, help=help_text)
+        command.add_argument("path", type=Path)
+        command.add_argument("--output", type=Path, required=True)
+        command.add_argument("--seed", type=int, default=0)
+        command.add_argument("--ratios", type=float, nargs=3, default=(0.7, 0.15, 0.15),
+                             metavar=("TRAIN", "VALIDATION", "TEST"))
+    split_validate = dataset_commands.add_parser("sampling-split-validate", help="Validate grouped split assignments")
+    split_validate.add_argument("path", type=Path)
+    split_validate.add_argument("report", type=Path)
+    curated_validate = dataset_commands.add_parser("curated-validate", help="Validate an exported candidate package")
+    curated_validate.add_argument("path", type=Path)
 
     task = subparsers.add_parser(
         "task", help="Plan and replay deterministic symbolic interaction tasks"
@@ -322,6 +358,43 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if report.valid else 2
 
         if args.command == "dataset":
+            if args.dataset_command in {"run-isaac", "runtime-validate"}:
+                from .runtime_batch import run_runtime_batch, validate_runtime_batch
+
+                if args.dataset_command == "runtime-validate":
+                    report = validate_runtime_batch(args.path)
+                    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+                    return 0 if report.get("valid") else 2
+                settings = {}
+                if args.asset_root is not None:
+                    settings["robot_asset_root"] = str(args.asset_root.absolute())
+                report = run_runtime_batch(
+                    args.path, args.output, isaac_python=args.isaac_python,
+                    limit_layouts=args.limit_layouts, resume=args.resume,
+                    stage_timeout_s=args.stage_timeout, settings=settings,
+                )
+                print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.get("valid") else 2
+            if args.dataset_command in {"sampling-split", "sampling-export"}:
+                if args.dataset_command == "sampling-split":
+                    output = args.output.expanduser().resolve()
+                    if output.is_relative_to(args.path.expanduser().resolve()):
+                        raise ValueError("split output must be outside the source collection")
+                    report = split_sampling_collection(args.path, ratios=args.ratios, seed=args.seed)
+                    write_json_atomic(output, report.to_dict())
+                else:
+                    report = export_sampling_selection(args.path, args.output, ratios=args.ratios, seed=args.seed)
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.valid else 2
+            if args.dataset_command == "sampling-split-validate":
+                with args.report.expanduser().open(encoding="utf-8-sig") as handle:
+                    report = validate_sampling_split(args.path, json.load(handle))
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.valid else 2
+            if args.dataset_command == "curated-validate":
+                report = validate_curated_dataset(args.path)
+                print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+                return 0 if report.valid else 2
             if args.dataset_command == "sample":
                 report = build_sampling_collection(
                     load_sampling_plan(args.path), args.output, resume=args.resume,

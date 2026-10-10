@@ -21,6 +21,13 @@ versions. Child datasets keep the original v1 format; the collection is not
 passed to the single-dataset reader. Selection references are recomputed from
 verified candidates rather than trusted as independent evidence.
 
+Configuration groups, sampling splits and curated packages use
+`scene_factory.configuration_group.v1`, `scene_factory.sampling_split.v1`, and
+`scene_factory.curated_dataset.v1`. Split readers rederive assignments from the
+verified source collection. Curated readers verify copied artifacts and grouped
+assignments without requiring the original pool. Original semantic fingerprints
+remain unchanged; curated packages are not read as ordinary batch datasets.
+
 ## Compatibility rules
 
 - Unknown schema versions fail closed.
