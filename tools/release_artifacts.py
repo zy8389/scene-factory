@@ -42,6 +42,8 @@ WHEEL_REQUIRED_FILES = (
     "web/styles.css",
     "web/app.js",
     "web/scene-viewer.js",
+    "web/runtime-panel.js",
+    "web/runtime-replay.js",
     "web/vendor/BufferGeometryUtils.js",
     "web/vendor/GLTFLoader.js",
     "web/vendor/OrbitControls.js",
@@ -88,6 +90,8 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/usd/mug_001.usd",
 )
 REQUIRED_PACKAGE_FILES = (
+    "scene_factory/web_runtime.py",
+    "scene_factory/runtime_replay.py",
     "scene_factory/sampling.py",
     "scene_factory/doctor.py",
     "scene_factory/robot_specs.py",

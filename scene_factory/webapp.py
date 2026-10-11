@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import subprocess
+import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -19,13 +20,57 @@ from .paths import default_web_dir, project_root
 
 
 class SceneWebApplication:
-    def __init__(self, output_root: str | Path, factory: SceneFactory | None = None) -> None:
+    def __init__(
+        self, output_root: str | Path, factory: SceneFactory | None = None, *,
+        runtime_root: str | Path | None = None,
+        isaac_python: str | Path | None = None,
+        asset_root: str | Path | None = None,
+        runtime_history: tuple[str | Path, ...] = (),
+    ) -> None:
         self.factory = factory or SceneFactory()
         self.output_root = Path(output_root).expanduser().resolve()
         self.static_root = default_web_dir().resolve()
         self.asset_root = (project_root() / "data" / "assets" / "source").resolve()
         self.visual_assets = self._discover_visual_assets()
+        self._runtime_manager = None
+        self._runtime_lock = threading.Lock()
+        self._runtime_root = runtime_root or os.environ.get("SCENE_FACTORY_WEB_RUNTIME") or self.output_root / "_runtime"
+        self._runtime_options = {
+            "isaac_python": isaac_python,
+            "asset_root": asset_root,
+            "history_roots": runtime_history,
+        }
         self.output_root.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def runtime(self):
+        from .web_runtime import WebRuntimeManager
+
+        with self._runtime_lock:
+            if self._runtime_manager is None:
+                self._runtime_manager = WebRuntimeManager(
+                    self._runtime_root, self.factory, **self._runtime_options,
+                )
+            return self._runtime_manager
+
+    def runtime_replay(self, job_id: str, case_id: str) -> dict[str, Any]:
+        from .runtime_replay import replay_payload
+
+        job = self.runtime.get_job(job_id)
+        if not job.get("validation", {}).get("valid"):
+            raise RuntimeError("这批运行尚未通过证据校验，暂不能回放")
+        data = self.runtime.case_data(job_id, case_id)
+        assets = {}
+        for item in data["scene"]["objects"]:
+            try:
+                assets[item["asset_id"]] = self._asset_payload(item["asset_id"])
+            except KeyError:
+                assets[item["asset_id"]] = {"visual_url": None}
+        return replay_payload(data["case_root"], assets=assets)
+
+    def close(self) -> None:
+        if self._runtime_manager is not None:
+            self._runtime_manager.close()
 
     def recipe_catalog(self) -> list[dict[str, Any]]:
         return [
@@ -287,6 +332,8 @@ class SceneWebApplication:
         return path
 
     def open_in_isaac(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if self._runtime_manager is not None and self._runtime_manager.has_active_jobs:
+            raise RuntimeError("正在执行机器人验收，请等队列完成后再打开 Isaac 预览")
         scene_id = str(payload.get("scene_id", "")).strip()
         if not scene_id:
             raise ValueError("scene_id is required")
@@ -360,6 +407,25 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             if path == "/api/assets":
                 self._send_json(HTTPStatus.OK, {"assets": self.app.asset_catalog()})
                 return
+            if path == "/api/runtime/config":
+                self._send_json(HTTPStatus.OK, self.app.runtime.config())
+                return
+            if path == "/api/runtime/jobs":
+                self._send_json(HTTPStatus.OK, {"jobs": self.app.runtime.list_jobs()})
+                return
+            if path.startswith("/api/runtime/jobs/"):
+                parts = path.removeprefix("/api/runtime/jobs/").split("/")
+                job_id = unquote(parts[0])
+                if len(parts) == 1:
+                    self._send_json(HTTPStatus.OK, self.app.runtime.get_job(job_id))
+                elif len(parts) == 4 and parts[1] == "cases" and parts[3] == "replay":
+                    self._send_json(HTTPStatus.OK, self.app.runtime_replay(job_id, unquote(parts[2])))
+                elif len(parts) >= 3 and parts[1] == "files":
+                    relative = unquote("/".join(parts[2:]))
+                    self._send_file(self.app.runtime.resolve_file(job_id, relative))
+                else:
+                    raise FileNotFoundError(path)
+                return
             if path.startswith("/outputs/"):
                 self._send_file(self.app.resolve_output(path.removeprefix("/outputs/")))
                 return
@@ -369,6 +435,10 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             self._send_file(self.app.resolve_static(path))
         except FileNotFoundError:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+        except (ValueError, TypeError) as exc:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+        except RuntimeError as exc:
+            self._send_json(HTTPStatus.CONFLICT, {"error": str(exc)})
         except Exception as exc:
             self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
 
@@ -380,6 +450,7 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             "/api/open-isaac",
             "/api/export-blender",
             "/api/llm/test",
+            "/api/runtime/jobs",
         }:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
@@ -390,7 +461,9 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("请求必须是 JSON 对象")
-            if path == "/api/generate":
+            if path == "/api/runtime/jobs":
+                result = self.app.runtime.create(payload)
+            elif path == "/api/generate":
                 result = self.app.generate(payload)
             elif path == "/api/revise":
                 result = self.app.revise(payload)
@@ -400,9 +473,11 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
                 result = self.app.export_blender_case(payload)
             else:
                 result = self.app.factory.test_llm_connection()
-            self._send_json(HTTPStatus.OK, result)
+            self._send_json(HTTPStatus.ACCEPTED if path == "/api/runtime/jobs" else HTTPStatus.OK, result)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+        except RuntimeError as exc:
+            self._send_json(HTTPStatus.CONFLICT, {"error": str(exc)})
         except Exception as exc:
             self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(exc)})
 
@@ -450,6 +525,10 @@ class SceneFactoryServer(ThreadingHTTPServer):
         super().__init__(server_address, SceneFactoryHandler)
         self.app = app
 
+    def server_close(self) -> None:
+        self.app.close()
+        super().server_close()
+
 
 def _default_output() -> Path:
     configured = os.environ.get("SCENE_FACTORY_WEB_OUTPUT")
@@ -466,9 +545,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--output", type=Path, default=_default_output())
+    parser.add_argument("--runtime-output", type=Path, help="ASCII directory for queued robot acceptance runs")
+    parser.add_argument("--isaac-python", type=Path, help="Python executable with Isaac Sim installed")
+    parser.add_argument("--asset-root", type=Path, help="Official local Isaac assets root")
+    parser.add_argument("--runtime-history", type=Path, action="append", default=[],
+                        help="Existing runtime batch to show read-only; may be repeated")
     args = parser.parse_args(argv)
 
-    app = SceneWebApplication(args.output)
+    app = SceneWebApplication(
+        args.output, runtime_root=args.runtime_output, isaac_python=args.isaac_python,
+        asset_root=args.asset_root, runtime_history=tuple(args.runtime_history),
+    )
     server = SceneFactoryServer((args.host, args.port), app)
     print(f"SceneFactory UI: http://{args.host}:{args.port}", flush=True)
     print(f"Generated scenes: {app.output_root}", flush=True)

@@ -1,4 +1,7 @@
 import { SceneViewer } from "/scene-viewer.js";
+import { initializeRuntimePanel } from "/runtime-panel.js";
+
+initializeRuntimePanel();
 
 const form = document.querySelector("#scene-form");
 const promptInput = document.querySelector("#prompt");

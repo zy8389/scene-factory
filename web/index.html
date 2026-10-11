@@ -144,6 +144,62 @@
         </div>
       </section>
 
+      <section id="runtime-section" class="runtime-section" aria-labelledby="runtime-title">
+        <div class="section-heading runtime-heading">
+          <span>05</span>
+          <div><p>ROBOT TASK VALIDATION</p><h2 id="runtime-title">运行机器人任务，查看真实结果</h2></div>
+          <span class="runtime-mode-label">ISAAC SIM</span>
+        </div>
+        <p class="runtime-intro">选择已验证的厨房布局，让 Franka 实际抓起杯子、再将杯子放到目标位置。每个布局分别执行两项任务，物理检查和任务结果独立记录。</p>
+        <div class="runtime-workspace">
+          <form id="runtime-form" class="runtime-form">
+            <strong class="runtime-task-name">Franka 抓杯与放杯（配对验收）</strong>
+            <p>本轮使用固定验收场景。上方自然语言生成的场景可继续预览和导出。</p>
+            <label for="runtime-profile">控制方案</label>
+            <select id="runtime-profile"><option value="tracking">优化后的控制方案</option><option value="baseline">原始控制方案</option></select>
+            <label for="runtime-limit">测试布局数</label>
+            <input id="runtime-limit" type="number" min="1" max="20" step="1" value="1" required />
+            <small id="runtime-task-count">1 个布局 · 2 项任务</small>
+            <button id="runtime-start" class="generate-button" type="submit" disabled><span>开始仿真验收</span><b>↗</b></button>
+            <p id="runtime-config-status" class="runtime-config-status" role="status">正在检查仿真环境…</p>
+            <p class="runtime-queue-note">任务在本机按顺序运行。关闭页面后，已提交的任务仍会继续；重新打开可查看进度。</p>
+            <p id="runtime-message" class="runtime-message" role="status"></p>
+          </form>
+          <div class="runtime-results">
+            <div class="runtime-history-row">
+              <label for="runtime-job-select">当前任务 / 历史记录</label>
+              <select id="runtime-job-select" disabled><option value="">正在读取记录…</option></select>
+              <button id="runtime-refresh" type="button" class="runtime-secondary">刷新</button>
+            </div>
+            <p id="runtime-connection" class="runtime-connection" role="status"></p>
+            <div id="runtime-empty" class="runtime-empty"><strong>从一个布局开始</strong><p>启动仿真后，这里会显示执行进度、成功与失败原因。也可以选择历史记录回放。</p></div>
+            <div id="runtime-job-detail" hidden>
+              <div class="runtime-status-row"><strong id="runtime-job-title">—</strong><span id="runtime-job-status" class="runtime-pill">—</span></div>
+              <div class="runtime-progress-row"><progress id="runtime-progress" max="1" value="0" aria-label="已完成任务数"></progress><span id="runtime-progress-text">等待运行</span></div>
+              <div id="runtime-summary" class="runtime-summary"></div>
+              <p id="runtime-job-error" class="runtime-message error" hidden></p>
+              <div class="runtime-case-heading"><strong>逐项结果</strong><a id="runtime-report-link" target="_blank" rel="noopener" hidden>查看完整报告 ↗</a></div>
+              <div id="runtime-cases" class="runtime-cases"></div>
+            </div>
+          </div>
+        </div>
+        <section id="runtime-replay-panel" class="runtime-replay-panel" aria-labelledby="runtime-replay-title" hidden>
+          <div class="runtime-replay-heading"><div><small>RECORDED STATE</small><h3 id="runtime-replay-title">状态轨迹回放</h3></div><span id="runtime-replay-status" role="status">等待载入</span></div>
+          <p class="runtime-replay-note">根据仿真记录重现物体和机械臂末端的位置。画面是状态轨迹回放；阶段、接触和关节数值来自同一份记录。</p>
+          <div class="runtime-replay-legend" aria-label="轨迹颜色图例"><span><i style="--marker-color: #2563eb" aria-hidden="true"></i>末端</span><span><i style="--marker-color: #c026d3" aria-hidden="true"></i>左指</span><span><i style="--marker-color: #0891b2" aria-hidden="true"></i>右指</span><span><i style="--marker-color: #d97706" aria-hidden="true"></i>杯子</span><span><i style="--marker-color: #16a34a" aria-hidden="true"></i>接触</span></div>
+          <div id="runtime-replay-stage" class="runtime-replay-stage"></div>
+          <div class="runtime-replay-controls">
+            <button id="runtime-replay-play" type="button" class="runtime-secondary" disabled>播放</button>
+            <label class="runtime-timeline" for="runtime-replay-seek"><span class="sr-only">回放位置</span><input id="runtime-replay-seek" type="range" min="0" max="0" step="1" value="0" disabled /></label>
+            <label class="runtime-speed" for="runtime-replay-speed"><span>速度</span><select id="runtime-replay-speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+            <output id="runtime-replay-frame">0 / 0 帧</output>
+          </div>
+          <div class="runtime-frame-details"><div><small>执行阶段</small><strong id="runtime-replay-phase">—</strong></div><div><small>双指接触</small><strong id="runtime-replay-contact">—</strong></div><div><small>仿真步 / 时间</small><strong id="runtime-replay-step">—</strong></div></div>
+          <details class="runtime-joints"><summary>查看关节数值</summary><div id="runtime-replay-joints">—</div></details>
+          <p id="runtime-replay-notes" class="runtime-replay-note"></p>
+        </section>
+      </section>
+
       <aside class="scope-note">
         <strong>SIMULATION STACK</strong>
         <p>MuJoCo 负责默认物理执行，Three.js 使用本地真实资产与代理几何即时预览；需要最终高保真检查时，可单独导出 USD 并启动 Isaac Sim。</p>

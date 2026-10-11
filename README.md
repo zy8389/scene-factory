@@ -214,6 +214,9 @@ scene-factory dataset runtime-validate <ASCII_RUNTIME_DIR>/mug-pilot
 搬放组合全部执行成功；原配置为4个成功。预抓取门槛和任务成功条件保持一致，
 原配方继续保留旧控制参数。该结果适用于当前 Franka/YCB 杯子仿真切片。
 
+网页新增 Franka 配对验收入口，支持顺序排队、运行进度、逐项成败、只读历史
+和可暂停拖动的状态轨迹回放。启动配置与操作见[网页仿真工作流](docs/WEB_RUNTIME_WORKFLOW.md)。
+
 ## 可动部件规划与执行
 
 符号规划器使用可动部件元数据生成 `InteractionPlan`。干运行执行器会应用

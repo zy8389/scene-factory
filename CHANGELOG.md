@@ -4,6 +4,9 @@
 
 ### Added
 
+- web Franka acceptance queue with persistent job status, verified read-only
+  history, per-case physics/task results, and recorded-state trajectory replay.
+
 - opt-in Franka controller settings with strict finite-value validation, active
   drive-gain readback, and separate tracking/hold recipes for paired comparisons
   against unchanged baseline layouts and task success conditions.
