@@ -41,6 +41,7 @@ from .external import (
     normalize_producer,
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
+from .scene_ir import IREntity, IRRelation, IRConstraint, IRTask, SceneIR
 from .backends import MujocoBackend
 from .exporters import MujocoMjcfExporter
 from .trajectory import (
@@ -111,6 +112,11 @@ __all__ = [
     "AssetLoader",
     "AssetMetadata",
     "AssetRegistry",
+    "IREntity",
+    "IRRelation",
+    "IRConstraint",
+    "IRTask",
+    "SceneIR",
     "ArticulationJoint",
     "AssetNormalizer",
     "AssetValidator",
