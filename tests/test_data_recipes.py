@@ -66,6 +66,11 @@ class DataRecipeTests(unittest.TestCase):
         for prompt, expected in (
             ("franka mug lift", "kitchen_franka_mug_lift"),
             ("franka pick and place", "kitchen_franka_mug_pick_place"),
+            ("franka mug pick and place", "kitchen_franka_mug_pick_place"),
+            ("franka bowl pick and place", "kitchen_franka_bowl_pick_place"),
+            ("franka box pick and place", "kitchen_franka_box_pick_place"),
+            ("机器人抓碗", "kitchen_franka_bowl_pick_place"),
+            ("机器人抓盒子", "kitchen_franka_box_pick_place"),
             ("做饭后的厨房", "kitchen_after_cooking"),
             ("抓杯数据", "kitchen_franka_mug_lift_data"),
             ("抓取放置数据", "kitchen_franka_mug_pick_place_data"),

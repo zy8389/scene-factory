@@ -1,0 +1,13 @@
+{
+  "name": "scene-factory-web-qa",
+  "private": true,
+  "scripts": {
+    "qa:preview": "node tools/qa_web_preview.cjs",
+    "qa:runtime": "node tools/qa_web_runtime.cjs",
+    "qa:current-scene": "node tools/qa_current_scene_runtime.cjs",
+    "qa:kitchen": "node tools/qa_kitchen_dining_web.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.0"
+  }
+}

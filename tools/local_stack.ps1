@@ -15,6 +15,12 @@ Set-StrictMode -Version Latest
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
+    $corePython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
+    if ($Action -eq "Test" -and (Test-Path -LiteralPath $corePython -PathType Leaf)) {
+        $IsaacPython = $corePython
+    }
+}
+if ([string]::IsNullOrWhiteSpace($IsaacPython)) {
     $python = Get-Command python -ErrorAction SilentlyContinue
     if ($null -eq $python) {
         throw "Python executable not found; pass -IsaacPython explicitly."
@@ -233,7 +239,9 @@ function Start-LocalService {
 }
 
 function Invoke-LocalTests {
-    Assert-LocalConfiguration
+    if (-not (Test-Path -LiteralPath $IsaacPython -PathType Leaf)) {
+        throw "Test Python not found: $IsaacPython. Run tools/bootstrap_uv.ps1 first."
+    }
     $previousMode = [Environment]::GetEnvironmentVariable("SCENE_FACTORY_LLM_MODE", "Process")
     try {
         $env:SCENE_FACTORY_LLM_MODE = "off"
@@ -243,7 +251,7 @@ function Invoke-LocalTests {
             if ($LASTEXITCODE -ne 0) {
                 throw "Python compile check failed."
             }
-            & $IsaacPython -m unittest discover -s tests -v
+            & $IsaacPython -m pytest -p no:cacheprovider
             if ($LASTEXITCODE -ne 0) {
                 throw "Unit tests failed."
             }

@@ -67,6 +67,9 @@ powershell -ExecutionPolicy Bypass -File tools\local_stack.ps1 -Action Test
 powershell -ExecutionPolicy Bypass -File tools\local_stack.ps1 -Action Demo
 ```
 
+`Test` 优先使用已准备的仓库 `.venv` 并运行 pytest，包括函数式测试；不要求 Isaac
+或 ASCII 输出路径。首次准备开发依赖、Linux 命令及浏览器验收见[测试说明](TESTING.md)。
+
 ## LLM 密钥
 
 脚本不会读取配置文件中的明文密钥，也不会把密钥写进 PID、状态或日志文件。若要使用

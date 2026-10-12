@@ -2,20 +2,19 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
-const { chromium } = require(process.env.SCENE_FACTORY_PLAYWRIGHT);
+const { launchBrowser } = require("./qa_browser.cjs");
+const base = process.env.SCENE_FACTORY_QA_URL || "http://127.0.0.1:8765/";
 const output = path.resolve(process.env.SCENE_FACTORY_QA_OUTPUT || "outputs/kitchen_dining_20261012/browser");
 fs.mkdirSync(output, { recursive: true });
 
 async function main() {
-  const browser = await chromium.launch({ headless: true,
-    ...(process.env.SCENE_FACTORY_CHROME ? { executablePath: process.env.SCENE_FACTORY_CHROME } : {}),
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
+  const browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1500, height: 1150 } });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const reports = [];
   try {
-    await page.goto("http://127.0.0.1:8765/", { waitUntil: "domcontentloaded" });
+    await page.goto(base, { waitUntil: "domcontentloaded" });
     for (const [name, label, room] of [["kitchen", "完整厨房", "kitchen"], ["storage", "厨房收纳", "kitchen"], ["dining", "餐厅布置", "dining_room"]]) {
       await page.getByRole("button", { name: label, exact: true }).click();
       if (!(await page.locator("#export-usd").isChecked())) {
@@ -43,7 +42,7 @@ async function main() {
       const viewer = await page.locator("#viewer-status").textContent();
       assert.ok(viewer.includes("0 个占位"), viewer);
       await page.locator("#result-card").screenshot({ path: path.join(output, `${name}.png`) });
-      const download = await page.request.get(new URL(item.files.usd, "http://127.0.0.1:8765/").href);
+      const download = await page.request.get(new URL(item.files.usd, base).href);
       assert.equal(download.status(), 200);
       await page.setViewportSize({ width: 390, height: 844 });
       await page.locator("#result-card").screenshot({ path: path.join(output, `${name}_mobile.png`) });

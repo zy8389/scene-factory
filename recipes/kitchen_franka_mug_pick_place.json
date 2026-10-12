@@ -4,7 +4,7 @@
   "room_dimensions_m": [4.0, 3.0, 2.8],
   "event": "robot_mug_pick_place",
   "description": "Franka 从厨房岛台的 source 区域抓取真实 YCB 杯子，移动后放入 target 区域。",
-  "keywords": ["franka", "pick and place", "mug placement", "机器人抓取放置"],
+  "keywords": ["franka", "pick and place", "mug placement", "mug pick and place", "机器人抓取放置"],
   "objects": [
     {
       "object_id": "robot_mount_1",

@@ -4,7 +4,7 @@
   "room_dimensions_m": [4.0, 3.0, 2.8],
   "event": "robot_bowl_pick_place",
   "description": "Franka 从厨房岛台抓取碗并放到旁边目标区域。",
-  "keywords": ["franka", "bowl", "pick and place", "机器人抓碗"],
+  "keywords": ["bowl", "bowl pick and place", "机器人抓碗"],
   "objects": [
     {"object_id": "robot_mount_1", "category": "side_cabinet", "asset_id": "side_cabinet_basic", "dynamic": false, "fixed_pose": {"position": [-0.05, 0.0, 0.39], "yaw_deg": 0}},
     {"object_id": "island_1", "category": "kitchen_island", "asset_id": "kitchen_island_basic", "dynamic": false, "fixed_pose": {"position": [1.15, 0.0, 0.46]}},

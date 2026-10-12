@@ -1,6 +1,7 @@
 prune .git
 prune .github
 prune .venv
+prune node_modules
 prune venv
 prune tests
 prune outputs

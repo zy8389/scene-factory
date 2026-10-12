@@ -87,6 +87,8 @@ Web UI、SVG/Three.js 预览、MJCF 导出和场景包导出本身不需要安�
 python -m pip install ".[dev]"
 ```
 
+核心测试与可复现的 Chromium 浏览器验收入口见[测试说明](docs/TESTING.md)。
+
 wheel 包含配方、模式、Web 文件、资产注册表，以及离线工作流所需的已提交资产
 元数据；不包含 Isaac Sim、个人运行目录或 NVIDIA Local Assets。USD 导出和编辑器启动
 使用随 wheel 安装的模块，不再依赖源码仓库中的 `tools` 目录。

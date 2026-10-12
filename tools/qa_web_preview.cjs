@@ -2,11 +2,10 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { chromium } = require(process.env.SCENE_FACTORY_PLAYWRIGHT);
+const { launchBrowser } = require("./qa_browser.cjs");
 
 const url = process.env.SCENE_FACTORY_QA_URL || "http://127.0.0.1:8765/";
 const output = path.resolve(process.env.SCENE_FACTORY_QA_OUTPUT || "outputs/web-qa");
-const executablePath = process.env.SCENE_FACTORY_BROWSER;
 fs.mkdirSync(output, { recursive: true });
 
 async function generate(page) {
@@ -20,7 +19,7 @@ async function generate(page) {
   await page.waitForSelector("#result-content:not([hidden])", { timeout: 30000 });
   await page.waitForFunction(
     () => document.querySelector("#viewer-status")?.dataset.state !== "loading",
-    { timeout: 30000 },
+    null, { timeout: 30000 },
   );
   return Date.now() - started;
 }
@@ -62,11 +61,7 @@ async function canvasPixelStats(page, canvas) {
 }
 
 async function main() {
-  const browser = await chromium.launch({
-    executablePath,
-    headless: true,
-    args: ["--enable-webgl", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
-  });
+  const browser = await launchBrowser();
   const errors = [];
   const warnings = [];
   const failedRequests = [];
@@ -171,6 +166,7 @@ async function main() {
     }, null, 2));
     if (
       errors.length
+      || badResponses.length
       || failedRequests.some((item) => !item.endsWith("net::ERR_ABORTED"))
       || viewerState !== "ready"
       || desktopPixels.opaque < 1000

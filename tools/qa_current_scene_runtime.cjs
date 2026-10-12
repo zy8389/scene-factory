@@ -3,7 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
-const { chromium } = require(process.env.SCENE_FACTORY_PLAYWRIGHT);
+const { launchBrowser } = require("./qa_browser.cjs");
 
 const base = process.env.SCENE_FACTORY_QA_URL || "http://127.0.0.1:8765/";
 const output = path.resolve(process.env.SCENE_FACTORY_QA_OUTPUT || "outputs/current-scene-runtime-qa");
@@ -11,7 +11,7 @@ const mode = process.env.SCENE_FACTORY_CURRENT_SCENE_QA_MODE || "check";
 fs.mkdirSync(output, { recursive: true });
 
 async function main() {
-  const browser = await chromium.launch({ headless: true, args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
+  const browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

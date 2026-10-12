@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .cache/
 .venv/
+node_modules/
 .coverage
 .coverage.*
 .env
