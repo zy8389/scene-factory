@@ -20,3 +20,5 @@ local_resources/
 *.usda
 *.usdc
 *.usdz
+!data/assets/usd/kd_*.usd
+!data/assets/collision/kd_*.usd

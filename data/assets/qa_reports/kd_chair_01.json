@@ -1,0 +1,58 @@
+{
+  "asset_id": "kd_chair_01",
+  "checks": {
+    "z_up": true,
+    "metres": true,
+    "bounds_match": true,
+    "centred_origin": true,
+    "mesh_valid": true,
+    "collision_parts": true,
+    "bound_friction": true,
+    "resolved_dependencies": true
+  },
+  "bounds_m": [
+    0.46000000834465027,
+    0.5,
+    0.8600000143051147
+  ],
+  "mesh_count": 6,
+  "collision_count": 6,
+  "usd_sha256": "63f998dacc8f3ad87b7add29a641e519c136b7fd7e51f9d8e86d927f12cd7e8c",
+  "collision_sha256": "c9de3c44ed426f64f9075062f2d9a4e817beca2ae23b54c01336a6322af40b06",
+  "glb_sha256": "731b7dbffcbf8452df6626af7ca72427d4c58af403db17556e86301feb49af0a",
+  "physics_cases": [
+    {
+      "case": "seat_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true,
+        "static_fixture_unchanged": true
+      },
+      "initial_position_m": [
+        20.0,
+        0.0,
+        0.6425
+      ],
+      "final_position_m": [
+        20.0,
+        0.0,
+        0.4925000071525574
+      ],
+      "final_speed_mps": 0.0,
+      "expected_center_z_m": 0.4925,
+      "passed": true
+    }
+  ],
+  "grasp": "not_run",
+  "validator": "OpenUSD + real Isaac Sim/PhysX",
+  "steps": 360,
+  "dt_s": 0.016666666666666666,
+  "usd_load": "passed",
+  "mesh_check": "passed",
+  "collision": "passed",
+  "physics": "passed",
+  "valid": true
+}

@@ -19,7 +19,7 @@ Copy-Item config\llm.example.json config\llm.json
   "base_url": "https://your-provider.example/v1",
   "model": "your-model-name",
   "api_key_env": "SCENE_FACTORY_LLM_API_KEY",
-  "timeout_seconds": 60,
+  "timeout_seconds": 120,
   "ca_bundle": "system",
   "transport": "urllib",
   "proxy_url": "",
@@ -80,7 +80,7 @@ $env:SCENE_FACTORY_LLM_API_KEY = "..."
 可选配置：
 
 ```powershell
-$env:SCENE_FACTORY_LLM_TIMEOUT_SECONDS = "60"
+$env:SCENE_FACTORY_LLM_TIMEOUT_SECONDS = "120"
 $env:SCENE_FACTORY_LLM_CACHE = ".\runtime-work\llm_cache"
 $env:SCENE_FACTORY_LLM_CA_BUNDLE = "certifi"
 $env:SCENE_FACTORY_LLM_TRANSPORT = "curl_schannel"
@@ -116,9 +116,14 @@ python -m scene_factory llm-test
 
 当出现 `keyword_fallback` 时，页面会显示具体降级原因，不再静默吞掉错误。
 
+默认关闭 `keyword_fast_path`。即使显式开启，它也只复用与配方描述完全一致的请求；
+带数量、位置或其他细节的自然语言仍交给模型，避免命中几个关键词就丢失用户要求。
+模型同时收到房间与事件模板、可用资产和支撑面信息。入口鞋子默认按一双解析，
+地面入口区域在编译后仍被保留；明确要求放到沙发旁等位置时优先遵守新位置。
+
 ## 缓存和批量生成
 
-缓存键包含 endpoint、模型、类别集合、事件集合和完整提示词。同一句需求批量生成时只
+缓存键包含解析规则版本、endpoint、模型、类别集合、事件集合、资产能力和完整提示词。同一句需求批量生成时只
 调用一次 LLM，后续 seed 复用 `SceneIntent`，但资产选择和布局仍可变化。
 
 ## 输出文件

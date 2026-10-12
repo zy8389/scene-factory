@@ -49,116 +49,18 @@ class LLMConfig:
         return value if value.endswith("/chat/completions") else f"{value}/chat/completions"
 
 
-class StructuredLLMIntentParser:
-    """Parse natural language with a JSON-schema capable chat-completions endpoint."""
+class StructuredLLMClient:
+    """Shared structured chat transport; callers validate their own domain contract."""
 
-    def __init__(
-        self,
-        config: LLMConfig,
-        *,
-        categories: list[str],
-        room_types: list[str],
-        events: list[str],
-    ) -> None:
+    def __init__(self, config: LLMConfig) -> None:
         if not config.base_url or not config.model:
             raise ValueError("LLM base_url and model are required")
         self.config = config
-        self.categories = sorted(set(categories))
-        self.room_types = sorted(set(room_types))
-        self.events = sorted(set(events))
-        self.schema = scene_intent_schema(self.categories, self.room_types, self.events)
 
-    @property
-    def name(self) -> str:
-        return f"llm:{self.config.model}"
-
-    def parse(self, prompt: str) -> SceneIntent:
-        normalized = prompt.strip()
-        if len(normalized) < 2:
-            raise ValueError("prompt must contain at least two characters")
-        cached = self._read_cache(normalized)
-        if cached is not None:
-            return self._intent_from_payload(cached)
-
-        raw = self._request(normalized)
-        intent = self._intent_from_payload(raw)
-        self._write_cache(normalized, intent.to_dict())
-        return intent
-
-    def revise(self, current: SceneIntent, instruction: str) -> SceneIntent:
-        """Apply a natural-language edit while preserving the rest of a SceneIntent."""
-        normalized = instruction.strip()
-        if len(normalized) < 2:
-            raise ValueError("revision instruction must contain at least two characters")
-        if len(normalized) > 1000:
-            raise ValueError("revision instruction must not exceed 1000 characters")
-
-        current_json = json.dumps(
-            current.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        )
-        cache_identity = f"scene-intent-revision-v1\n{current_json}\n{normalized}"
-        cached = self._read_cache(cache_identity)
-        if cached is not None:
-            return self._intent_from_payload(cached)
-
-        user_prompt = (
-            "Current SceneIntent JSON:\n"
-            f"{current_json}\n\n"
-            "Revision instruction:\n"
-            f"{normalized}"
-        )
-        revision_rules = (
-            " This is an incremental revision. Return the complete revised SceneIntent, not a "
-            "patch. Preserve every object, relation, object_id, room_type, event, room dimensions, "
-            "and scene property that the instruction does not explicitly change. Remove dangling "
-            "relations when deleting an object. When adding instances, use new unique snake_case "
-            "IDs. Reflect the final scene in description."
-        )
-        raw = self._request(user_prompt, system_suffix=revision_rules)
-        intent = self._intent_from_payload(raw)
-        self._write_cache(cache_identity, intent.to_dict())
-        return intent
-
-    def test_connection(self) -> dict[str, Any]:
-        """Make one uncached structured request and validate the returned SceneIntent."""
-        started = time.perf_counter()
-        payload = self._request("连接测试：厨房台面上放着一个杯子。")
-        intent = self._intent_from_payload(payload)
-        return {
-            "ok": True,
-            "parser": self.name,
-            "endpoint": self.config.endpoint,
-            "model": self.config.model,
-            "elapsed_ms": round((time.perf_counter() - started) * 1000),
-            "sample": {
-                "room_type": intent.room_type,
-                "event": intent.event,
-                "object_count": len(intent.objects),
-            },
-        }
-
-    def _intent_from_payload(self, payload: dict[str, Any]) -> SceneIntent:
-        return SceneIntent.from_dict(
-            payload,
-            allowed_categories=self.categories,
-            allowed_room_types=self.room_types,
-            allowed_events=self.events,
-        )
-
-    def _request(self, prompt: str, *, system_suffix: str = "") -> dict[str, Any]:
-        system_prompt = (
-            "You compile household scene descriptions into SceneIntent JSON. "
-            "Use only category, room_type, event and predicate values allowed by the schema. "
-            "Create one object entry per distinct instance and use stable snake_case object IDs. "
-            "Relations describe semantics only; never output coordinates, asset IDs, USD paths, "
-            "robot actions, or commentary. Include every relation endpoint in objects. "
-            "Mark furniture dynamic=false and movable clutter dynamic=true. "
-            "If a described object is unavailable, omit it instead of inventing a category."
-            + system_suffix
-            + " The complete required JSON Schema follows:\n"
-            + json.dumps(self.schema, ensure_ascii=False, sort_keys=True)
-        )
-        base_payload: dict[str, Any] = {
+    def request_json(
+        self, system_prompt: str, prompt: str, schema: dict[str, Any], *, name: str,
+    ) -> dict[str, Any]:
+        base_payload = {
             "model": self.config.model,
             "temperature": 0.1,
             "messages": [
@@ -170,11 +72,7 @@ class StructuredLLMIntentParser:
             **base_payload,
             "response_format": {
                 "type": "json_schema",
-                "json_schema": {
-                    "name": "scene_intent",
-                    "strict": True,
-                    "schema": self.schema,
-                },
+                "json_schema": {"name": name, "strict": True, "schema": schema},
             },
         }
         try:
@@ -183,7 +81,7 @@ class StructuredLLMIntentParser:
             if "HTTP 400" not in str(exc) and "HTTP 422" not in str(exc):
                 raise
             response = self._post(
-                {**base_payload, "response_format": {"type": "json_object"}}
+                {**base_payload, "response_format": {"type": "json_object"}},
             )
         return self._extract_json(response)
 
@@ -356,15 +254,146 @@ class StructuredLLMIntentParser:
             raise LLMParserError("LLM SceneIntent must be a JSON object")
         return payload
 
+class StructuredLLMIntentParser(StructuredLLMClient):
+    """Parse natural language with a JSON-schema capable chat-completions endpoint."""
+
+    def __init__(
+        self,
+        config: LLMConfig,
+        *,
+        categories: list[str],
+        room_types: list[str],
+        events: list[str],
+        scene_context: dict[str, Any] | None = None,
+    ) -> None:
+        if not config.base_url or not config.model:
+            raise ValueError("LLM base_url and model are required")
+        self.config = config
+        self.categories = sorted(set(categories))
+        self.room_types = sorted(set(room_types))
+        self.events = sorted(set(events))
+        self.scene_context = scene_context or {}
+        self.schema = scene_intent_schema(self.categories, self.room_types, self.events)
+
+    @property
+    def name(self) -> str:
+        return f"llm:{self.config.model}"
+
+    def parse(self, prompt: str) -> SceneIntent:
+        normalized = prompt.strip()
+        if len(normalized) < 2:
+            raise ValueError("prompt must contain at least two characters")
+        cached = self._read_cache(normalized)
+        if cached is not None:
+            return self._intent_from_payload(cached)
+
+        raw = self._request(normalized)
+        intent = self._intent_from_payload(raw)
+        self._write_cache(normalized, intent.to_dict())
+        return intent
+
+    def revise(self, current: SceneIntent, instruction: str) -> SceneIntent:
+        """Apply a natural-language edit while preserving the rest of a SceneIntent."""
+        normalized = instruction.strip()
+        if len(normalized) < 2:
+            raise ValueError("revision instruction must contain at least two characters")
+        if len(normalized) > 1000:
+            raise ValueError("revision instruction must not exceed 1000 characters")
+
+        current_json = json.dumps(
+            current.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        cache_identity = f"scene-intent-revision-v1\n{current_json}\n{normalized}"
+        cached = self._read_cache(cache_identity)
+        if cached is not None:
+            return self._intent_from_payload(cached)
+
+        user_prompt = (
+            "Current SceneIntent JSON:\n"
+            f"{current_json}\n\n"
+            "Revision instruction:\n"
+            f"{normalized}"
+        )
+        revision_rules = (
+            " This is an incremental revision. Return the complete revised SceneIntent, not a "
+            "patch. Preserve every object, relation, object_id, room_type, event, room dimensions, "
+            "and scene property that the instruction does not explicitly change. Remove dangling "
+            "relations when deleting an object. When adding instances, use new unique snake_case "
+            "IDs. Reflect the final scene in description."
+        )
+        raw = self._request(user_prompt, system_suffix=revision_rules)
+        intent = self._intent_from_payload(raw)
+        self._write_cache(cache_identity, intent.to_dict())
+        return intent
+
+    def test_connection(self) -> dict[str, Any]:
+        """Make one uncached structured request and validate the returned SceneIntent."""
+        started = time.perf_counter()
+        payload = self._request("连接测试：厨房台面上放着一个杯子。")
+        intent = self._intent_from_payload(payload)
+        return {
+            "ok": True,
+            "parser": self.name,
+            "endpoint": self.config.endpoint,
+            "model": self.config.model,
+            "elapsed_ms": round((time.perf_counter() - started) * 1000),
+            "sample": {
+                "room_type": intent.room_type,
+                "event": intent.event,
+                "object_count": len(intent.objects),
+            },
+        }
+
+    def _intent_from_payload(self, payload: dict[str, Any]) -> SceneIntent:
+        return SceneIntent.from_dict(
+            payload,
+            allowed_categories=self.categories,
+            allowed_room_types=self.room_types,
+            allowed_events=self.events,
+        )
+
+    def _request(self, prompt: str, *, system_suffix: str = "") -> dict[str, Any]:
+        system_prompt = (
+            "You compile household scene descriptions into SceneIntent JSON. "
+            "Use only category, room_type, event and predicate values allowed by the schema. "
+            "Create one object entry per distinct instance and use stable snake_case object IDs. "
+            "Relations describe semantics only; never output coordinates, asset IDs, USD paths, "
+            "robot actions, or commentary. Include every relation endpoint in objects. "
+            "Mark furniture dynamic=false and movable clutter dynamic=true. "
+            "In dining rooms use dining_table and chair, with around relations for chairs. "
+            "Use inside for items stored on shelves inside kitchen_cabinet or storage_shelf; "
+            "on means the top surface. Explicit support_hint cabinet_id:shelf_0 (or shelf_1 "
+            "or shelf_2) chooses a registered shelf. Use kitchen_stocked for organized kitchens "
+            "and dining_setup for laid dining tables. "
+            "Preserve requested counts, colors, supports and exclusions; do not replace a detailed "
+            "description with an event template. Include furniture needed as relation endpoints. "
+            "In a living room, packaging means snack_bag, a remote belongs on the sofa seat "
+            "when requested, and cups and packaging on a coffee table need explicit on relations. "
+            "A change-shoes bench (换鞋凳) is entry_bench. Keys on it need an on relation. "
+            "Backpacks and shoes near an entrance belong on the floor near entry_bench; add "
+            "near relations. A pair of shoes means two shoe instances; unnumbered shoes at an "
+            "entrance also normally mean a pair. When plural packaging is scattered, use multiple "
+            "instances unless a count is stated. Use support_hint for floor or a named support, "
+            "never for a vague location such as entrance. "
+            "If a described object is unavailable, omit it instead of inventing a category."
+            + system_suffix
+            + " Available room templates and asset capabilities:\n"
+            + json.dumps(self.scene_context, ensure_ascii=False, sort_keys=True)
+            + " The complete required JSON Schema follows:\n"
+            + json.dumps(self.schema, ensure_ascii=False, sort_keys=True)
+        )
+        return self.request_json(system_prompt, prompt, self.schema, name="scene_intent")
+
     def _cache_path(self, prompt: str) -> Path:
         identity = json.dumps(
             {
-                "version": 1,
+                "version": 2,
                 "endpoint": self.config.endpoint,
                 "model": self.config.model,
                 "categories": self.categories,
                 "room_types": self.room_types,
                 "events": self.events,
+                "scene_context": self.scene_context,
                 "prompt": prompt,
             },
             ensure_ascii=False,
@@ -449,7 +478,7 @@ def load_llm_settings() -> dict[str, Any]:
     fast_keyword_raw = value(
         "SCENE_FACTORY_LLM_KEYWORD_FAST_PATH",
         "keyword_fast_path",
-        True,
+        False,
     )
     if isinstance(fast_keyword_raw, bool):
         keyword_fast_path = fast_keyword_raw
@@ -524,6 +553,7 @@ def create_intent_parser_from_env(
     room_types: list[str],
     events: list[str],
     settings: dict[str, Any] | None = None,
+    scene_context: dict[str, Any] | None = None,
 ) -> StructuredLLMIntentParser | None:
     settings = settings or load_llm_settings()
     mode = settings["mode"]
@@ -554,4 +584,5 @@ def create_intent_parser_from_env(
         categories=categories,
         room_types=room_types,
         events=events,
+        scene_context=scene_context,
     )

@@ -8,6 +8,7 @@ from .geometry import (
 )
 from .models import CompiledScene, ValidationIssue, ValidationReport
 from .registry import AssetRegistry
+from .spatial import blocks_clearance, inside_region, support_interior
 
 
 class SceneValidator:
@@ -19,6 +20,11 @@ class SceneValidator:
         issues: list[ValidationIssue] = []
         objects = {item.object_id: item for item in scene.objects}
         room_x, room_y, room_z = scene.room_dimensions_m
+        for zone in scene.clearance_zones:
+            if (abs(zone.center[0])+zone.size[0]/2 > room_x/2+self.tolerance_m
+                    or abs(zone.center[1])+zone.size[1]/2 > room_y/2+self.tolerance_m):
+                issues.append(ValidationIssue("clearance_out_of_bounds",
+                              f"reserved corridor {zone.name} exceeds room bounds",()))
 
         for item in scene.objects:
             x, y, z = item.pose.position
@@ -40,6 +46,32 @@ class SceneValidator:
             support_error = self._support_error(item, objects)
             if support_error is not None:
                 issues.append(support_error)
+            interior = support_interior(self.registry,item,objects)
+            if interior and not inside_region(item,*interior,tolerance=self.tolerance_m):
+                issues.append(ValidationIssue("outside_storage_interior",
+                              "object exceeds the registered storage interior",(item.object_id,interior[0].object_id)))
+            for relation in item.relations:
+                if relation.kind == "inside":
+                    if interior is None or interior[0].object_id != relation.target:
+                        issues.append(ValidationIssue("invalid_inside_relation",
+                                      "inside requires a matching registered shelf support",(item.object_id,relation.target)))
+                if relation.kind == "around":
+                    target = objects.get(relation.target)
+                    if item.category != "chair" or item.support != "floor" or (target and target.category != "dining_table"):
+                        issues.append(ValidationIssue("invalid_around_relation",
+                                      "around requires a floor chair and dining table",(item.object_id,relation.target)))
+                    if target is None:
+                        issues.append(ValidationIssue("missing_relation_target","around target is missing",(item.object_id,)))
+                    else:
+                        local=inverse_rotate_xy((x-target.pose.position[0],y-target.pose.position[1]),target.pose.yaw_deg)
+                        ax,ay=rotated_half_extents_xy(item.bbox_m,item.pose.yaw_deg-target.pose.yaw_deg)
+                        gaps=(abs(local[0])-target.bbox_m[0]/2-ax,abs(local[1])-target.bbox_m[1]/2-ay)
+                        gap=max(gaps)
+                        if gap < relation.min_distance_m-self.tolerance_m or gap > relation.max_distance_m+self.tolerance_m:
+                            issues.append(ValidationIssue("invalid_around_distance","chair does not have the requested table clearance",(item.object_id,target.object_id)))
+            for zone in scene.clearance_zones:
+                if blocks_clearance(item,zone,self.tolerance_m):
+                    issues.append(ValidationIssue("blocked_clearance",f"reserved corridor {zone.name} is obstructed",(item.object_id,)))
 
         collision_pairs = 0
         for index, first in enumerate(scene.objects):
@@ -65,6 +97,7 @@ class SceneValidator:
                 "object_count": len(scene.objects),
                 "dynamic_object_count": sum(item.dynamic for item in scene.objects),
                 "collision_pair_count": collision_pairs,
+                "clearance_zone_count": len(scene.clearance_zones),
             },
         )
 

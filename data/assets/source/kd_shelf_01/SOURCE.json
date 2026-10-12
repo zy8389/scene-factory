@@ -1,0 +1,41 @@
+{
+  "asset_id": "kd_shelf_01",
+  "source": "SceneFactory original procedural geometry",
+  "license": "MIT",
+  "source_geometry": "visual.glb",
+  "sha256": "ff3ff4856124015967dffd749368c3f9c3ee2984ffe9aaa11836fd47b5c269cc",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90,
+      0,
+      0
+    ],
+    "anchor": "bottom_center"
+  },
+  "bbox_m": [
+    0.9,
+    0.4,
+    1.6
+  ],
+  "units": "m",
+  "origin": "bbox_center",
+  "generator": "tools/build_kitchen_dining_assets.py",
+  "collision_strategy": "separate_convex_parts",
+  "source_url": "tools/build_kitchen_dining_assets.py",
+  "source_revision": "sha256:718886de2944899e35403fbe0366acfb0a2ea3c2469a071eaff9b9e7bd7dc7e0",
+  "source_name": "SceneFactory original kitchen/dining pack",
+  "geometry_origin": "procedural",
+  "license_source": "LICENSE",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "sha256": "ff3ff4856124015967dffd749368c3f9c3ee2984ffe9aaa11836fd47b5c269cc",
+      "bytes": 9932
+    }
+  ],
+  "geometry_sha256": "39031837315d143d035058b04e79a5e86c7741e051a3447bbea3a41a349b30b6",
+  "usd_sha256": "52f2537c7a0e2b9ffc70deb4a3121d9d5efb5e077e12938bcab62078d829dba8",
+  "collision_sha256": "091671f47773a334c742476bbb014ba12e48d5da14baf7abc79f0d31c9815279"
+}

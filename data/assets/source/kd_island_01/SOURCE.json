@@ -1,0 +1,41 @@
+{
+  "asset_id": "kd_island_01",
+  "source": "SceneFactory original procedural geometry",
+  "license": "MIT",
+  "source_geometry": "visual.glb",
+  "sha256": "be6d900f2efd88c732a64e4c28d1799283a8276a488e7b31230264dd9c4bf82b",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90,
+      0,
+      0
+    ],
+    "anchor": "bottom_center"
+  },
+  "bbox_m": [
+    1.4,
+    0.78,
+    0.92
+  ],
+  "units": "m",
+  "origin": "bbox_center",
+  "generator": "tools/build_kitchen_dining_assets.py",
+  "collision_strategy": "separate_convex_parts",
+  "source_url": "tools/build_kitchen_dining_assets.py",
+  "source_revision": "sha256:718886de2944899e35403fbe0366acfb0a2ea3c2469a071eaff9b9e7bd7dc7e0",
+  "source_name": "SceneFactory original kitchen/dining pack",
+  "geometry_origin": "procedural",
+  "license_source": "LICENSE",
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "sha256": "be6d900f2efd88c732a64e4c28d1799283a8276a488e7b31230264dd9c4bf82b",
+      "bytes": 14384
+    }
+  ],
+  "geometry_sha256": "55d216ff7b3cdf461636cba1d23bd1b7a96b12e490c11934c39ee3feabe9eea5",
+  "usd_sha256": "17c336a882e23973f2fa4d8881b925d235135ee043b7272a662e4aa8e6f09a5b",
+  "collision_sha256": "0a15b7fe0008f4a0c353e82aa3e5d925fa9f8160660faa15ee2646bbf978e174"
+}

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..models import CompiledScene
+from ..asset_geometry import load_asset_parts
 from ..registry import AssetRegistry
 
 
@@ -50,11 +51,16 @@ class MujocoMjcfExporter:
             "compiler",
             {"angle": "degree", "autolimits": "true", "balanceinertia": "true"},
         )
-        ET.SubElement(
+        option = ET.SubElement(
             root,
             "option",
             {"timestep": "0.002", "gravity": "0 0 -9.81", "integrator": "implicitfast"},
         )
+        if any("kitchen_dining_pack" in self.registry.get(str(_value(item,"asset_id"))).tags
+               for item in _value(scene,"objects")):
+            # Multi-point convex contacts prevent a flat mesh base balancing on
+            # one moving GJK contact, which otherwise causes spurious drift.
+            ET.SubElement(option,"flag",{"multiccd":"enable"})
         default = ET.SubElement(root, "default")
         ET.SubElement(
             default,
@@ -78,6 +84,7 @@ class MujocoMjcfExporter:
         )
         ET.SubElement(visual, "headlight", {"ambient": "0.35 0.35 0.35"})
 
+        mesh_assets = ET.SubElement(root, "asset")
         worldbody = ET.SubElement(root, "worldbody")
         ET.SubElement(
             worldbody,
@@ -134,6 +141,27 @@ class MujocoMjcfExporter:
                 ET.SubElement(body, "freejoint", {"name": f"joint__{body_name}"})
 
             bbox = tuple(float(value) for value in _value(item, "bbox_m"))
+            parts=load_asset_parts(self.registry,asset)
+            if parts:
+                if dynamic:
+                    mass=asset.mass_kg
+                    inertia=(mass*(bbox[1]**2+bbox[2]**2)/12,
+                             mass*(bbox[0]**2+bbox[2]**2)/12,
+                             mass*(bbox[0]**2+bbox[1]**2)/12)
+                    ET.SubElement(body,"inertial",{"pos":"0 0 0","mass":_numbers((mass,)),
+                                                   "diaginertia":_numbers(inertia)})
+                for part_index,part in enumerate(parts):
+                    name=f"mesh__{body_name}_{part_index}"
+                    triangles=[(face[0],face[i],face[i+1]) for face in part["faces"] for i in range(1,len(face)-1)]
+                    ET.SubElement(mesh_assets,"mesh",{"name":name,
+                        "vertex":_numbers(x for v in part["vertices"] for x in v),
+                        "face":" ".join(str(i) for triangle in triangles for i in triangle)})
+                    ET.SubElement(body,"geom",{"name":f"geom__{body_name}_{part_index}","type":"mesh","mesh":name,
+                        "mass":"0","rgba":_numbers((*part["color"],1)),
+                        "friction":_numbers((asset.friction,.008,.001)),
+                        "contype":"1" if asset.collision_enabled else "0",
+                        "conaffinity":"1" if asset.collision_enabled else "0"})
+                continue
             primitive = (asset.primitive or "cube").lower()
             geom_type, size = self._geom_shape(primitive, bbox)
             static_friction = asset.static_friction or asset.friction or 0.5

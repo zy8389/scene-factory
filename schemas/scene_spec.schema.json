@@ -23,7 +23,14 @@
       "minItems": 1,
       "items": {"$ref": "#/$defs/objectRequest"}
     },
-    "task": {"type": "object"}
+    "task": {"type": "object"},
+    "clearance_zones": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "center", "size"],
+      "properties": {"name": {"type": "string", "minLength": 1},
+        "center": {"$ref": "#/$defs/vec2"},
+        "size": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}, "minItems": 2, "maxItems": 2}}
+    }}
   },
   "$defs": {
     "vec2": {
@@ -66,7 +73,7 @@
       "additionalProperties": false,
       "required": ["kind", "target"],
       "properties": {
-        "kind": {"enum": ["near", "partly_occluded_by"]},
+        "kind": {"enum": ["near", "inside", "around", "partly_occluded_by"]},
         "target": {"type": "string"},
         "min_distance_m": {"type": "number", "minimum": 0},
         "max_distance_m": {"type": "number", "exclusiveMinimum": 0}

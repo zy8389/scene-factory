@@ -1,0 +1,211 @@
+{
+  "name": "kitchen_core_assets",
+  "room_type": "kitchen",
+  "event": "kitchen_stocked",
+  "room_dimensions_m": [
+    6.8,
+    5.2,
+    2.8
+  ],
+  "description": "厨房料理台与岛台摆着杯碗盘和瓶子，储物柜、置物架内分层存放盒子，中央通道保持畅通。",
+  "keywords": [
+    "完整厨房",
+    "厨房资产",
+    "厨房布置",
+    "料理台与岛台",
+    "kitchen stocked"
+  ],
+  "clearance_zones": [
+    {
+      "name": "kitchen_aisle",
+      "center": [
+        0,
+        0.55
+      ],
+      "size": [
+        3.2,
+        0.9
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "object_id": "counter_1",
+      "category": "kitchen_counter",
+      "asset_id": "kd_counter_01",
+      "dynamic": false,
+      "support": "floor",
+      "fixed_pose": {
+        "position": [
+          -0.7,
+          1.6,
+          0.45
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "cabinet_1",
+      "category": "kitchen_cabinet",
+      "asset_id": "kd_cabinet_01",
+      "dynamic": false,
+      "support": "floor",
+      "fixed_pose": {
+        "position": [
+          2.15,
+          1.5,
+          0.9
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "shelf_1",
+      "category": "storage_shelf",
+      "asset_id": "kd_shelf_01",
+      "dynamic": false,
+      "support": "floor",
+      "fixed_pose": {
+        "position": [
+          -2.5,
+          -0.5,
+          0.8
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "island_1",
+      "category": "kitchen_island",
+      "asset_id": "kd_island_01",
+      "dynamic": false,
+      "support": "floor",
+      "fixed_pose": {
+        "position": [
+          0.1,
+          -0.65,
+          0.46
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "asset_id": "kd_mug_01",
+      "dynamic": true,
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "bowl_1",
+      "category": "bowl",
+      "asset_id": "kd_bowl_01",
+      "dynamic": true,
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "plate_1",
+      "category": "plate",
+      "asset_id": "kd_plate_01",
+      "dynamic": true,
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "bottle_1",
+      "category": "bottle",
+      "asset_id": "kd_bottle_01",
+      "dynamic": true,
+      "support": "counter_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "mug_2",
+      "category": "mug",
+      "asset_id": "kd_mug_01",
+      "dynamic": true,
+      "support": "island_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "plate_2",
+      "category": "plate",
+      "asset_id": "kd_plate_01",
+      "dynamic": true,
+      "support": "island_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "box_1",
+      "category": "box",
+      "asset_id": "kd_box_01",
+      "dynamic": true,
+      "support": "cabinet_1:shelf_0",
+      "yaw_range_deg": [
+        -15,
+        15
+      ],
+      "relations": [
+        {
+          "kind": "inside",
+          "target": "cabinet_1"
+        }
+      ]
+    },
+    {
+      "object_id": "bottle_2",
+      "category": "bottle",
+      "asset_id": "kd_bottle_01",
+      "dynamic": true,
+      "support": "cabinet_1:shelf_1",
+      "yaw_range_deg": [
+        -15,
+        15
+      ],
+      "relations": [
+        {
+          "kind": "inside",
+          "target": "cabinet_1"
+        }
+      ]
+    },
+    {
+      "object_id": "box_2",
+      "category": "box",
+      "asset_id": "kd_box_01",
+      "dynamic": true,
+      "support": "shelf_1:shelf_1",
+      "yaw_range_deg": [
+        -15,
+        15
+      ],
+      "relations": [
+        {
+          "kind": "inside",
+          "target": "shelf_1"
+        }
+      ]
+    }
+  ],
+  "task": {}
+}

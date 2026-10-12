@@ -1,0 +1,80 @@
+{
+  "asset_id": "kd_box_01",
+  "checks": {
+    "z_up": true,
+    "metres": true,
+    "bounds_match": true,
+    "centred_origin": true,
+    "mesh_valid": true,
+    "collision_parts": true,
+    "bound_friction": true,
+    "resolved_dependencies": true
+  },
+  "bounds_m": [
+    0.18000000715255737,
+    0.14000000059604645,
+    0.11999999731779099
+  ],
+  "mesh_count": 1,
+  "collision_count": 1,
+  "usd_sha256": "ff529ee7c65b4b17e18629773e8b5e297e2b506b0af6d9b1cf16c804228019af",
+  "collision_sha256": "1d2996f0ae589188a3ef0717a36c8ce510dd5aad6258f279b7e4491c9a01e3b0",
+  "glb_sha256": "6d9eedf7b9bcb91afe9531246fd6495ea657ab3fb953890b1ab03032481a116b",
+  "physics_cases": [
+    {
+      "case": "floor_drop",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true
+      },
+      "initial_position_m": [
+        40.0,
+        6.0,
+        0.51
+      ],
+      "final_position_m": [
+        39.999996185302734,
+        6.000002384185791,
+        0.059999994933605194
+      ],
+      "final_speed_mps": 0.00037121797687782176,
+      "expected_center_z_m": 0.06,
+      "passed": true
+    },
+    {
+      "case": "table_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true
+      },
+      "initial_position_m": [
+        40.0,
+        9.0,
+        1.27
+      ],
+      "final_position_m": [
+        39.999996185302734,
+        9.00000286102295,
+        0.8199999332427979
+      ],
+      "final_speed_mps": 0.0003670817001917924,
+      "expected_center_z_m": 0.8200000000000001,
+      "passed": true
+    }
+  ],
+  "grasp": "not_run",
+  "validator": "OpenUSD + real Isaac Sim/PhysX",
+  "steps": 360,
+  "dt_s": 0.016666666666666666,
+  "usd_load": "passed",
+  "mesh_check": "passed",
+  "collision": "passed",
+  "physics": "passed",
+  "valid": true
+}

@@ -15,22 +15,50 @@
     "layout_style"
   ],
   "properties": {
-    "room_type": {"enum": ["kitchen", "living_room"]},
-    "event": {"enum": ["after_cooking", "recent_snacking", "returned_home"]},
-    "description": {"type": "string"},
+    "room_type": {
+      "enum": [
+        "kitchen",
+        "living_room",
+        "dining_room"
+      ]
+    },
+    "event": {
+      "enum": [
+        "after_cooking",
+        "recent_snacking",
+        "returned_home",
+        "kitchen_stocked",
+        "kitchen_storage",
+        "dining_setup"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
     "room_dimensions_m": {
       "anyOf": [
-        {"type": "null"},
+        {
+          "type": "null"
+        },
         {
           "type": "array",
-          "items": {"type": "number", "exclusiveMinimum": 0},
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
           "minItems": 3,
           "maxItems": 3
         }
       ]
     },
-    "clutter_level": {"type": "number", "minimum": 0, "maximum": 1},
-    "layout_style": {"type": "string"},
+    "clutter_level": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "layout_style": {
+      "type": "string"
+    },
     "objects": {
       "type": "array",
       "minItems": 1,
@@ -53,16 +81,29 @@
           },
           "category": {
             "enum": [
+              "apple",
+              "avocado",
               "backpack",
+              "bottle",
+              "bowl",
+              "box",
+              "chair",
               "coffee_table",
               "cushion",
               "cutting_board",
+              "dining_table",
+              "electric_kettle",
+              "electric_stove",
               "entry_bench",
+              "frying_pan",
               "keys",
+              "kitchen_cabinet",
               "kitchen_counter",
               "kitchen_island",
               "kitchen_knife",
+              "microwave",
               "mug",
+              "plate",
               "pot",
               "pot_lid",
               "remote_control",
@@ -70,14 +111,33 @@
               "side_cabinet",
               "snack_bag",
               "sofa",
+              "storage_shelf",
               "tissue",
-              "vegetable_bag"
+              "vegetable_bag",
+              "wooden_spoon"
             ]
           },
-          "dynamic": {"type": "boolean"},
-          "support_hint": {"type": ["string", "null"]},
-          "attributes": {"type": "array", "items": {"type": "string"}},
-          "state": {"type": "array", "items": {"type": "string"}}
+          "dynamic": {
+            "type": "boolean"
+          },
+          "support_hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     },
@@ -86,11 +146,27 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["subject", "predicate", "target"],
+        "required": [
+          "subject",
+          "predicate",
+          "target"
+        ],
         "properties": {
-          "subject": {"type": "string"},
-          "predicate": {"enum": ["on", "near", "partly_occluded_by"]},
-          "target": {"type": "string"}
+          "subject": {
+            "type": "string"
+          },
+          "predicate": {
+            "enum": [
+              "on",
+              "inside",
+              "around",
+              "near",
+              "partly_occluded_by"
+            ]
+          },
+          "target": {
+            "type": "string"
+          }
         }
       }
     }

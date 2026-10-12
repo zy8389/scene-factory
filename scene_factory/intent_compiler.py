@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from dataclasses import replace
 
+from .bundle import _load_visual_assets
 from .intent import IntentObject, SceneIntent
 from .models import ObjectRequest, Relation, SceneRecipe
 from .recipes import RecipeLibrary
@@ -15,7 +16,7 @@ from .registry import AssetRegistry
 class IntentCompiler:
     """Compile semantic LLM output into the deterministic layout recipe format."""
 
-    FLOOR_CATEGORIES = {"backpack", "shoe"}
+    FLOOR_CATEGORIES = {"backpack", "shoe", "chair", "dining_table", "kitchen_cabinet", "storage_shelf"}
     SUPPORT_PREFERENCES = {
         "cushion": ("sofa",),
         "remote_control": ("sofa",),
@@ -28,6 +29,10 @@ class IntentCompiler:
         "vegetable_bag": ("kitchen_counter", "kitchen_island"),
         "pot": ("kitchen_island", "kitchen_counter"),
         "pot_lid": ("kitchen_island", "kitchen_counter", "pot"),
+        "bottle": ("dining_table", "kitchen_counter", "kitchen_island", "storage_shelf"),
+        "box": ("storage_shelf", "kitchen_cabinet", "kitchen_counter"),
+        "bowl": ("dining_table", "kitchen_counter", "kitchen_island"),
+        "plate": ("dining_table", "kitchen_counter", "kitchen_island"),
     }
     YAW_LIMITS = {
         "cutting_board": 12.0,
@@ -42,6 +47,26 @@ class IntentCompiler:
     def __init__(self, registry: AssetRegistry, recipes: RecipeLibrary) -> None:
         self.registry = registry
         self.recipes = recipes
+        self.visual_assets = _load_visual_assets(self.registry.base_dir / "source")
+
+    def scene_context(self) -> dict:
+        return {
+            "rooms": [
+                {"room_type": recipe.room_type, "event": recipe.event,
+                 "fixtures": [request.category for request in recipe.objects if request.fixed_pose is not None]}
+                for recipe in self.recipes.values() if not recipe.task.get("robot")
+            ],
+            "categories": [
+                {"category": category,
+                 "support_surfaces": sorted({surface.name for asset in self.registry.candidates(category)
+                                             for surface in asset.support_surfaces}),
+                 "preferred_supports": list(self.SUPPORT_PREFERENCES.get(category, ())),
+                 "interior_regions": sorted({region.region_id for asset in self.registry.candidates(category)
+                                             for region in asset.interior_regions}),
+                 "has_visual": any(asset.asset_id in self.visual_assets for asset in self.registry.candidates(category))}
+                for category in self.registry.categories()
+            ],
+        }
 
     def compile(self, intent: SceneIntent, prompt: str) -> SceneRecipe:
         base = self._select_base(intent, prompt)
@@ -57,8 +82,8 @@ class IntentCompiler:
         fixture_index: dict[str, int] = defaultdict(int)
         for item in intent.objects:
             fixtures = fixed_by_category.get(item.category, [])
-            if fixtures:
-                index = min(fixture_index[item.category], len(fixtures) - 1)
+            if fixture_index[item.category] < len(fixtures):
+                index = fixture_index[item.category]
                 aliases[item.object_id] = fixtures[index].object_id
                 if item.state:
                     fixed_state_overrides[fixtures[index].object_id] = item.state
@@ -98,6 +123,8 @@ class IntentCompiler:
             compiled_relations = []
             for predicate, target in relations_by_subject.get(object_id, []):
                 if predicate == "on" or target == self._support_target(support_by_id[object_id]):
+                    if predicate == "inside":
+                        compiled_relations.append(Relation(kind="inside", target=target))
                     continue
                 if predicate == "near":
                     min_distance, max_distance = self._relation_distance(
@@ -115,13 +142,26 @@ class IntentCompiler:
                     compiled_relations.append(
                         Relation(kind="partly_occluded_by", target=target)
                     )
+                elif predicate == "around":
+                    if item.category != "chair" or category_by_id[target] != "dining_table":
+                        raise ValueError("around currently supports chairs around a dining table")
+                    compiled_relations.append(Relation(kind="around",target=target,
+                                                       min_distance_m=.08,max_distance_m=.18))
             state_text = " ".join(item.state).lower()
+            base_request = next((request for request in base.objects if request.category == item.category
+                                 and request.region_xy is not None), None)
+            floor_targets = [category_by_id[target] for predicate, target in relations_by_subject.get(object_id, [])
+                             if predicate == "near"]
+            region = (base_request.region_xy if base_request and support_by_id[object_id] == "floor"
+                      and all(category == "entry_bench" for category in floor_targets) else None)
             requests.append(
                 ObjectRequest(
                     object_id=object_id,
                     category=item.category,
+                    asset_id=self._visual_asset_id(item,base),
                     support=support_by_id[object_id],
                     dynamic=item.dynamic,
+                    region_xy=region,
                     yaw_range_deg=(-object_yaw, object_yaw),
                     edge_bias=(
                         "edge" in state_text
@@ -150,10 +190,50 @@ class IntentCompiler:
             keywords=(),
             objects=tuple(requests),
             task={},
+            clearance_zones=base.clearance_zones,
         )
+
+    def _visual_asset_id(self, item: IntentObject, base: SceneRecipe | None = None) -> str | None:
+        candidates = [asset for asset in self.registry.candidates(item.category)
+                      if asset.asset_id in self.visual_assets]
+        if not candidates:
+            return None
+        ids={asset.asset_id for asset in candidates}
+        preferred=next((request.asset_id for request in base.objects
+                        if request.category==item.category and request.asset_id in ids),None) if base else None
+        if preferred and "kitchen_dining_pack" in self.registry.get(preferred).tags:
+            # Attribute labels such as "bowl" must not silently select an older
+            # source with a different upright geometry/physics contract.
+            candidates=[asset for asset in candidates if "kitchen_dining_pack" in asset.tags]
+        attributes = " ".join(item.attributes).casefold()
+        colors = {
+            "blue": ((0.15, 0.4, 0.75), ("blue", "蓝")),
+            "red": ((0.8, 0.15, 0.15), ("red", "红")),
+            "green": ((0.2, 0.6, 0.2), ("green", "绿")),
+            "white": ((0.95, 0.95, 0.95), ("white", "白")),
+            "black": ((0.05, 0.05, 0.05), ("black", "黑")),
+            "gray": ((0.4, 0.4, 0.4), ("gray", "grey", "灰")),
+            "cream": ((0.83, 0.78, 0.62), ("cream", "米色")),
+        }
+        color = next((value for value, words in colors.values() if any(word in attributes for word in words)), None)
+        if color is None and preferred:
+            return preferred
+        return min(candidates, key=lambda asset: (
+            sum((asset.color[axis] - color[axis]) ** 2 for axis in range(3)) if color else 0,
+            asset.asset_id,
+        )).asset_id
 
     def _select_base(self, intent: SceneIntent, prompt: str) -> SceneRecipe:
         recipes = list(self.recipes.values())
+        # Storage fixtures select the template that actually has registered cavities.
+        requested = {item.category for item in intent.objects}
+        if requested & {"kitchen_cabinet", "storage_shelf", "dining_table"}:
+            matches = [r for r in recipes if r.room_type==intent.room_type and not r.task.get("robot")]
+            if matches:
+                return max(matches,key=lambda r:(
+                    len(requested & {o.category for o in r.objects if o.fixed_pose is not None}),
+                    r.event==intent.event,
+                ))
         exact = [
             recipe
             for recipe in recipes
@@ -173,6 +253,20 @@ class IntentCompiler:
         relations_by_subject: dict[str, list[tuple[str, str]]],
     ) -> str:
         for predicate, target in relations_by_subject.get(object_id, []):
+            if predicate == "inside":
+                category=category_by_id[target]
+                region=next((region for asset in self.registry.candidates(category)
+                             for region in asset.interior_regions),None)
+                if region is None:
+                    raise ValueError(f"{target} has no registered storage interior")
+                if item.support_hint:
+                    hint_target,_,hint_surface=item.support_hint.partition(":")
+                    if aliases.get(hint_target,hint_target)==target and hint_surface:
+                        regions={r.region_id for asset in self.registry.candidates(category) for r in asset.interior_regions}
+                        if hint_surface not in regions:
+                            raise ValueError(f"{target} has no storage interior {hint_surface}")
+                        return f"{target}:{hint_surface}"
+                return f"{target}:{region.region_id}"
             if predicate == "on":
                 support = self._surface_reference(target, category_by_id)
                 if support:
@@ -191,7 +285,9 @@ class IntentCompiler:
                 if support:
                     return support
 
-        if item.category in self.FLOOR_CATEGORIES:
+        if item.category in self.FLOOR_CATEGORIES or (
+            not item.dynamic and any(asset.support_surfaces for asset in self.registry.candidates(item.category))
+        ):
             return "floor"
         preferences = self.SUPPORT_PREFERENCES.get(item.category, ())
         for category in preferences:
@@ -219,7 +315,8 @@ class IntentCompiler:
             return None
         for asset in self.registry.candidates(category):
             if asset.support_surfaces:
-                return f"{target}:{asset.support_surfaces[0].name}"
+                surface=next((s for s in asset.support_surfaces if s.name=="top"),asset.support_surfaces[0])
+                return f"{target}:{surface.name}"
         return None
 
     def _relation_distance(

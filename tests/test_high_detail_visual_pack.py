@@ -56,7 +56,12 @@ class HighDetailVisualPackTests(unittest.TestCase):
             with self.subTest(asset_id=asset_id):
                 self.assertEqual(catalog[asset_id]["visual_url"], f"/assets/{asset_id}/visual")
                 self.assertEqual(catalog[asset_id]["license"], "CC0")
-                self.assertEqual(catalog[asset_id]["visual_transform"]["scale_mode"], "uniform_contain")
+                record = app.factory.registry.get(asset_id)
+                mode = "fit_bbox" if any(surface.name in {"top", "cooktop"}
+                                         and surface.link is None
+                                         and abs(surface.center[2] - record.bbox_m[2] / 2) < 1e-6
+                                         for surface in record.support_surfaces) else "uniform_contain"
+                self.assertEqual(catalog[asset_id]["visual_transform"]["scale_mode"], mode)
                 self.assertEqual(app.resolve_asset(f"{asset_id}/visual").suffix, ".glb")
 
     def test_exported_scene_bundle_preserves_visual_license(self) -> None:
@@ -74,7 +79,7 @@ class HighDetailVisualPackTests(unittest.TestCase):
         self.assertEqual(manifest["assets"]["frying_pan_basic"]["license"], "CC0")
         self.assertEqual(
             manifest["assets"]["electric_stove_basic"]["visual_transform"]["scale_mode"],
-            "uniform_contain",
+            "fit_bbox",
         )
 
 

@@ -2,8 +2,14 @@
 
 SceneFactory 是面向具身智能仿真工作流的确定性场景、任务、交互规划和执行器契约工具包。
 
-v0.1 候选版本提供离线 Python SDK，可在无需 Isaac Sim、GPU、NumPy、LLM API
-或网络连接的情况下完成克隆、安装、检查和使用。
+v0.1.0 已于 2026-08-28 在 [GitHub Release](https://github.com/zy8389/scene-factory/releases/tag/v0.1.0)
+发布 wheel、sdist、产物清单与校验文件。本 README 描述当前开发分支；发布后的新增功能
+见 [CHANGELOG 的 Unreleased 部分](CHANGELOG.md)，已发布版本的范围见
+[v0.1.0 发布说明](docs/RELEASE_NOTES_v0.1.0.md)。
+
+离线 Python SDK 可在无需 Isaac Sim、GPU、NumPy、LLM API 或网络连接的情况下
+完成场景编译、数据集验证、规划与干运行。首次克隆或下载发布产物需要网络；
+产物下载后，核心安装和使用无需网络。
 
 ## 功能概览
 
@@ -30,12 +36,16 @@ v0.1 候选版本提供离线 Python SDK，可在无需 Isaac Sim、GPU、NumPy�
 - 符号化可动部件规划与离线干运行执行；
 - 执行轨迹验证及核心执行器一致性套件；
 - 可选的 Isaac Sim USD 导出和依赖环境的机器人集成。
+- 厨房与餐厅的 11 类原创 USD / GLB 资产、柜架分层放物、椅子围桌和预留通道；
+  详见[资产包与验证说明](docs/KITCHEN_DINING_ASSETS.md)。
 
 ## 当前集成边界与 Blender case
 
 - 机器人本体：**1 种，Franka Emika Panda**（Isaac Sim 内的抓杯、搬放与 RGB-D 验收）；UR/xArm、移动底盘、双臂、人形与真实硬件均未接入。机器人有独立的 `RobotSpec` / `RobotAdapter` 接口，不等于新增机器人已经支持。
-- Blender：`--blender` 生成 `blender_manifest.json`、独立 `blender_render.py` 与所需 GLB 副本；**不需要 Blender 即可准备 case**。装好 Blender 后通过 `scene-factory blender render` 得到 `.blend` 和 PNG。静态场景可视化不包含 Franka 机器人模型、动作轨迹或物理验收。
-- 生成后的 case 位于指定输出目录，可先查看 `preview.svg` 与同目录清单。截至 2026-10-02，参考机器未安装 Blender，因而 `.blend` / PNG 尚未实机渲染验证。
+- Blender：`--blender` 生成清单、渲染脚本、Windows 一键入口 `generate_blend.bat`、使用说明与所需 GLB 副本；**不需要 Blender 即可准备 case**。解压后双击一键入口生成 `scene.blend`，或在网页点击“生成并下载 .blend”，ZIP 会同时包含可直接打开的场景。静态场景可视化不包含 Franka 机器人模型、动作轨迹或物理验收。
+- 生成后的 case 位于指定输出目录，可先查看 `preview.svg` 与同目录清单。参考机器已于 2026-10-03 使用 Blender 5.2.2 LTS 验证 `.blend` 生成与 PNG 渲染；PNG 渲染为独立可选步骤。
+- `.blend` 默认使用材质预览并隐藏辅助坐标、灯光轮廓及父子连线。未提供 GLB 的资产仍使用方块占位外观，厨房中的蔬菜袋和锅盖目前属于这类资产。
+- 客厅与玄关增加零食包装、遥控器、纸巾、靠垫、背包、鞋、钥匙及两色杯子的原创 GLB 外观模型；它们是程序建模的视觉资产，碰撞体仍为简化几何。自然语言中的数量、颜色和支撑位置经模型解析后保留，沙发坐面高度已校正。
 
 ### 推荐的 uv / .venv 工作流（PowerShell）
 
@@ -81,7 +91,9 @@ wheel 包含配方、模式、Web 文件、资产注册表，以及离线工作�
 元数据；不包含 Isaac Sim、个人运行目录或 NVIDIA Local Assets。USD 导出和编辑器启动
 使用随 wheel 安装的模块，不再依赖源码仓库中的 `tools` 目录。
 
-CI 的核心测试不安装模拟器；MuJoCo 物理测试在单独安装 `.[dev,mujoco]` 的任务中执行。
+CI 在 Ubuntu 和 Windows 上运行 Python 3.12 核心测试、构建与安装冒烟检查，
+核心任务不安装模拟器；MuJoCo 集成测试在 Ubuntu 上单独安装 `.[dev,mujoco]` 后执行。
+Isaac Franka/RGB-D 的物理任务验收仍需独立的 Isaac 环境，不在这些 CI 任务中运行。
 
 ## 5 分钟快速上手
 
@@ -217,7 +229,19 @@ scene-factory dataset runtime-validate <ASCII_RUNTIME_DIR>/mug-pilot
 网页新增 Franka 配对验收入口，支持顺序排队、运行进度、逐项成败、只读历史
 和可暂停拖动的状态轨迹回放。启动配置与操作见[网页仿真工作流](docs/WEB_RUNTIME_WORKFLOW.md)。
 
+生成结果还提供“运行当前场景”：先检查厨房单杯布局，显示机器人安装与放置
+计划，再冻结实际场景进入同一队列。原物体保持原位，结果绑定来源编号与哈希；
+保守几何筛查通过后仍须通过真实物理与任务验收。
+
 ## 可动部件规划与执行
+
+### 桌沿风险与任务优先级
+
+网页支持生成“桌沿杯子 + 当前任务”的结构化情境，再询问 AI 应先把杯子移到
+安全位置，还是继续当前任务。可调整距支撑面边缘的间隙、运动情境、任务紧急
+程度及能否安全暂停。判断保存为独立记录；运动是假设，真实滚落与机器人干预
+尚未验证。CLI 与对照情境见[任务优先级示例](examples/task_priority/README.md)。
+
 
 符号规划器使用可动部件元数据生成 `InteractionPlan`。干运行执行器会应用
 语义状态转换，并输出经过验证的 `ExecutionTrace`：
@@ -344,5 +368,6 @@ scene-factory episode replay <episode_path>
 
 代码采用 MIT 许可证。随包提供的 YCB 源资产署名见
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)，其上游许可证条款仍然适用。
-发布就绪范围和状态见 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) 与
-[`CHANGELOG.md`](CHANGELOG.md)。
+已发布版本与开发分支变更见 [`CHANGELOG.md`](CHANGELOG.md)；
+[`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) 记录已核实的 v0.1.0 发布状态，
+并提供下一次发布的检查清单。

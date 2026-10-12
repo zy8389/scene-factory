@@ -1,0 +1,209 @@
+{
+  "name": "dining_core_assets",
+  "room_type": "dining_room",
+  "event": "dining_setup",
+  "room_dimensions_m": [
+    6.4,
+    5.2,
+    2.8
+  ],
+  "description": "餐厅里四把椅子围着餐桌，桌上放着两个杯子、两个盘子、一个碗和一个瓶子，置物架内放着盒子，右侧通道保持畅通。",
+  "keywords": [
+    "餐厅",
+    "餐桌",
+    "椅子",
+    "用餐",
+    "dining",
+    "dinner",
+    "table setting"
+  ],
+  "clearance_zones": [
+    {
+      "name": "dining_aisle",
+      "center": [
+        2.35,
+        0
+      ],
+      "size": [
+        0.9,
+        4.8
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "object_id": "table_1",
+      "category": "dining_table",
+      "asset_id": "kd_table_01",
+      "dynamic": false,
+      "support": "floor",
+      "fixed_pose": {
+        "position": [
+          0,
+          0,
+          0.38
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "shelf_1",
+      "category": "storage_shelf",
+      "asset_id": "kd_shelf_01",
+      "dynamic": false,
+      "support": "floor",
+      "fixed_pose": {
+        "position": [
+          -2.4,
+          1.5,
+          0.8
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "object_id": "chair_1",
+      "category": "chair",
+      "asset_id": "kd_chair_01",
+      "dynamic": false,
+      "support": "floor",
+      "relations": [
+        {
+          "kind": "around",
+          "target": "table_1",
+          "min_distance_m": 0.08,
+          "max_distance_m": 0.18
+        }
+      ]
+    },
+    {
+      "object_id": "chair_2",
+      "category": "chair",
+      "asset_id": "kd_chair_01",
+      "dynamic": false,
+      "support": "floor",
+      "relations": [
+        {
+          "kind": "around",
+          "target": "table_1",
+          "min_distance_m": 0.08,
+          "max_distance_m": 0.18
+        }
+      ]
+    },
+    {
+      "object_id": "chair_3",
+      "category": "chair",
+      "asset_id": "kd_chair_01",
+      "dynamic": false,
+      "support": "floor",
+      "relations": [
+        {
+          "kind": "around",
+          "target": "table_1",
+          "min_distance_m": 0.08,
+          "max_distance_m": 0.18
+        }
+      ]
+    },
+    {
+      "object_id": "chair_4",
+      "category": "chair",
+      "asset_id": "kd_chair_01",
+      "dynamic": false,
+      "support": "floor",
+      "relations": [
+        {
+          "kind": "around",
+          "target": "table_1",
+          "min_distance_m": 0.08,
+          "max_distance_m": 0.18
+        }
+      ]
+    },
+    {
+      "object_id": "mug_1",
+      "category": "mug",
+      "asset_id": "kd_mug_01",
+      "dynamic": true,
+      "support": "table_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "mug_2",
+      "category": "mug",
+      "asset_id": "kd_mug_01",
+      "dynamic": true,
+      "support": "table_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "plate_1",
+      "category": "plate",
+      "asset_id": "kd_plate_01",
+      "dynamic": true,
+      "support": "table_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "plate_2",
+      "category": "plate",
+      "asset_id": "kd_plate_01",
+      "dynamic": true,
+      "support": "table_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "bowl_1",
+      "category": "bowl",
+      "asset_id": "kd_bowl_01",
+      "dynamic": true,
+      "support": "table_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "bottle_1",
+      "category": "bottle",
+      "asset_id": "kd_bottle_01",
+      "dynamic": true,
+      "support": "table_1:top",
+      "yaw_range_deg": [
+        -15,
+        15
+      ]
+    },
+    {
+      "object_id": "box_1",
+      "category": "box",
+      "asset_id": "kd_box_01",
+      "dynamic": true,
+      "support": "shelf_1:shelf_0",
+      "yaw_range_deg": [
+        -15,
+        15
+      ],
+      "relations": [
+        {
+          "kind": "inside",
+          "target": "shelf_1"
+        }
+      ]
+    }
+  ],
+  "task": {}
+}

@@ -59,10 +59,13 @@ def main() -> int:
         manifest = json.loads(Path(files["blender_manifest"]).read_text(encoding="utf-8"))
         with zipfile.ZipFile(files["blender_case"]) as archive:
             members = set(archive.namelist())
-            required_case = {"blender_manifest.json", "blender_render.py"}
+            required_case = {
+                "blender_manifest.json", "blender_render.py",
+                "generate_blend.bat", "README_BLENDER.txt",
+            }
             required_case.update(item["visual"] for item in manifest["objects"] if item["visual"])
             if members != required_case or not any(item["visual"] for item in manifest["objects"]):
-                raise RuntimeError("installed Blender case is missing its renderer or GLB assets")
+                raise RuntimeError("installed Blender case has unexpected or missing renderer, launcher, instructions or GLB assets")
         diagnosis = subprocess.run(
             [sys.executable, "-m", "scene_factory.cli", "doctor", "--json"],
             cwd=directory, capture_output=True, text=True, encoding="utf-8", errors="replace",

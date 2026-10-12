@@ -63,7 +63,8 @@ export class SceneViewer {
   async renderScene(sceneData, assets = {}) {
     const revision = ++this.revision;
     this.clearWorld();
-    this.buildRoom(sceneData.room_dimensions_m);
+    this.buildRoom(sceneData.room_dimensions_m, sceneData.room_type);
+    this.buildClearanceZones(sceneData.clearance_zones || []);
     this.frameRoom(sceneData.room_dimensions_m);
     this.setStatus("正在加载场景资产…", "loading");
 
@@ -101,7 +102,7 @@ export class SceneViewer {
     if (revision !== this.revision) return;
     const proxyCount = sceneData.objects.length - loaded;
     const detail = loaded
-      ? `${loaded} 个真实资产 · ${proxyCount} 个代理`
+      ? `${loaded} 个外观模型 · ${proxyCount} 个占位`
       : `${proxyCount} 个包围盒代理`;
     this.setStatus(detail, loaded ? "ready" : "proxy");
   }
@@ -131,7 +132,7 @@ export class SceneViewer {
     }
   }
 
-  buildRoom(dimensions) {
+  buildRoom(dimensions, roomType) {
     const [width, depth, height] = dimensions;
     const floor = new THREE.Mesh(
       new THREE.BoxGeometry(width, depth, 0.04),
@@ -163,14 +164,16 @@ export class SceneViewer {
     leftWall.userData.disposable = true;
     this.room.add(leftWall);
 
-    const backsplash = new THREE.Mesh(
-      new THREE.BoxGeometry(width * 0.78, 0.025, Math.min(0.7, height * 0.25)),
-      backsplashMaterial,
-    );
-    backsplash.position.set(0, depth / 2 - 0.055, Math.min(1.25, height * 0.46));
-    backsplash.receiveShadow = true;
-    backsplash.userData.disposable = true;
-    this.room.add(backsplash);
+    if (roomType === "kitchen") {
+      const backsplash = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.78, 0.025, Math.min(0.7, height * 0.25)),
+        backsplashMaterial,
+      );
+      backsplash.position.set(0, depth / 2 - 0.055, Math.min(1.25, height * 0.46));
+      backsplash.receiveShadow = true;
+      backsplash.userData.disposable = true;
+      this.room.add(backsplash);
+    }
 
     const ceilingLight = new THREE.PointLight(0xfff1d5, 42, Math.max(width, depth) * 2.2, 2);
     ceilingLight.position.set(0, 0.3, height - 0.2);
@@ -198,6 +201,19 @@ export class SceneViewer {
     );
     outline.userData.disposable = true;
     this.room.add(outline);
+  }
+
+  buildClearanceZones(zones) {
+    for (const zone of zones) {
+      const marker = new THREE.Mesh(
+        new THREE.PlaneGeometry(...zone.size),
+        new THREE.MeshBasicMaterial({ color: 0x77b7a5, transparent: true, opacity: 0.2, depthWrite: false }),
+      );
+      marker.position.set(...zone.center, 0.002);
+      marker.name = zone.name;
+      marker.userData.disposable = true;
+      this.room.add(marker);
+    }
   }
 
   frameRoom(dimensions) {
@@ -254,16 +270,23 @@ export class SceneViewer {
     const initialSize = initialBox.getSize(new THREE.Vector3());
     const desired = new THREE.Vector3().fromArray(bbox);
     const epsilon = 1e-6;
-    const scale = Math.min(
+    const ratios = new THREE.Vector3(
       desired.x / Math.max(initialSize.x, epsilon),
       desired.y / Math.max(initialSize.y, epsilon),
       desired.z / Math.max(initialSize.z, epsilon),
     );
-    oriented.scale.setScalar(scale);
-    oriented.updateMatrixWorld(true);
-    const scaledBox = new THREE.Box3().setFromObject(oriented);
+    const fitted = new THREE.Group();
+    fitted.add(oriented);
+    if (transform.scale_mode === "fit_bbox") {
+      fitted.scale.copy(ratios);
+    } else {
+      fitted.scale.setScalar(Math.min(ratios.x, ratios.y, ratios.z));
+    }
+    fitted.updateMatrixWorld(true);
+    const scaledBox = new THREE.Box3().setFromObject(fitted);
     const center = scaledBox.getCenter(new THREE.Vector3());
-    oriented.position.set(-center.x, -center.y, -scaledBox.min.z);
+    fitted.position.set(-center.x, -center.y, -desired.z / 2 - scaledBox.min.z);
+    fitted.updateMatrixWorld(true);
     model.traverse((node) => {
       if (!node.isMesh) return;
       node.material = node.material.clone();
@@ -273,7 +296,7 @@ export class SceneViewer {
       node.castShadow = true;
       node.receiveShadow = true;
     });
-    return oriented;
+    return fitted;
   }
 
   loadAsset(url) {

@@ -120,6 +120,9 @@ export function initializeRuntimePanel(options = {}) {
     replayStatus: byId("replay-status"), play: byId("replay-play"), seek: byId("replay-seek"),
     speed: byId("replay-speed"), frame: byId("replay-frame"), phase: byId("replay-phase"),
     contact: byId("replay-contact"), step: byId("replay-step"), joints: byId("replay-joints"), notes: byId("replay-notes"),
+    source: byId("job-source"), scenePanel: byId("scene-panel"), sceneStatus: byId("scene-status"),
+    sceneReasons: byId("scene-reasons"), scenePlan: byId("scene-plan"), sceneStart: byId("scene-start"),
+    sceneRecheck: byId("scene-recheck"), sceneMessage: byId("scene-message"),
   };
   const requestFetch = options.fetch || globalThis.fetch.bind(globalThis);
   const storageKey = "sceneFactory.runtime.selectedJob";
@@ -134,6 +137,12 @@ export function initializeRuntimePanel(options = {}) {
   let disposed = false;
   let refreshing = false;
   let submitting = false;
+  let sceneId = "";
+  let sceneCheck = null;
+  let sceneChecking = false;
+  let sceneSubmitting = false;
+  let sceneRevision = 0;
+  let sceneRequest = null;
   let timer = null;
   let replayRevision = 0;
   let replayRequest = null;
@@ -164,6 +173,79 @@ export function initializeRuntimePanel(options = {}) {
   function updateStartButton() {
     ui.start.disabled = !config?.available || submitting;
     ui.start.querySelector("span").textContent = submitting ? "正在提交…" : "开始仿真验收";
+    updateSceneControls();
+  }
+
+  function updateSceneControls() {
+    if (!ui.scenePanel) return;
+    const eligible = sceneCheck?.eligible === true && sceneCheck.scene_id === sceneId && sceneCheck.task_count === 2;
+    ui.sceneStart.disabled = disposed || !sceneId || sceneChecking || sceneSubmitting || !eligible || !config?.available;
+    ui.sceneStart.querySelector("span").textContent = sceneSubmitting ? "正在提交…" : "运行当前场景 · 2 项任务";
+    ui.sceneRecheck.disabled = sceneChecking || sceneSubmitting;
+    if (!sceneId) return;
+    const label = sceneChecking ? "正在检查" : !sceneCheck ? "检查未完成"
+      : !eligible ? "暂不支持" : !config ? "环境检查中" : !config.available ? "环境未就绪" : "布局适用";
+    ui.sceneStatus.textContent = label;
+    ui.sceneStatus.className = `runtime-pill ${eligible && config?.available ? "neutral" : "pending"}`;
+  }
+
+  function setSceneMessage(text, error = false) {
+    if (!ui.sceneMessage) return;
+    ui.sceneMessage.textContent = text;
+    ui.sceneMessage.className = `runtime-message${error ? " error" : ""}`;
+  }
+
+  function renderScenePlan(payload) {
+    const xyz = (value) => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite)
+      ? value.map((number) => number.toFixed(3)).join(", ") : null;
+    const base = xyz(payload.robot_base_position_m || payload.plan?.robot_base_position_m);
+    const target = xyz(payload.target_position_m || payload.plan?.target_position_m);
+    const added = Array.isArray(payload.plan?.added_objects) ? payload.plan.added_objects : [];
+    const parts = ["优化后的控制方案 · 提起与放置各一次"];
+    if (added.length) parts.push(`运行场景增加 ${added.length} 个固定支撑物，供机械臂安装`);
+    if (base) parts.push(`机械臂基座 XYZ：${base} m`);
+    if (target) parts.push(`放置目标 XYZ：${target} m`);
+    ui.scenePlan.textContent = parts.join("；");
+    ui.scenePlan.hidden = payload.eligible !== true;
+  }
+
+  async function setScene(id) {
+    if (disposed || !ui.scenePanel) return;
+    const revision = ++sceneRevision;
+    sceneRequest?.abort();
+    sceneRequest = null;
+    sceneId = typeof id === "string" ? id : "";
+    sceneCheck = null;
+    sceneChecking = Boolean(sceneId);
+    ui.scenePanel.hidden = !sceneId;
+    ui.sceneReasons.replaceChildren();
+    ui.scenePlan.hidden = true;
+    setSceneMessage("");
+    updateSceneControls();
+    if (!sceneId) return;
+    const requestedSceneId = sceneId;
+    const controller = new AbortController();
+    sceneRequest = controller;
+    try {
+      const payload = await api("/api/runtime/scene-check", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: requestedSceneId, profile: "tracking" }),
+      }, controller);
+      if (disposed || revision !== sceneRevision || requestedSceneId !== sceneId) return;
+      if (payload.scene_id !== requestedSceneId) throw new Error("检查结果与当前场景不一致，请重新检查");
+      sceneCheck = payload;
+      const reasons = Array.isArray(payload.reasons) ? payload.reasons : [];
+      ui.sceneReasons.innerHTML = reasons.map((reason) => `<li>${escapeHtml(friendlyReason(reason))}</li>`).join("");
+      renderScenePlan(payload);
+      if (payload.eligible === true && config?.available === false) setSceneMessage(config.message || "仿真环境尚未就绪，可先查看检查方案。");
+    } catch (error) {
+      if (!disposed && revision === sceneRevision && requestedSceneId === sceneId) {
+        setSceneMessage(`场景检查未完成：${error.name === "AbortError" ? "读取超时，请重新检查" : error.message}`, true);
+      }
+    } finally {
+      if (revision === sceneRevision) { sceneChecking = false; updateSceneControls(); }
+      if (sceneRequest === controller) sceneRequest = null;
+    }
   }
 
   async function loadConfig() {
@@ -272,6 +354,10 @@ export function initializeRuntimePanel(options = {}) {
     ui.empty.hidden = true;
     ui.title.textContent = job.label || (job.profile === "baseline" ? "原始控制方案验收" : "优化控制方案验收");
     ui.title.title = ui.title.textContent;
+    if (ui.source) {
+      ui.source.hidden = !job.source_scene_id;
+      ui.source.textContent = job.source_scene_id ? `来源：网页生成场景 ${job.source_scene_id} · 提起与放置各一次` : "";
+    }
     ui.status.textContent = model.status;
     ui.status.className = `runtime-pill ${job.status === "failed" || job.status === "interrupted" ? "fail" : model.active ? "pending" : "neutral"}`;
     ui.progress.max = Math.max(1, model.total);
@@ -416,6 +502,42 @@ export function initializeRuntimePanel(options = {}) {
     ui.count.textContent = Number.isInteger(value) && value >= 1 && value <= Number(ui.limit.max)
       ? `${value} 个布局 · ${value * 2} 项任务` : `请输入 1–${ui.limit.max} 的整数`;
   });
+  function acceptJob(payload) {
+    listRevision += 1;
+    setSelection(payload.job_id);
+    // Keep the accepted job visible even if the next list refresh is briefly unavailable.
+    jobs = [payload, ...jobs.filter((job) => job.job_id !== payload.job_id)];
+    renderJobList();
+    renderJob(payload);
+  }
+
+  ui.sceneRecheck?.addEventListener("click", () => { if (!sceneSubmitting) setScene(sceneId); });
+  ui.sceneStart?.addEventListener("click", async () => {
+    if (disposed || sceneChecking || sceneSubmitting || !config?.available || sceneCheck?.eligible !== true
+        || sceneCheck.scene_id !== sceneId || sceneCheck.task_count !== 2) return;
+    const submittedSceneId = sceneId;
+    sceneSubmitting = true;
+    updateSceneControls();
+    setSceneMessage("正在提交当前场景…");
+    try {
+      const payload = await api("/api/runtime/jobs", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene_id: submittedSceneId, profile: "tracking" }),
+      });
+      if (disposed) return;
+      acceptJob(payload);
+      const accepted = `场景 ${submittedSceneId} 已提交，两项任务将在后台依次执行。`;
+      setMessage(accepted);
+      if (sceneId === submittedSceneId) setSceneMessage(accepted);
+      root.querySelector("#runtime-section")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    } catch (error) {
+      if (!disposed) {
+        const message = `场景 ${submittedSceneId} 的提交结果未确认：${error.name === "AbortError" ? "读取超时" : error.message}。请先刷新运行记录，确认是否已创建任务。`;
+        setMessage(message, true);
+        if (sceneId === submittedSceneId) setSceneMessage(message, true);
+      }
+    } finally { sceneSubmitting = false; updateSceneControls(); }
+  });
   ui.form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (submitting || !config?.available) return;
@@ -433,12 +555,7 @@ export function initializeRuntimePanel(options = {}) {
         body: JSON.stringify({ profile: ui.profile.value, limit_layouts: limit }),
       });
       if (disposed) return;
-      listRevision += 1;
-      setSelection(payload.job_id);
-      // Keep the accepted job visible even if the next list refresh is briefly unavailable.
-      jobs = [payload, ...jobs.filter((job) => job.job_id !== payload.job_id)];
-      renderJobList();
-      renderJob(payload);
+      acceptJob(payload);
       setMessage("任务已提交。可在这里查看进度和逐项结果。");
     } catch (error) {
       setMessage(`提交结果未确认：${error.name === "AbortError" ? "读取超时" : error.message}。请先刷新历史记录，确认是否已创建任务。`, true);
@@ -469,10 +586,12 @@ export function initializeRuntimePanel(options = {}) {
   poll();
   return {
     refresh,
+    setScene,
     dispose() {
       disposed = true;
       clearTimeout(timer);
       selectedRequest?.abort();
+      sceneRequest?.abort();
       resetReplay();
     },
   };

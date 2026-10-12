@@ -28,7 +28,7 @@
       <section class="hero-copy">
         <p class="eyebrow">HOUSEHOLD SCENE COMPILER</p>
         <h1>写一句生活痕迹，<br /><em>生成一个可复现世界。</em></h1>
-        <p>用自然语言描述你想要的家庭场景。系统会匹配事件配方、解算布局、检查几何，并立即给出可视化结果。</p>
+        <p>描述厨房、客厅或玄关里的生活痕迹。系统按描述解析物体与摆放关系、解算布局，并给出可视化结果。</p>
       </section>
 
       <section class="control-card" aria-labelledby="request-title">
@@ -63,6 +63,10 @@
             <button type="button" data-prompt="刚做完饭，厨房台面上留着砧板、刀和蔬菜袋，锅盖随手放在岛台边上。">刚做完饭</button>
             <button type="button" data-prompt="刚在客厅吃完零食，杯子和包装散在茶几上，遥控器留在沙发上。">客厅零食</button>
             <button type="button" data-prompt="刚回到家，背包和鞋留在入口附近，钥匙放在换鞋凳上。">刚回到家</button>
+            <button type="button" data-prompt="厨房里只有一个岛台和一个无指定颜色的杯子，杯子在岛台左侧靠近边缘的位置，其他可移动物品全部移除。">厨房单杯</button>
+            <button type="button" data-prompt="完整厨房布置：料理台与岛台摆着杯子、碗、盘子和瓶子，开放式橱柜和置物架内分层放着盒子，中央通道保持畅通。">完整厨房</button>
+            <button type="button" data-prompt="厨房储物区的开放式橱柜和置物架内分层摆着盒子、杯子和瓶子，料理台放着碗盘，中央通道保持畅通。">厨房收纳</button>
+            <button type="button" data-prompt="餐厅里四把椅子围着餐桌，桌上放着两个杯子、两个盘子、一个碗和一个瓶子，置物架内放着盒子，右侧通道保持畅通。">餐厅布置</button>
           </div>
 
           <div class="controls-row">
@@ -77,6 +81,21 @@
             <span>生成仿真场景</span><b>↗</b>
           </button>
           <p id="form-message" class="form-message" role="status"></p>
+          <details class="priority-controls">
+            <summary>复杂情境：桌沿杯子与当前任务</summary>
+            <label for="priority-task">机器人当前正在做的事</label>
+            <input id="priority-task" type="text" maxlength="1000" value="把沙发上的遥控器整理到茶几中央。" />
+            <div class="priority-fields">
+              <label for="priority-clearance">距支撑面边缘 / mm<input id="priority-clearance" type="number" min="0" max="250" step="1" value="5" /></label>
+              <label for="priority-motion">杯子运动情境<select id="priority-motion"><option value="toward_edge">设定正在向桌沿移动</option><option value="stationary">静止</option><option value="unknown">运动未知</option></select></label>
+              <label for="priority-urgency">当前任务紧急程度<select id="priority-urgency"><option value="routine">普通整理</option><option value="urgent">有时间要求</option><option value="safety_critical">涉及即时安全</option></select></label>
+            </div>
+            <label class="priority-pause"><input id="priority-safe-pause" type="checkbox" checked />当前任务可以安全暂停</label>
+            <label for="priority-consequence">暂停当前任务的后果</label>
+            <input id="priority-consequence" type="text" maxlength="1000" placeholder="例如：暂时暂停不会造成损失；或暂停可能导致热油溢出。" />
+            <button id="priority-generate" type="button" class="revise-button">生成桌沿杯子情境</button>
+            <p>根据实际布局计算间隙；运动是情境设定。真实滚落与机器人干预需另外运行物理仿真。</p>
+          </details>
         </form>
       </section>
 
@@ -95,6 +114,7 @@
 
         <div id="result-content" class="result-content" hidden>
           <p id="quality-summary" class="quality-summary" role="status"></p>
+          <p id="spatial-summary" class="quality-summary" hidden></p>
           <div class="preview-toolbar">
             <div class="preview-tabs" role="tablist" aria-label="预览模式">
               <button type="button" role="tab" aria-selected="true" data-preview-mode="3d">3D</button>
@@ -114,6 +134,20 @@
             <div><small>PARSER</small><strong id="parser-name">—</strong></div>
           </div>
           <div id="file-links" class="file-links"></div>
+          <section id="runtime-scene-panel" class="current-scene-runtime" aria-labelledby="runtime-scene-title" hidden>
+            <div class="current-scene-heading"><div><small>CURRENT SCENE TASK</small><h3 id="runtime-scene-title">让 Franka 运行当前场景</h3></div><span id="runtime-scene-status" class="runtime-pill pending" role="status">正在检查</span></div>
+            <p>支持厨房单杯的提起、放置任务。系统先检查当前布局，再根据杯子和支撑面的位置安排机械臂与放置目标。</p>
+            <ul id="runtime-scene-reasons" class="current-scene-reasons"></ul>
+            <p id="runtime-scene-plan" class="current-scene-plan" hidden></p>
+            <div class="current-scene-actions"><button id="runtime-scene-start" class="revise-button" type="button" disabled><span>运行当前场景 · 2 项任务</span><b>↗</b></button><button id="runtime-scene-recheck" class="runtime-secondary" type="button">重新检查</button></div>
+            <p id="runtime-scene-message" class="runtime-message" role="status"></p>
+          </section>
+          <section id="priority-panel" class="priority-panel" hidden>
+            <strong>先处理杯子，还是继续当前任务？</strong>
+            <p id="priority-observation"></p>
+            <button id="priority-ask" type="button" class="revise-button">询问 AI 的优先级判断</button>
+            <div id="priority-answer" role="status"></div>
+          </section>
           <form id="revision-form" class="revision-form" hidden>
             <div class="revision-heading">
               <div><small>ITERATIVE EDIT</small><strong>继续修改当前场景</strong></div>
@@ -150,11 +184,11 @@
           <div><p>ROBOT TASK VALIDATION</p><h2 id="runtime-title">运行机器人任务，查看真实结果</h2></div>
           <span class="runtime-mode-label">ISAAC SIM</span>
         </div>
-        <p class="runtime-intro">选择已验证的厨房布局，让 Franka 实际抓起杯子、再将杯子放到目标位置。每个布局分别执行两项任务，物理检查和任务结果独立记录。</p>
+        <p class="runtime-intro">在上方运行支持的当前场景，或使用下面的固定厨房布局做配对验收。Franka 实际抓起杯子、再将杯子放到目标位置，物理检查和任务结果独立记录。</p>
         <div class="runtime-workspace">
           <form id="runtime-form" class="runtime-form">
             <strong class="runtime-task-name">Franka 抓杯与放杯（配对验收）</strong>
-            <p>本轮使用固定验收场景。上方自然语言生成的场景可继续预览和导出。</p>
+            <p>这里使用固定验收场景做批量对比；运行上方生成的布局，请使用结果区的“运行当前场景”。</p>
             <label for="runtime-profile">控制方案</label>
             <select id="runtime-profile"><option value="tracking">优化后的控制方案</option><option value="baseline">原始控制方案</option></select>
             <label for="runtime-limit">测试布局数</label>
@@ -175,6 +209,7 @@
             <div id="runtime-empty" class="runtime-empty"><strong>从一个布局开始</strong><p>启动仿真后，这里会显示执行进度、成功与失败原因。也可以选择历史记录回放。</p></div>
             <div id="runtime-job-detail" hidden>
               <div class="runtime-status-row"><strong id="runtime-job-title">—</strong><span id="runtime-job-status" class="runtime-pill">—</span></div>
+              <p id="runtime-job-source" class="runtime-job-source" hidden></p>
               <div class="runtime-progress-row"><progress id="runtime-progress" max="1" value="0" aria-label="已完成任务数"></progress><span id="runtime-progress-text">等待运行</span></div>
               <div id="runtime-summary" class="runtime-summary"></div>
               <p id="runtime-job-error" class="runtime-message error" hidden></p>

@@ -123,6 +123,28 @@ license-files = ["LICENSE"]
   "data/assets/source/wooden_spoon_basic/*.glb",
 ]
 
+"share/scene-factory/data/assets/source/snack_bag_red" = ["data/assets/source/snack_bag_red/*.json", "data/assets/source/snack_bag_red/*.glb"]
+"share/scene-factory/data/assets/source/remote_black" = ["data/assets/source/remote_black/*.json", "data/assets/source/remote_black/*.glb"]
+"share/scene-factory/data/assets/source/tissue_white" = ["data/assets/source/tissue_white/*.json", "data/assets/source/tissue_white/*.glb"]
+"share/scene-factory/data/assets/source/cushion_green" = ["data/assets/source/cushion_green/*.json", "data/assets/source/cushion_green/*.glb"]
+"share/scene-factory/data/assets/source/backpack_gray" = ["data/assets/source/backpack_gray/*.json", "data/assets/source/backpack_gray/*.glb"]
+"share/scene-factory/data/assets/source/shoe_left_white" = ["data/assets/source/shoe_left_white/*.json", "data/assets/source/shoe_left_white/*.glb"]
+"share/scene-factory/data/assets/source/keyring_metal" = ["data/assets/source/keyring_metal/*.json", "data/assets/source/keyring_metal/*.glb"]
+"share/scene-factory/data/assets/source/mug_blue" = ["data/assets/source/mug_blue/*.json", "data/assets/source/mug_blue/*.glb"]
+"share/scene-factory/data/assets/source/mug_cream" = ["data/assets/source/mug_cream/*.json", "data/assets/source/mug_cream/*.glb"]
+
+"share/scene-factory/data/assets/source/kd_table_01" = ["data/assets/source/kd_table_01/*.json", "data/assets/source/kd_table_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_counter_01" = ["data/assets/source/kd_counter_01/*.json", "data/assets/source/kd_counter_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_island_01" = ["data/assets/source/kd_island_01/*.json", "data/assets/source/kd_island_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_cabinet_01" = ["data/assets/source/kd_cabinet_01/*.json", "data/assets/source/kd_cabinet_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_shelf_01" = ["data/assets/source/kd_shelf_01/*.json", "data/assets/source/kd_shelf_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_chair_01" = ["data/assets/source/kd_chair_01/*.json", "data/assets/source/kd_chair_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_mug_01" = ["data/assets/source/kd_mug_01/*.json", "data/assets/source/kd_mug_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_bowl_01" = ["data/assets/source/kd_bowl_01/*.json", "data/assets/source/kd_bowl_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_plate_01" = ["data/assets/source/kd_plate_01/*.json", "data/assets/source/kd_plate_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_bottle_01" = ["data/assets/source/kd_bottle_01/*.json", "data/assets/source/kd_bottle_01/*.glb"]
+"share/scene-factory/data/assets/source/kd_box_01" = ["data/assets/source/kd_box_01/*.json", "data/assets/source/kd_box_01/*.glb"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

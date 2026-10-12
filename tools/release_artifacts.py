@@ -25,9 +25,24 @@ MAX_WHEEL_BYTES = 32 * 1024 * 1024
 MAX_SDIST_BYTES = 50 * 1024 * 1024
 
 WHEEL_REQUIRED_FILES = (
+    *(f"data/assets/source/{asset_id}/{filename}"
+      for asset_id in ("kd_table_01", "kd_counter_01", "kd_island_01", "kd_cabinet_01", "kd_shelf_01", "kd_chair_01", "kd_mug_01", "kd_bowl_01", "kd_plate_01", "kd_bottle_01", "kd_box_01")
+      for filename in ("SOURCE.json", "visual.glb", "geometry.json")),
+    *(f"data/assets/{kind}/{asset_id}.usd"
+      for asset_id in ("kd_table_01", "kd_counter_01", "kd_island_01", "kd_cabinet_01", "kd_shelf_01", "kd_chair_01", "kd_mug_01", "kd_bowl_01", "kd_plate_01", "kd_bottle_01", "kd_box_01")
+      for kind in ("usd", "collision")),
+    "recipes/kitchen_core_assets.json",
+    "recipes/kitchen_storage_assets.json",
+    "recipes/dining_core_assets.json",
+    *(f"data/assets/source/{asset_id}/{filename}"
+      for asset_id in ("snack_bag_red", "remote_black", "tissue_white", "cushion_green",
+                       "backpack_gray", "shoe_left_white", "keyring_metal", "mug_blue", "mug_cream")
+      for filename in ("SOURCE.json", "visual.glb")),
     "recipes/kitchen_after_cooking.json",
     "recipes/kitchen_franka_mug_lift.json",
     "recipes/kitchen_franka_mug_pick_place.json",
+    "recipes/kitchen_franka_bowl_pick_place.json",
+    "recipes/kitchen_franka_box_pick_place.json",
     "recipes/living_room_recent_snacking.json",
     "recipes/living_room_returned_home.json",
     "schemas/asset_record.schema.json",
@@ -38,6 +53,8 @@ WHEEL_REQUIRED_FILES = (
     "schemas/scene_intent.schema.json",
     "schemas/scene_spec.schema.json",
     "schemas/sampling_plan.schema.json",
+    "schemas/sampling_split.schema.json",
+    "schemas/curated_dataset.schema.json",
     "web/index.html",
     "web/styles.css",
     "web/app.js",
@@ -90,12 +107,21 @@ WHEEL_REQUIRED_FILES = (
     "data/assets/usd/mug_001.usd",
 )
 REQUIRED_PACKAGE_FILES = (
+    "scene_factory/asset_geometry.py",
+    "scene_factory/spatial.py",
     "scene_factory/web_runtime.py",
     "scene_factory/runtime_replay.py",
+    "scene_factory/scene_runtime.py",
+    "scene_factory/runtime_batch.py",
+    "scene_factory/runtime_evidence.py",
+    "scene_factory/runtime_worker.py",
+    "scene_factory/controller_settings.py",
+    "scene_factory/curation.py",
     "scene_factory/sampling.py",
     "scene_factory/doctor.py",
     "scene_factory/robot_specs.py",
     "scene_factory/exporters/blender.py",
+    "scene_factory/exporters/blender_case.py",
     "scene_factory/exporters/blender_render.py",
     "scene_factory/isaac_export.py",
     "scene_factory/isaac_preview.py",

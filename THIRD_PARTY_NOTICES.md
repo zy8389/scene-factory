@@ -53,6 +53,19 @@ the after-cooking kitchen recipe. They are self-contained 1K GLB conversions;
 their visual transforms preserve aspect ratio in the viewer, while physics
 continues to use registered primitive collision proxies.
 
+The project also includes its own procedural household meshes under the existing
+project MIT license: `snack_bag_red`, `remote_black`, `tissue_white`, `cushion_green`,
+`backpack_gray`, `shoe_left_white`, `keyring_metal`, `mug_blue` and `mug_cream`.
+These are authored geometry with material colors, rather than scanned assets.
+The original kitchen/dining USD and GLB pack also uses the project MIT license:
+`kd_table_01`, `kd_counter_01`, `kd_island_01`, `kd_cabinet_01`, `kd_shelf_01`,
+`kd_chair_01`, `kd_mug_01`, `kd_bowl_01`, `kd_plate_01`, `kd_bottle_01`, `kd_box_01`.
+These meshes, separate convex collision parts and portable geometry descriptions
+are reproduced by `tools/build_kitchen_dining_assets.py`. They contain no
+third-party geometry. Source manifests and QA reports record the exact hashes.
+`tools/create_household_visuals.py` reproduces the GLBs with Blender; each
+`SOURCE.json` records its origin and hashes. Collision geometry remains primitive.
+
 | Scene asset | Poly Haven model | License | Packaged GLB hash |
 | --- | --- | --- | --- |
 | `electric_stove_basic` | [Electric Stove](https://polyhaven.com/a/electric_stove) | CC0 | `26cbb0b2986bd9bfada51e94dd4fbe2bb31503678c0e55949e55859bb45ea151` |

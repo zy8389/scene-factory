@@ -9,6 +9,12 @@
   "original_filename": "textured.glb",
   "sha256": "01953e16a8039c14d9009084f7d17ec4660b97992735d357d4b46bb469717fe7",
   "source_geometry": "textured.glb",
+  "visual_transform": {
+    "up_axis": "Z",
+    "rotation_euler_deg": [0, 0, 0],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
   "source_collision_geometry": "collision/025_cv_decomp.glb",
   "source_files": [
     {

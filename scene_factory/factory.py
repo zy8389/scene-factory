@@ -81,6 +81,7 @@ class SceneFactory:
             room_types=self.recipes.room_types(),
             events=self.recipes.events(),
             settings=self.llm_settings,
+            scene_context=self.intent_compiler.scene_context(),
         )
 
     @property
@@ -189,6 +190,9 @@ class SceneFactory:
             and self.llm_settings["keyword_fast_path"]
             and isinstance(self.intent_parser, StructuredLLMIntentParser)
             and keyword_score >= 3
+            and prompt.strip().casefold() in {
+                matched_recipe.name.casefold(), matched_recipe.description.strip().casefold(),
+            }
         ):
             scene = self.layout_solver.compile(
                 matched_recipe,

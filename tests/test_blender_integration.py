@@ -55,6 +55,7 @@ def test_cli_blender_build_and_missing_renderer(tmp_path: Path, monkeypatch, cap
     assert (tmp_path / "blender_manifest.json").is_file()
     monkeypatch.delenv("BLENDER_EXE", raising=False)
     monkeypatch.setattr("scene_factory.exporters.blender.shutil.which", lambda _: None)
+    monkeypatch.setattr("scene_factory.exporters.blender.find_blender_executable", lambda: None)
     assert main(["blender", "render", str(tmp_path / "blender_manifest.json")]) == 1
     assert "not installed" in capsys.readouterr().err
 
@@ -109,7 +110,7 @@ def test_blender_case_excludes_stale_assets(tmp_path: Path) -> None:
     scene = factory.build_from_recipe("kitchen_after_cooking", 42).scene
     files = BlenderExporter(factory.registry).export(scene, tmp_path)
     manifest = json.loads(Path(files["blender_manifest"]).read_text(encoding="utf-8"))
-    expected = {"blender_manifest.json", "blender_render.py"}
+    expected = {"blender_manifest.json", "blender_render.py", "generate_blend.bat", "README_BLENDER.txt"}
     expected.update(item["visual"] for item in manifest["objects"] if item["visual"])
     with zipfile.ZipFile(files["blender_case"]) as archive:
         assert set(archive.namelist()) == expected

@@ -1,0 +1,58 @@
+{
+  "asset_id": "kd_island_01",
+  "checks": {
+    "z_up": true,
+    "metres": true,
+    "bounds_match": true,
+    "centred_origin": true,
+    "mesh_valid": true,
+    "collision_parts": true,
+    "bound_friction": true,
+    "resolved_dependencies": true
+  },
+  "bounds_m": [
+    1.399999976158142,
+    0.7799999713897705,
+    0.9200000166893005
+  ],
+  "mesh_count": 10,
+  "collision_count": 10,
+  "usd_sha256": "17c336a882e23973f2fa4d8881b925d235135ee043b7272a662e4aa8e6f09a5b",
+  "collision_sha256": "0a15b7fe0008f4a0c353e82aa3e5d925fa9f8160660faa15ee2646bbf978e174",
+  "glb_sha256": "be6d900f2efd88c732a64e4c28d1799283a8276a488e7b31230264dd9c4bf82b",
+  "physics_cases": [
+    {
+      "case": "top_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true,
+        "static_fixture_unchanged": true
+      },
+      "initial_position_m": [
+        8.0,
+        0.0,
+        1.095
+      ],
+      "final_position_m": [
+        8.0,
+        0.0,
+        0.9449999928474426
+      ],
+      "final_speed_mps": 0.0,
+      "expected_center_z_m": 0.9450000000000001,
+      "passed": true
+    }
+  ],
+  "grasp": "not_run",
+  "validator": "OpenUSD + real Isaac Sim/PhysX",
+  "steps": 360,
+  "dt_s": 0.016666666666666666,
+  "usd_load": "passed",
+  "mesh_check": "passed",
+  "collision": "passed",
+  "physics": "passed",
+  "valid": true
+}

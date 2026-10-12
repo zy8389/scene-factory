@@ -16,6 +16,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Install build and development tools
         run: python -m pip install ".[dev]" "build>=1.2" "setuptools>=69" wheel
       - name: Build release wheel and sdist
@@ -53,6 +56,53 @@ jobs:
         run: python -m compileall -q scene_factory tools tests
       - name: Test
         run: python -B -m pytest -p no:cacheprovider -q
+
+  windows:
+    name: Windows core (Python 3.12)
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install build and development tools
+        run: python -m pip install ".[dev]" "build>=1.2" "setuptools>=69" wheel
+      - name: Structural release check
+        run: python tools/check_release.py
+      - name: Ruff
+        run: python -m ruff check scene_factory tools tests
+      - name: Compile
+        run: python -m compileall -q scene_factory tools tests
+      - name: Test core workflows
+        run: python -B -m pytest -p no:cacheprovider -q
+      - name: Build release wheel and sdist
+        run: python -m build --outdir "$env:RUNNER_TEMP/release-dist-windows"
+      - name: Audit release artifacts and write provenance
+        run: >-
+          python tools/release_artifacts.py
+          --dist "$env:RUNNER_TEMP/release-dist-windows"
+          --git-commit "$env:GITHUB_SHA"
+          --output "$env:RUNNER_TEMP/RELEASE_MANIFEST_WINDOWS.json"
+      - name: Fresh wheel install release smoke
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv release-venv-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $releasePython = Join-Path $env:RUNNER_TEMP "release-venv-windows/Scripts/python.exe"
+          $releaseWheel = Join-Path $env:RUNNER_TEMP "release-dist-windows/scene_factory-0.1.0-py3-none-any.whl"
+          & $releasePython -m pip install --no-index --no-deps $releaseWheel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $releasePython "$env:GITHUB_WORKSPACE/tools/release_smoke.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $releasePython "$env:GITHUB_WORKSPACE/tools/smoke_test_installed_package.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $releasePython -m pip check
 
   mujoco:
     runs-on: ubuntu-latest

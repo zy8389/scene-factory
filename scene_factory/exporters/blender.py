@@ -9,16 +9,20 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from ..bundle import _load_visual_assets, _safe_component
+from ..bundle import _load_visual_assets, _safe_component, _visual_transform_for_asset
 from ..models import CompiledScene
 from ..registry import AssetRegistry
+from .blender_case import find_blender_executable, write_case_launcher
 
 
 class BlenderExporter:
     def __init__(self, registry: AssetRegistry) -> None:
         self.registry = registry
 
-    def export(self, scene: CompiledScene, output_dir: str | Path) -> dict[str, str]:
+    def export(
+        self, scene: CompiledScene, output_dir: str | Path, *,
+        render_blend: bool = False, blender_exe: str | Path | None = None,
+    ) -> dict[str, str]:
         output = Path(output_dir).resolve()
         output.mkdir(parents=True, exist_ok=True)
         assets = _load_visual_assets(self.registry.base_dir / "source")
@@ -45,7 +49,7 @@ class BlenderExporter:
                 "color": list(record.color),
                 "primitive": record.primitive,
                 "visual": path,
-                "visual_transform": visual["transform"] if visual else None,
+                "visual_transform": _visual_transform_for_asset(visual["transform"], record) if visual else None,
             })
         manifest = output / "blender_manifest.json"
         manifest.write_text(json.dumps({
@@ -57,6 +61,8 @@ class BlenderExporter:
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         script = output / "blender_render.py"
         shutil.copyfile(Path(__file__).with_name("blender_render.py"), script)
+        launcher, readme = write_case_launcher(output)
+        rendered = render_manifest(manifest, blender_exe=blender_exe, png=False) if render_blend else {}
         case_path = output / f"{_safe_component(scene.scene_id)}.blender-case.zip"
         with tempfile.NamedTemporaryFile(
             prefix=".blender-case-", suffix=".zip", dir=output, delete=False,
@@ -71,6 +77,10 @@ class BlenderExporter:
             ) as archive:
                 archive.write(manifest, manifest.relative_to(output).as_posix())
                 archive.write(script, script.relative_to(output).as_posix())
+                archive.write(launcher, launcher.relative_to(output).as_posix())
+                archive.write(readme, readme.relative_to(output).as_posix())
+                if "blend" in rendered:
+                    archive.write(rendered["blend"], "scene.blend")
                 for asset_path in sorted(visual_files):
                     archive.write(asset_path, asset_path.relative_to(output).as_posix())
             os.replace(temporary_path, case_path)
@@ -80,7 +90,10 @@ class BlenderExporter:
         return {
             "blender_manifest": str(manifest),
             "blender_script": str(script),
+            "blender_launcher": str(launcher),
+            "blender_readme": str(readme),
             "blender_case": str(case_path),
+            **rendered,
         }
 
 
@@ -90,7 +103,7 @@ def render_manifest(
     manifest = Path(manifest).resolve()
     if not manifest.is_file():
         raise FileNotFoundError(manifest)
-    executable = str(blender_exe) if blender_exe else (os.environ.get("BLENDER_EXE") or shutil.which("blender"))
+    executable = str(blender_exe) if blender_exe else find_blender_executable()
     if not executable or not (Path(executable).is_file() or shutil.which(executable)):
         raise RuntimeError("Blender is not installed; install it and pass --blender-exe or set BLENDER_EXE")
     script = manifest.with_name("blender_render.py")
@@ -102,7 +115,7 @@ def render_manifest(
         temporary_blend = Path(directory) / "scene.blend"
         temporary_image = Path(directory) / "render.png"
         command = [
-            executable, "-b", "--python-exit-code", "1", "--python", str(script), "--",
+            executable, "-b", "--factory-startup", "--python-exit-code", "1", "--python", str(script), "--",
             "--manifest", str(manifest), "--blend", str(temporary_blend),
         ]
         if png:

@@ -184,7 +184,7 @@ class SceneFactoryTests(unittest.TestCase):
         factory.llm_settings["keyword_fast_path"] = True
         recipe = factory.recipes.get("living_room_returned_home")
         with patch.object(factory.recipes, "match_prompt_with_score", return_value=(recipe, 5)):
-            result = factory.build_from_prompt("刚回家，客厅沙发茶几上有杯子。", 42)
+            result = factory.build_from_prompt(recipe.description, 42)
         parser.parse.assert_not_called()
         self.assertEqual(result.prompt_parser, "keyword_fast")
 

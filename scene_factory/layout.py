@@ -16,6 +16,7 @@ from .models import (
     SupportSurface,
 )
 from .registry import AssetRegistry
+from .spatial import blocks_clearance, inside_region, support_interior
 
 
 class LayoutError(RuntimeError):
@@ -51,6 +52,7 @@ class LayoutSolver:
                 placed = self._place_objects(
                     requests, recipe.room_dimensions_m, rng, asset_choices,
                     constrain_region=layout_attempt > 0,
+                    clearance_zones=recipe.clearance_zones,
                 )
             except _PlacementExhausted as exc:
                 if layout_attempt + 1 == self.max_layout_attempts:
@@ -72,6 +74,7 @@ class LayoutSolver:
             description=description_override or recipe.description,
             objects=tuple(placed),
             task=recipe.task,
+            clearance_zones=recipe.clearance_zones,
         )
 
     def _place_objects(
@@ -82,6 +85,7 @@ class LayoutSolver:
         asset_choices: dict[str, tuple[AssetRecord, str | None]],
         *,
         constrain_region: bool,
+        clearance_zones=(),
     ) -> list[PlacedObject]:
         placed: list[PlacedObject] = []
         placed_by_id: dict[str, PlacedObject] = {}
@@ -106,6 +110,11 @@ class LayoutSolver:
                 )
                 if self._collides(candidate, placed, support_id):
                     raise LayoutError(f"fixed object {request.object_id} collides with existing geometry")
+                if any(blocks_clearance(candidate, zone) for zone in clearance_zones):
+                    raise LayoutError(f"fixed object {request.object_id} blocks a reserved corridor")
+                interior = support_interior(self.registry, candidate, placed_by_id)
+                if interior and not inside_region(candidate, *interior):
+                    raise LayoutError(f"fixed object {request.object_id} exceeds its storage interior")
             else:
                 candidate = self._sample_object(
                     request=request,
@@ -116,6 +125,7 @@ class LayoutSolver:
                     rng=rng,
                     fallback_reason=fallback_reason,
                     constrain_region=constrain_region,
+                    clearance_zones=clearance_zones,
                 )
             placed.append(candidate)
             placed_by_id[candidate.object_id] = candidate
@@ -162,6 +172,7 @@ class LayoutSolver:
         rng: random.Random,
         fallback_reason: str | None = None,
         constrain_region: bool = False,
+        clearance_zones=(),
     ) -> PlacedObject:
         support_object, surface, surface_center, support_yaw = self._resolve_support(
             request.support or "floor", room_dimensions, placed_by_id
@@ -170,6 +181,39 @@ class LayoutSolver:
 
         for _ in range(self.max_attempts):
             yaw = rng.uniform(*request.yaw_range_deg)
+            around = next((r for r in request.relations if r.kind == "around"), None)
+            if around is not None:
+                target = placed_by_id.get(around.target)
+                if target is None:
+                    raise LayoutError(f"unknown around target: {around.target}")
+                if request.support != "floor" or asset.category != "chair" or target.category != "dining_table":
+                    raise LayoutError("around requires a floor chair and dining table")
+                side = rng.randrange(4)
+                # A chair's back is local +Y, so its front faces the table.
+                yaw = target.pose.yaw_deg + (0, 90, 180, -90)[side]
+                hx,hy = rotated_half_extents_xy(asset.bbox_m, yaw-target.pose.yaw_deg)
+                tx,ty = target.bbox_m[0]/2, target.bbox_m[1]/2
+                gap = rng.uniform(around.min_distance_m, around.max_distance_m)
+                local = ((rng.uniform(-tx*.7,tx*.7),ty+hy+gap),
+                         (-tx-hx-gap,rng.uniform(-ty*.7,ty*.7)),
+                         (rng.uniform(-tx*.7,tx*.7),-ty-hy-gap),
+                         (tx+hx+gap,rng.uniform(-ty*.7,ty*.7)))[side]
+                ox,oy=rotate_xy(local,target.pose.yaw_deg)
+                pose=Pose((target.pose.position[0]+ox,target.pose.position[1]+oy,asset.bbox_m[2]/2),yaw)
+                candidate=self._make_placed(request,asset,pose,fallback_reason=fallback_reason)
+                rx,ry=rotated_half_extents_xy(asset.bbox_m,yaw)
+                if (abs(pose.position[0])+rx > room_dimensions[0]/2
+                        or abs(pose.position[1])+ry > room_dimensions[1]/2):
+                    continue
+                if request.region_xy is not None:
+                    xmin,xmax,ymin,ymax=request.region_xy
+                    if not (xmin <= pose.position[0] <= xmax and ymin <= pose.position[1] <= ymax):
+                        continue
+                if self._collides(candidate,placed,None) or any(blocks_clearance(candidate,z) for z in clearance_zones):
+                    continue
+                if not self._relations_satisfied(candidate,placed_by_id):
+                    continue
+                return candidate
             half_x, half_y = rotated_half_extents_xy(asset.bbox_m, yaw - support_yaw)
             margin_x = support_size[0] / 2.0 - half_x
             margin_y = support_size[1] / 2.0 - half_y
@@ -209,6 +253,11 @@ class LayoutSolver:
             )
             support_id = support_object.object_id if support_object else None
             if self._collides(candidate, placed, support_id):
+                continue
+            if any(blocks_clearance(candidate,zone) for zone in clearance_zones):
+                continue
+            interior = support_interior(self.registry,candidate,placed_by_id)
+            if interior and not inside_region(candidate,*interior):
                 continue
             if not self._relations_satisfied(candidate, placed_by_id):
                 continue

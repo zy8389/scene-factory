@@ -5,6 +5,12 @@ scene generation, dataset production, symbolic interaction planning, and
 simulator-neutral executor contracts. It is intended for developers building
 repeatable simulation and data-generation workflows.
 
+Published on 2026-08-28 as
+[GitHub Release v0.1.0](https://github.com/zy8389/scene-factory/releases/tag/v0.1.0),
+with a wheel, source distribution, release manifest, and SHA-256 checksums.
+These notes describe the tagged release; subsequent development changes are
+listed under `Unreleased` in [CHANGELOG.md](../CHANGELOG.md).
+
 ## Overview
 
 The release provides a pure-Python core for compiling scene descriptions into
@@ -25,13 +31,16 @@ portable dry-run executor contract.
 
 ## Installation
 
-Build or download the release artifact, then install it in a Python 3.12 or
+Download the wheel from the GitHub Release, then install it in a Python 3.12 or
 newer environment:
 
 ```bash
 python -m pip install scene_factory-0.1.0-py3-none-any.whl
 scene-factory list-recipes
 ```
+
+As checked on 2026-10-07, PyPI has no `scene-factory` project listing. The GitHub
+Release is the download source for the published v0.1.0 artifacts.
 
 The core runtime has no mandatory third-party dependencies. The optional
 `gym` extra provides Gymnasium integration. Isaac Sim and USD workflows require

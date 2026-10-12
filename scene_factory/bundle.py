@@ -10,7 +10,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
-from .models import CompiledScene
+from .models import AssetRecord, CompiledScene
 from .isaac_runtime import package_usd_with_isaac
 from .paths import project_root
 from .registry import AssetRegistry
@@ -36,6 +36,15 @@ _SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 class SceneBundleError(ValueError):
     """Raised when a portable scene bundle cannot be created."""
+
+
+def _visual_transform_for_asset(transform: Mapping[str, Any], asset: AssetRecord) -> dict[str, Any]:
+    fitted = dict(transform)
+    if any(surface.name in {"top", "cooktop"} and surface.link is None
+           and abs(surface.center[2] - asset.bbox_m[2] / 2) < 1e-6
+           for surface in asset.support_surfaces):
+        fitted["scale_mode"] = "fit_bbox"
+    return fitted
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -199,7 +208,7 @@ class SceneBundleExporter:
                 data = Path(visual["path"]).read_bytes()
                 archive_files[archive_path] = data
                 asset["visual"] = _file_descriptor(archive_path, data)
-                asset["visual_transform"] = visual["transform"]
+                asset["visual_transform"] = _visual_transform_for_asset(visual["transform"], record)
             else:
                 asset["visual"] = None
                 asset["visual_transform"] = None

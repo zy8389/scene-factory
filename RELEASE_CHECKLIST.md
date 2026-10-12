@@ -1,11 +1,26 @@
-# SceneFactory v0.1 Release Readiness Checklist
+# SceneFactory Release Readiness Checklist
 
-This checklist is intentionally left unchecked until a release owner reviews
-the evidence. It describes readiness work; it is not a publication record.
+The checklist below applies to the next release from the current development
+branch. Its readiness items remain unchecked until a release owner reviews the
+evidence for that release. Historical publication facts are recorded separately.
+
+## Verified v0.1.0 publication
+
+Checked on 2026-10-07 against the public GitHub Release and PyPI project endpoint:
+
+- [x] tag `v0.1.0` exists at commit `7e0de6f419522f74cae4bb2314a7b3dc8a1eb906`
+- [x] [GitHub Release](https://github.com/zy8389/scene-factory/releases/tag/v0.1.0)
+  was published on 2026-08-28 and is neither a draft nor a prerelease
+- [x] release attachments include `scene_factory-0.1.0-py3-none-any.whl`,
+  `scene_factory-0.1.0.tar.gz`, `RELEASE_MANIFEST.json`, and `SHA256SUMS.txt`
+- [ ] PyPI publication: the `scene-factory` project endpoint returned HTTP 404
+
+These facts establish publication, not validation of subsequent development
+changes. Artifact contents and physical acceptance require their own evidence.
 
 ## Package
 
-- [ ] package version is consistent at `0.1.0`
+- [ ] package version is consistent with the target release
 - [ ] public API exports and documentation agree
 - [ ] wheel builds in a clean environment
 - [ ] fresh installation reports the expected distribution metadata
@@ -27,7 +42,7 @@ the evidence. It describes readiness work; it is not a publication record.
 
 - [ ] README is accurate for the current scope
 - [ ] architecture, API, compatibility, and schema policy docs are current
-- [ ] v0.1.0 release notes and API/CLI surface snapshots are reviewed
+- [ ] target release notes and API/CLI surface snapshots are reviewed
 - [ ] runnable examples pass from an installed package
 - [ ] third-party asset notices cover all packaged source manifests
 - [ ] no secrets, personal paths, or generated outputs are tracked
@@ -42,13 +57,13 @@ the evidence. It describes readiness work; it is not a publication record.
 - [ ] real Franka acceptance is run separately
 - [ ] real RGB-D acceptance is run separately
 
-## Publication actions
+## Next release publication actions
 
 - [ ] release owner approves publication
 - [ ] version tag created
 - [ ] GitHub Release created
 - [ ] PyPI artifact published
 
-The final R0 report must distinguish pure-Python release readiness from the
-environment-specific physical simulator gate and must not mark publication
-items complete automatically.
+The final release report must distinguish pure-Python release readiness from
+the environment-specific physical simulator gate. Mark next-release publication
+items complete only when the corresponding action has been performed and verified.

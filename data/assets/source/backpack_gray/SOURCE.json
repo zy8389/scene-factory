@@ -1,0 +1,34 @@
+{
+  "asset_id": "backpack_gray",
+  "batch_id": "household_procedural_v1",
+  "source_name": "SceneFactory authored household visual",
+  "source_url": "tools/create_household_visuals.py",
+  "license": "MIT",
+  "license_source": "LICENSE",
+  "source_revision": "sha256:f964c09c0bb6a189cc218c7ecb064126bb415ede6a629b581dd2e791612566d1",
+  "source_variant": "procedural-mesh",
+  "geometry_origin": "procedural",
+  "source_geometry": "visual.glb",
+  "conversion": "Blender glTF export, Y-up, self-contained materials",
+  "visual_transform": {
+    "up_axis": "Y",
+    "rotation_euler_deg": [
+      90,
+      0,
+      0
+    ],
+    "scale_mode": "uniform_contain",
+    "anchor": "bottom_center"
+  },
+  "source_files": [
+    {
+      "role": "visual",
+      "path": "visual.glb",
+      "sha256": "50d62af0fb07a307ae5cd9f213e44ef4530e12a3032e86ac8ab08b66f5170909",
+      "bytes": 111096
+    }
+  ],
+  "status": "imported",
+  "result": "passed",
+  "issues": []
+}

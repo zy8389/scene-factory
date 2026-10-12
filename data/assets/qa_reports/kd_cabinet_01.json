@@ -1,0 +1,130 @@
+{
+  "asset_id": "kd_cabinet_01",
+  "checks": {
+    "z_up": true,
+    "metres": true,
+    "bounds_match": true,
+    "centred_origin": true,
+    "mesh_valid": true,
+    "collision_parts": true,
+    "bound_friction": true,
+    "resolved_dependencies": true
+  },
+  "bounds_m": [
+    0.8999999761581421,
+    0.5,
+    1.7999999523162842
+  ],
+  "mesh_count": 7,
+  "collision_count": 7,
+  "usd_sha256": "936865e0de9f95d8d41b1cdac05bf4e63ab0364ce83e2e9b4b99554832e17067",
+  "collision_sha256": "5921dbd0b1d9fea12ca0668a31ce4691e034b6117af3075bf444c37ec66ee8e1",
+  "glb_sha256": "d9ebcd397c275e0b018934d53ba080fe64f973cac2913ee874f020e3d1d2eea2",
+  "physics_cases": [
+    {
+      "case": "shelf_0_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true,
+        "static_fixture_unchanged": true
+      },
+      "initial_position_m": [
+        12.0,
+        0.0,
+        0.1999999999999999
+      ],
+      "final_position_m": [
+        12.0,
+        0.0,
+        0.04999995231628418
+      ],
+      "final_speed_mps": 0.0,
+      "expected_center_z_m": 0.04999999999999991,
+      "passed": true
+    },
+    {
+      "case": "shelf_1_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true,
+        "static_fixture_unchanged": true
+      },
+      "initial_position_m": [
+        12.0,
+        0.0,
+        0.7875000000000001
+      ],
+      "final_position_m": [
+        12.0,
+        0.0,
+        0.637499988079071
+      ],
+      "final_speed_mps": 0.0,
+      "expected_center_z_m": 0.6375000000000001,
+      "passed": true
+    },
+    {
+      "case": "shelf_2_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true,
+        "static_fixture_unchanged": true
+      },
+      "initial_position_m": [
+        12.0,
+        0.0,
+        1.3875
+      ],
+      "final_position_m": [
+        12.0,
+        0.0,
+        1.2374999523162842
+      ],
+      "final_speed_mps": 0.0,
+      "expected_center_z_m": 1.2374999999999998,
+      "passed": true
+    },
+    {
+      "case": "top_contact",
+      "checks": {
+        "fell": true,
+        "on_support": true,
+        "stable": true,
+        "stopped": true,
+        "finite": true,
+        "static_fixture_unchanged": true
+      },
+      "initial_position_m": [
+        12.0,
+        0.0,
+        1.975
+      ],
+      "final_position_m": [
+        12.0,
+        0.0,
+        1.8249999284744263
+      ],
+      "final_speed_mps": 0.0,
+      "expected_center_z_m": 1.825,
+      "passed": true
+    }
+  ],
+  "grasp": "not_run",
+  "validator": "OpenUSD + real Isaac Sim/PhysX",
+  "steps": 360,
+  "dt_s": 0.016666666666666666,
+  "usd_load": "passed",
+  "mesh_check": "passed",
+  "collision": "passed",
+  "physics": "passed",
+  "valid": true
+}

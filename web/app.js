@@ -1,7 +1,7 @@
 import { SceneViewer } from "/scene-viewer.js";
 import { initializeRuntimePanel } from "/runtime-panel.js";
 
-initializeRuntimePanel();
+const runtimePanel = initializeRuntimePanel();
 
 const form = document.querySelector("#scene-form");
 const promptInput = document.querySelector("#prompt");
@@ -37,6 +37,10 @@ const revisionButton = document.querySelector("#revise");
 const revisionMessage = document.querySelector("#revision-message");
 const revisionSource = document.querySelector("#revision-source");
 let currentItem = null;
+const priorityGenerate = document.querySelector("#priority-generate");
+const priorityPanel = document.querySelector("#priority-panel");
+const priorityAsk = document.querySelector("#priority-ask");
+const priorityAnswer = document.querySelector("#priority-answer");
 const sceneViewer = new SceneViewer(threePreview, viewerStatus);
 
 const escapeHtml = (value) => String(value ?? "")
@@ -127,6 +131,7 @@ llmTestButton.addEventListener("click", async () => {
 
 function setBusy(busy) {
   generateButton.disabled = busy;
+  priorityGenerate.disabled = busy;
   generateButton.querySelector("span").textContent = busy ? "正在编译场景…" : "生成仿真场景";
   generateButton.querySelector("b").textContent = busy ? "···" : "↗";
 }
@@ -139,11 +144,16 @@ function fileLinks(files, sceneId) {
     layout: "Layout JSON",
     validation: "Validation",
     quality: "分层质量报告",
+    priority_scenario: "优先级情境",
+    priority_decision: "AI 判断记录",
     preview: "SVG Preview",
     mjcf: "MuJoCo MJCF",
     usd: "Isaac USD",
     blender_manifest: "Blender Manifest",
     blender_script: "Blender Render Script",
+    blender_launcher: "一键生成 .blend（Windows）",
+    blender_readme: "Blender 使用说明",
+    blend: "下载 .blend 场景",
   };
   const bundle = files.bundle
     ? `<a class="scene-bundle-link" href="${escapeHtml(files.bundle)}" download="${escapeHtml(sceneId)}.scene.zip">导出场景包 ↓</a>`
@@ -151,14 +161,17 @@ function fileLinks(files, sceneId) {
   const blenderCase = files.blender_case
     ? `<a class="blender-case-link" href="${escapeHtml(files.blender_case)}" download="${escapeHtml(sceneId)}.blender-case.zip">下载 Blender Case ZIP ↓</a>`
     : `<button class="export-blender-button" type="button" data-export-blender-scene-id="${escapeHtml(sceneId)}">导出 Blender Case</button>`;
+  const blendFile = files.blend
+    ? `<a class="blender-case-link" href="${escapeHtml(files.blend)}" download="${escapeHtml(sceneId)}.blend">下载 .blend 场景 ↓</a>`
+    : `<button class="export-blender-button" type="button" data-export-blender-scene-id="${escapeHtml(sceneId)}" data-render-blend="true">生成并下载 .blend</button>`;
   const links = Object.entries(files)
-    .filter(([name]) => name !== "bundle" && name !== "blender_case")
+    .filter(([name]) => name !== "bundle" && name !== "blender_case" && name !== "blend")
     .map(([name, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${labels[name] || escapeHtml(name)} ↗</a>`)
     .join("");
   const launcher = files.usd
     ? `<button class="open-isaac-button" type="button" data-scene-id="${escapeHtml(sceneId)}">在 Isaac Sim 中看 3D 实体</button>`
     : "";
-  return `${launcher}${blenderCase}${bundle}${links}`;
+  return `${launcher}${blenderCase}${blendFile}${bundle}${links}`;
 }
 
 fileLinksContainer.addEventListener("click", async (event) => {
@@ -168,12 +181,13 @@ fileLinksContainer.addEventListener("click", async (event) => {
     if (!item || item.scene.scene_id !== blenderButton.dataset.exportBlenderSceneId) return;
     blenderButton.disabled = true;
     const original = blenderButton.textContent;
-    blenderButton.textContent = "正在准备 Blender Case…";
+    const renderBlend = blenderButton.dataset.renderBlend === "true";
+    blenderButton.textContent = renderBlend ? "正在生成 .blend，请稍候…" : "正在准备 Blender Case…";
     try {
       const response = await fetch("/api/export-blender", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scene_id: item.scene.scene_id }),
+        body: JSON.stringify({ scene_id: item.scene.scene_id, render_blend: renderBlend }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Blender Case 导出失败");
@@ -181,7 +195,9 @@ fileLinksContainer.addEventListener("click", async (event) => {
       if (currentItem !== item) return;
       fileLinksContainer.innerHTML = fileLinks(item.files, item.scene.scene_id);
       message.className = "form-message";
-      message.textContent = "Blender Case 已生成，可下载 ZIP；其中包含 Manifest、渲染脚本和 GLB 资产。";
+      message.textContent = renderBlend
+        ? ".blend 已生成，可以直接下载并在 Blender 中打开；Case ZIP 也已包含 scene.blend。"
+        : "Blender Case 已生成。解压后双击 generate_blend.bat 生成 scene.blend，也可在这里点击‘生成并下载 .blend’。";
     } catch (error) {
       if (currentItem !== item) return;
       message.className = "form-message error";
@@ -217,7 +233,17 @@ fileLinksContainer.addEventListener("click", async (event) => {
 
 function renderScene(item) {
   currentItem = item;
+  priorityPanel.hidden = !item.priority_scenario;
+  priorityAnswer.textContent = "";
+  priorityAsk.disabled = false;
+  if (item.priority_scenario) {
+    const scenario = item.priority_scenario;
+    const motionLabels = { toward_edge: "设定向桌沿移动", stationary: "静止", unknown: "运动未知" };
+    document.querySelector("#priority-observation").textContent =
+      `杯子距支撑面边缘 ${(scenario.cup.minimum_clearance_m * 1000).toFixed(1)} mm；${motionLabels[scenario.motion.state]}。当前任务：${scenario.current_task.instruction} 当前任务${scenario.current_task.safe_to_pause ? "可以" : "不能"}安全暂停。`;
+  }
   const scene = item.scene;
+  runtimePanel?.setScene(scene.scene_id);
   const valid = item.validation.valid;
   emptyState.hidden = true;
   resultContent.hidden = false;
@@ -227,13 +253,26 @@ function renderScene(item) {
   document.querySelector("#quality-summary").textContent = item.quality
     ? `布局${item.quality.layers.layout.status === "passed" ? "通过" : "未通过"} · 物理未验证 · 任务未验证`
     : "仅有几何校验结果，物理与任务质量尚未验证";
+  if (item.appearance) {
+    document.querySelector("#quality-summary").textContent += ` · 外观模型 ${item.appearance.modeled_count}/${scene.objects.length}`;
+    if (item.appearance.proxy_count) {
+      document.querySelector("#quality-summary").textContent += `，${item.appearance.proxy_count} 个物体仍用占位模型`;
+    }
+  }
+  const spatialSummary = document.querySelector("#spatial-summary");
+  const corridors = scene.clearance_zones || [];
+  const stored = scene.objects.filter((object) => object.relations?.some((relation) => relation.kind === "inside"));
+  spatialSummary.hidden = !corridors.length && !stored.length;
+  spatialSummary.textContent = `柜架内物品 ${stored.length} 件 · 预留通道 ${corridors.length} 条`
+    + (corridors.length ? `（宽度 ${corridors.map((zone) => Math.min(...zone.size).toFixed(2)).join("、")} 米，预览中以绿色标示）` : "");
   preview.src = `${item.files.preview}?v=${Date.now()}`;
   sceneViewer.renderScene(scene, item.assets);
   document.querySelector("#matched-recipe").textContent = item.matched_recipe.name;
   document.querySelector("#scene-id").textContent = scene.scene_id;
   document.querySelector("#object-count").textContent = String(scene.objects.length);
   document.querySelector("#room-size").textContent = `${scene.room_dimensions_m[0]} × ${scene.room_dimensions_m[1]} m`;
-  document.querySelector("#parser-name").textContent = item.prompt_parser;
+  document.querySelector("#parser-name").textContent = item.prompt_parser.startsWith("llm:")
+    ? "按描述解析" : "配方模板";
   fileLinksContainer.innerHTML = fileLinks(item.files, scene.scene_id);
   revisionForm.hidden = !item.files.intent;
   revisionSource.textContent = item.revision
@@ -326,7 +365,9 @@ form.addEventListener("submit", async (event) => {
     renderScene(payload.items[0]);
     renderVariants(payload.items);
     const warning = payload.items[0].parser_warning ? `；LLM 降级原因：${payload.items[0].parser_warning}` : "";
-    message.textContent = `已生成 ${payload.count} 个场景，${payload.valid_count} 个通过校验。解析：${payload.items[0].prompt_parser}；配方：${payload.items[0].matched_recipe.name}${warning}`;
+    const template = !payload.items[0].prompt_parser.startsWith("llm:");
+    message.className = template ? "form-message error" : "form-message";
+    message.textContent = `已生成 ${payload.count} 个场景，${payload.valid_count} 个通过布局校验。${template ? "当前使用固定配方模板，描述中的数量和位置修改可能未生效。" : "已按描述解析物体和摆放关系。"}${warning}`;
     if (window.matchMedia("(max-width: 1120px)").matches) {
       document.querySelector("#result-card").scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -337,3 +378,68 @@ form.addEventListener("submit", async (event) => {
     setBusy(false);
   }
 });
+
+priorityGenerate.addEventListener("click", async () => {
+  priorityGenerate.disabled = true;
+  setBusy(true);
+  message.className = "form-message";
+  message.textContent = "正在生成杯子位置与任务情境…";
+  try {
+    const response = await fetch("/api/priority/generate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        seed: Number(seedInput.value),
+        clearance_m: Number(document.querySelector("#priority-clearance").value) / 1000,
+        motion_state: document.querySelector("#priority-motion").value,
+        current_task: document.querySelector("#priority-task").value,
+        urgency: document.querySelector("#priority-urgency").value,
+        safe_to_pause: document.querySelector("#priority-safe-pause").checked,
+        pause_consequence: document.querySelector("#priority-consequence").value,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "情境生成失败");
+    renderScene(payload.items[0]);
+    renderVariants(payload.items);
+    message.textContent = "情境已生成。可在预览下方询问 AI，比较杯子风险与暂停当前任务的后果。";
+  } catch (error) {
+    message.className = "form-message error";
+    message.textContent = error.message;
+  } finally {
+    priorityGenerate.disabled = false;
+    setBusy(false);
+  }
+});
+
+priorityAsk.addEventListener("click", async () => {
+  const item = currentItem;
+  if (!item?.priority_scenario) return;
+  priorityAsk.disabled = true;
+  priorityAnswer.textContent = "AI 正在比较风险和当前任务…";
+  try {
+    const response = await fetch("/api/priority/ask", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scene_id: item.scene.scene_id }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "AI 判断失败");
+    if (currentItem !== item) return;
+    const decision = payload.decision;
+    const labels = { secure_cup: "先处理杯子", continue_current_task: "继续当前任务或先推进到安全暂停点", request_more_information: "需要更多信息" };
+    priorityAnswer.innerHTML = `<h3>${labels[decision.action]}</h3><p>${escapeHtml(decision.reason)}</p>`
+      + `<ol>${decision.next_steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>`
+      + (decision.missing_information.length ? `<p>需要补充：${decision.missing_information.map(escapeHtml).join("；")}</p>` : "")
+      + `<small>模型：${escapeHtml(decision.model)} · 仅提供建议，尚未执行动作或验证物理结果。</small>`;
+    item.files = { ...item.files, ...payload.files };
+    fileLinksContainer.innerHTML = fileLinks(item.files, item.scene.scene_id);
+  } catch (error) {
+    if (currentItem === item) priorityAnswer.textContent = error.message;
+  } finally {
+    if (currentItem === item) priorityAsk.disabled = false;
+  }
+});
+
+if (new URLSearchParams(window.location.search).get("scenario") === "task-priority") {
+  document.querySelector(".priority-controls").open = true;
+  priorityGenerate.click();
+}

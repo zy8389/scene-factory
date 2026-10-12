@@ -1,0 +1,127 @@
+#usda 1.0
+(
+    defaultPrim = "Asset"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+def Xform "Asset" {
+    def Scope "Materials" {
+        def Material "M0" {
+            token outputs:surface.connect = </Asset/Materials/M0/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.48, 0.29, 0.14)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M1" {
+            token outputs:surface.connect = </Asset/Materials/M1/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.48, 0.29, 0.14)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M2" {
+            token outputs:surface.connect = </Asset/Materials/M2/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M3" {
+            token outputs:surface.connect = </Asset/Materials/M3/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.48, 0.29, 0.14)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M4" {
+            token outputs:surface.connect = </Asset/Materials/M4/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.48, 0.29, 0.14)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M5" {
+            token outputs:surface.connect = </Asset/Materials/M5/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.48, 0.29, 0.14)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M6" {
+            token outputs:surface.connect = </Asset/Materials/M6/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.48, 0.29, 0.14)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "Physics" (prepend apiSchemas = ["PhysicsMaterialAPI"]) {
+            float physics:staticFriction = 0.55
+            float physics:dynamicFriction = 0.4
+            float physics:restitution = 0
+        }
+    }
+    def Mesh "Side_0" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.45, -0.25, -0.9), (-0.425, -0.25, -0.9), (-0.425, 0.25, -0.9), (-0.45, 0.25, -0.9), (-0.45, -0.25, 0.9), (-0.425, -0.25, 0.9), (-0.425, 0.25, 0.9), (-0.45, 0.25, 0.9)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M0>
+    }
+    def Mesh "Side_1" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.425, -0.25, -0.9), (0.45, -0.25, -0.9), (0.45, 0.25, -0.9), (0.425, 0.25, -0.9), (0.425, -0.25, 0.9), (0.45, -0.25, 0.9), (0.45, 0.25, 0.9), (0.425, 0.25, 0.9)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M1>
+    }
+    def Mesh "Back" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.425, 0.225, -0.9), (0.425, 0.225, -0.9), (0.425, 0.25, -0.9), (-0.425, 0.25, -0.9), (-0.425, 0.225, 0.9), (0.425, 0.225, 0.9), (0.425, 0.25, 0.9), (-0.425, 0.25, 0.9)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M2>
+    }
+    def Mesh "Shelf_0" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.425, -0.25, -0.9), (0.425, -0.25, -0.9), (0.425, 0.225, -0.9), (-0.425, 0.225, -0.9), (-0.425, -0.25, -0.875), (0.425, -0.25, -0.875), (0.425, 0.225, -0.875), (-0.425, 0.225, -0.875)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M3>
+    }
+    def Mesh "Shelf_1" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.425, -0.25, -0.3125), (0.425, -0.25, -0.3125), (0.425, 0.225, -0.3125), (-0.425, 0.225, -0.3125), (-0.425, -0.25, -0.2875), (0.425, -0.25, -0.2875), (0.425, 0.225, -0.2875), (-0.425, 0.225, -0.2875)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M4>
+    }
+    def Mesh "Shelf_2" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.425, -0.25, 0.2875), (0.425, -0.25, 0.2875), (0.425, 0.225, 0.2875), (-0.425, 0.225, 0.2875), (-0.425, -0.25, 0.3125), (0.425, -0.25, 0.3125), (0.425, 0.225, 0.3125), (-0.425, 0.225, 0.3125)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M5>
+    }
+    def Mesh "Shelf_3" (prepend apiSchemas = ["MaterialBindingAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.425, -0.25, 0.875), (0.425, -0.25, 0.875), (0.425, 0.225, 0.875), (-0.425, 0.225, 0.875), (-0.425, -0.25, 0.9), (0.425, -0.25, 0.9), (0.425, 0.225, 0.9), (-0.425, 0.225, 0.9)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 3, 2, 1, 4, 5, 6, 7, 0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 3, 0, 4, 7]
+        rel material:binding = </Asset/Materials/M6>
+    }
+}

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import re
+import hashlib
+import shutil
 from pathlib import Path
 
 from ..models import AssetRecord, CompiledScene, PlacedObject
@@ -69,6 +71,8 @@ class IsaacUsdExporter:
                     f"USD source for asset {asset.asset_id} does not exist: {source_reference}"
                 )
             xform = UsdGeom.Xform.Define(stage, prim_path)
+            if "kitchen_dining_pack" in asset.tags:
+                source_reference=self._localize_pack_layer(source_reference,output_path)
             xform.GetPrim().GetReferences().AddReference(
                 self._relative_reference(source_reference, output_path)
             )
@@ -88,6 +92,8 @@ class IsaacUsdExporter:
         )
         collision_reference = self.registry.resolve_collision_path(asset)
         if collision_reference is not None:
+            if "kitchen_dining_pack" in asset.tags:
+                collision_reference=self._localize_pack_layer(collision_reference,output_path)
             collision_xform = UsdGeom.Xform.Define(stage, f"{prim_path}/AuthoredCollision")
             collision_xform.GetPrim().GetReferences().AddReference(
                 self._relative_reference(collision_reference, output_path)
@@ -111,6 +117,19 @@ class IsaacUsdExporter:
             UsdPhysics.RigidBodyAPI.Apply(physics_prim)
             mass_api = UsdPhysics.MassAPI.Apply(physics_prim)
             mass_api.CreateMassAttr().Set(asset.mass_kg)
+
+    @staticmethod
+    def _localize_pack_layer(reference,output_path):
+        """These generated layers are self-contained; copy exact bytes for portability."""
+        source=Path(reference)
+        digest=hashlib.sha256(source.read_bytes()).hexdigest()[:16]
+        target=output_path.parent/"asset_pack"/f"{digest}_{source.name}"
+        target.parent.mkdir(parents=True,exist_ok=True)
+        if not target.exists():
+            shutil.copyfile(source,target)
+        elif target.read_bytes()!=source.read_bytes():
+            raise ValueError(f"conflicting localized USD layer: {target}")
+        return target.as_posix()
 
     @staticmethod
     def _define_primitive(stage, path, asset: AssetRecord, Gf, UsdGeom):

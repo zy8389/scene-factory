@@ -53,9 +53,16 @@ def _visual(bpy, item, root, holder):
                for obj in meshes for corner in obj.bound_box]
     minimum = [min(corner[axis] for corner in corners) for axis in range(3)]
     maximum = [max(corner[axis] for corner in corners) for axis in range(3)]
-    scale, location = _fit_transform(minimum, maximum, item["bbox_m"])
-    oriented.scale = (scale,) * 3
-    oriented.location = location
+    if (item.get("visual_transform") or {}).get("scale_mode") == "fit_bbox":
+        fitted = bpy.data.objects.new(item["object_id"] + "_fit", None)
+        bpy.context.collection.objects.link(fitted)
+        fitted.parent = holder
+        oriented.parent = fitted
+        fitted.scale, fitted.location = _fit_bbox_transform(minimum, maximum, item["bbox_m"])
+    else:
+        scale, location = _fit_transform(minimum, maximum, item["bbox_m"])
+        oriented.scale = (scale,) * 3
+        oriented.location = location
     return True
 
 
@@ -69,6 +76,37 @@ def _fit_transform(minimum, maximum, bbox):
         -scale * (minimum[1] + maximum[1]) / 2,
         -float(bbox[2]) / 2 - scale * minimum[2],
     )
+
+
+def _fit_bbox_transform(minimum, maximum, bbox):
+    scales = tuple(float(bbox[axis]) / max(maximum[axis] - minimum[axis], 1e-6) for axis in range(3))
+    return scales, (
+        -scales[0] * (minimum[0] + maximum[0]) / 2,
+        -scales[1] * (minimum[1] + maximum[1]) / 2,
+        -float(bbox[2]) / 2 - scales[2] * minimum[2],
+    )
+
+
+def _configure_viewports(bpy, target, rotation, distance):
+    for obj in bpy.context.scene.objects:
+        if obj.type == "EMPTY":
+            obj.empty_display_size = 0.035
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = None
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            for space in area.spaces:
+                if space.type != "VIEW_3D":
+                    continue
+                space.overlay.show_extras = False
+                space.overlay.show_relationship_lines = False
+                space.shading.type = "MATERIAL"
+                space.shading.use_scene_lights = False
+                space.shading.use_scene_world = False
+                space.region_3d.view_location = target
+                space.region_3d.view_rotation = rotation
+                space.region_3d.view_distance = distance
+                space.region_3d.view_perspective = "ORTHO"
 
 
 def build(manifest_path: Path, blend_path: Path, png_path: Path | None = None) -> None:
@@ -120,6 +158,8 @@ def build(manifest_path: Path, blend_path: Path, png_path: Path | None = None) -
     scene.render.resolution_x = 1280
     scene.render.resolution_y = 720
     scene.render.resolution_percentage = 100
+    _configure_viewports(bpy, target, camera.rotation_euler.to_quaternion(), max(width, depth) * 1.5)
+    bpy.ops.file.pack_all()
     blend_path.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
     if png_path is not None:

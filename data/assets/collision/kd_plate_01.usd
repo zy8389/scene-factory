@@ -1,0 +1,675 @@
+#usda 1.0
+(
+    defaultPrim = "Asset"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+def Xform "Asset" {
+    def Scope "Materials" {
+        def Material "M0" {
+            token outputs:surface.connect = </Asset/Materials/M0/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M1" {
+            token outputs:surface.connect = </Asset/Materials/M1/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M2" {
+            token outputs:surface.connect = </Asset/Materials/M2/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M3" {
+            token outputs:surface.connect = </Asset/Materials/M3/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M4" {
+            token outputs:surface.connect = </Asset/Materials/M4/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M5" {
+            token outputs:surface.connect = </Asset/Materials/M5/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M6" {
+            token outputs:surface.connect = </Asset/Materials/M6/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M7" {
+            token outputs:surface.connect = </Asset/Materials/M7/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M8" {
+            token outputs:surface.connect = </Asset/Materials/M8/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M9" {
+            token outputs:surface.connect = </Asset/Materials/M9/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M10" {
+            token outputs:surface.connect = </Asset/Materials/M10/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M11" {
+            token outputs:surface.connect = </Asset/Materials/M11/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M12" {
+            token outputs:surface.connect = </Asset/Materials/M12/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M13" {
+            token outputs:surface.connect = </Asset/Materials/M13/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M14" {
+            token outputs:surface.connect = </Asset/Materials/M14/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M15" {
+            token outputs:surface.connect = </Asset/Materials/M15/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M16" {
+            token outputs:surface.connect = </Asset/Materials/M16/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M17" {
+            token outputs:surface.connect = </Asset/Materials/M17/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M18" {
+            token outputs:surface.connect = </Asset/Materials/M18/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M19" {
+            token outputs:surface.connect = </Asset/Materials/M19/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M20" {
+            token outputs:surface.connect = </Asset/Materials/M20/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M21" {
+            token outputs:surface.connect = </Asset/Materials/M21/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M22" {
+            token outputs:surface.connect = </Asset/Materials/M22/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M23" {
+            token outputs:surface.connect = </Asset/Materials/M23/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M24" {
+            token outputs:surface.connect = </Asset/Materials/M24/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M25" {
+            token outputs:surface.connect = </Asset/Materials/M25/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M26" {
+            token outputs:surface.connect = </Asset/Materials/M26/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M27" {
+            token outputs:surface.connect = </Asset/Materials/M27/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M28" {
+            token outputs:surface.connect = </Asset/Materials/M28/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M29" {
+            token outputs:surface.connect = </Asset/Materials/M29/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M30" {
+            token outputs:surface.connect = </Asset/Materials/M30/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M31" {
+            token outputs:surface.connect = </Asset/Materials/M31/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "M32" {
+            token outputs:surface.connect = </Asset/Materials/M32/Shader.outputs:surface>
+            def Shader "Shader" {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.86, 0.85, 0.78)
+                float inputs:roughness = 0.65
+                token outputs:surface
+            }
+        }
+        def Material "Physics" (prepend apiSchemas = ["PhysicsMaterialAPI"]) {
+            float physics:staticFriction = 0.55
+            float physics:dynamicFriction = 0.4
+            float physics:restitution = 0
+        }
+    }
+    def Mesh "Bottom" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.088, 0.0, -0.012), (0.086309105, 0.017167948, -0.012), (0.081301399, 0.033676142, -0.012), (0.073169326, 0.048890181, -0.012), (0.062225397, 0.062225397, -0.012), (0.048890181, 0.073169326, -0.012), (0.033676142, 0.081301399, -0.012), (0.017167948, 0.086309105, -0.012), (0.0, 0.088, -0.012), (-0.017167948, 0.086309105, -0.012), (-0.033676142, 0.081301399, -0.012), (-0.048890181, 0.073169326, -0.012), (-0.062225397, 0.062225397, -0.012), (-0.073169326, 0.048890181, -0.012), (-0.081301399, 0.033676142, -0.012), (-0.086309105, 0.017167948, -0.012), (-0.088, 0.0, -0.012), (-0.086309105, -0.017167948, -0.012), (-0.081301399, -0.033676142, -0.012), (-0.073169326, -0.048890181, -0.012), (-0.062225397, -0.062225397, -0.012), (-0.048890181, -0.073169326, -0.012), (-0.033676142, -0.081301399, -0.012), (-0.017167948, -0.086309105, -0.012), (-0.0, -0.088, -0.012), (0.017167948, -0.086309105, -0.012), (0.033676142, -0.081301399, -0.012), (0.048890181, -0.073169326, -0.012), (0.062225397, -0.062225397, -0.012), (0.073169326, -0.048890181, -0.012), (0.081301399, -0.033676142, -0.012), (0.086309105, -0.017167948, -0.012), (0.088, 0.0, -0.006), (0.086309105, 0.017167948, -0.006), (0.081301399, 0.033676142, -0.006), (0.073169326, 0.048890181, -0.006), (0.062225397, 0.062225397, -0.006), (0.048890181, 0.073169326, -0.006), (0.033676142, 0.081301399, -0.006), (0.017167948, 0.086309105, -0.006), (0.0, 0.088, -0.006), (-0.017167948, 0.086309105, -0.006), (-0.033676142, 0.081301399, -0.006), (-0.048890181, 0.073169326, -0.006), (-0.062225397, 0.062225397, -0.006), (-0.073169326, 0.048890181, -0.006), (-0.081301399, 0.033676142, -0.006), (-0.086309105, 0.017167948, -0.006), (-0.088, 0.0, -0.006), (-0.086309105, -0.017167948, -0.006), (-0.081301399, -0.033676142, -0.006), (-0.073169326, -0.048890181, -0.006), (-0.062225397, -0.062225397, -0.006), (-0.048890181, -0.073169326, -0.006), (-0.033676142, -0.081301399, -0.006), (-0.017167948, -0.086309105, -0.006), (-0.0, -0.088, -0.006), (0.017167948, -0.086309105, -0.006), (0.033676142, -0.081301399, -0.006), (0.048890181, -0.073169326, -0.006), (0.062225397, -0.062225397, -0.006), (0.073169326, -0.048890181, -0.006), (0.081301399, -0.033676142, -0.006), (0.086309105, -0.017167948, -0.006)]
+        int[] faceVertexCounts = [32, 32, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 0, 1, 33, 32, 1, 2, 34, 33, 2, 3, 35, 34, 3, 4, 36, 35, 4, 5, 37, 36, 5, 6, 38, 37, 6, 7, 39, 38, 7, 8, 40, 39, 8, 9, 41, 40, 9, 10, 42, 41, 10, 11, 43, 42, 11, 12, 44, 43, 12, 13, 45, 44, 13, 14, 46, 45, 14, 15, 47, 46, 15, 16, 48, 47, 16, 17, 49, 48, 17, 18, 50, 49, 18, 19, 51, 50, 19, 20, 52, 51, 20, 21, 53, 52, 21, 22, 54, 53, 22, 23, 55, 54, 23, 24, 56, 55, 24, 25, 57, 56, 25, 26, 58, 57, 26, 27, 59, 58, 27, 28, 60, 59, 28, 29, 61, 60, 29, 30, 62, 61, 30, 31, 63, 62, 31, 0, 32, 63]
+        rel material:binding = </Asset/Materials/M0>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_00" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.088, 0.0, -0.006), (0.086309105, 0.017167948, -0.006), (0.12, 0.0, 0.012), (0.117694234, 0.023410839, 0.012), (0.116, 0.0, 0.012), (0.113771093, 0.022630477, 0.012), (0.084, 0.0, -0.006), (0.082385964, 0.016387587, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M1>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_01" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.086309105, 0.017167948, -0.006), (0.081301399, 0.033676142, -0.006), (0.117694234, 0.023410839, 0.012), (0.110865544, 0.045922012, 0.012), (0.113771093, 0.022630477, 0.012), (0.107170026, 0.044391278, 0.012), (0.082385964, 0.016387587, -0.006), (0.077605881, 0.032145408, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M2>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_02" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.081301399, 0.033676142, -0.006), (0.073169326, 0.048890181, -0.006), (0.110865544, 0.045922012, 0.012), (0.099776353, 0.066668428, 0.012), (0.107170026, 0.044391278, 0.012), (0.096450475, 0.064446147, 0.012), (0.077605881, 0.032145408, -0.006), (0.069843447, 0.0466679, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M3>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_03" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.073169326, 0.048890181, -0.006), (0.062225397, 0.062225397, -0.006), (0.099776353, 0.066668428, 0.012), (0.084852814, 0.084852814, 0.012), (0.096450475, 0.064446147, 0.012), (0.082024387, 0.082024387, 0.012), (0.069843447, 0.0466679, -0.006), (0.05939697, 0.05939697, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M4>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_04" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.062225397, 0.062225397, -0.006), (0.048890181, 0.073169326, -0.006), (0.084852814, 0.084852814, 0.012), (0.066668428, 0.099776353, 0.012), (0.082024387, 0.082024387, 0.012), (0.064446147, 0.096450475, 0.012), (0.05939697, 0.05939697, -0.006), (0.0466679, 0.069843447, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M5>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_05" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.048890181, 0.073169326, -0.006), (0.033676142, 0.081301399, -0.006), (0.066668428, 0.099776353, 0.012), (0.045922012, 0.110865544, 0.012), (0.064446147, 0.096450475, 0.012), (0.044391278, 0.107170026, 0.012), (0.0466679, 0.069843447, -0.006), (0.032145408, 0.077605881, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M6>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_06" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.033676142, 0.081301399, -0.006), (0.017167948, 0.086309105, -0.006), (0.045922012, 0.110865544, 0.012), (0.023410839, 0.117694234, 0.012), (0.044391278, 0.107170026, 0.012), (0.022630477, 0.113771093, 0.012), (0.032145408, 0.077605881, -0.006), (0.016387587, 0.082385964, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M7>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_07" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.017167948, 0.086309105, -0.006), (0.0, 0.088, -0.006), (0.023410839, 0.117694234, 0.012), (0.0, 0.12, 0.012), (0.022630477, 0.113771093, 0.012), (0.0, 0.116, 0.012), (0.016387587, 0.082385964, -0.006), (0.0, 0.084, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M8>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_08" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.0, 0.088, -0.006), (-0.017167948, 0.086309105, -0.006), (0.0, 0.12, 0.012), (-0.023410839, 0.117694234, 0.012), (0.0, 0.116, 0.012), (-0.022630477, 0.113771093, 0.012), (0.0, 0.084, -0.006), (-0.016387587, 0.082385964, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M9>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_09" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.017167948, 0.086309105, -0.006), (-0.033676142, 0.081301399, -0.006), (-0.023410839, 0.117694234, 0.012), (-0.045922012, 0.110865544, 0.012), (-0.022630477, 0.113771093, 0.012), (-0.044391278, 0.107170026, 0.012), (-0.016387587, 0.082385964, -0.006), (-0.032145408, 0.077605881, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M10>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_10" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.033676142, 0.081301399, -0.006), (-0.048890181, 0.073169326, -0.006), (-0.045922012, 0.110865544, 0.012), (-0.066668428, 0.099776353, 0.012), (-0.044391278, 0.107170026, 0.012), (-0.064446147, 0.096450475, 0.012), (-0.032145408, 0.077605881, -0.006), (-0.0466679, 0.069843447, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M11>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_11" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.048890181, 0.073169326, -0.006), (-0.062225397, 0.062225397, -0.006), (-0.066668428, 0.099776353, 0.012), (-0.084852814, 0.084852814, 0.012), (-0.064446147, 0.096450475, 0.012), (-0.082024387, 0.082024387, 0.012), (-0.0466679, 0.069843447, -0.006), (-0.05939697, 0.05939697, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M12>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_12" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.062225397, 0.062225397, -0.006), (-0.073169326, 0.048890181, -0.006), (-0.084852814, 0.084852814, 0.012), (-0.099776353, 0.066668428, 0.012), (-0.082024387, 0.082024387, 0.012), (-0.096450475, 0.064446147, 0.012), (-0.05939697, 0.05939697, -0.006), (-0.069843447, 0.0466679, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M13>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_13" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.073169326, 0.048890181, -0.006), (-0.081301399, 0.033676142, -0.006), (-0.099776353, 0.066668428, 0.012), (-0.110865544, 0.045922012, 0.012), (-0.096450475, 0.064446147, 0.012), (-0.107170026, 0.044391278, 0.012), (-0.069843447, 0.0466679, -0.006), (-0.077605881, 0.032145408, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M14>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_14" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.081301399, 0.033676142, -0.006), (-0.086309105, 0.017167948, -0.006), (-0.110865544, 0.045922012, 0.012), (-0.117694234, 0.023410839, 0.012), (-0.107170026, 0.044391278, 0.012), (-0.113771093, 0.022630477, 0.012), (-0.077605881, 0.032145408, -0.006), (-0.082385964, 0.016387587, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M15>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_15" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.086309105, 0.017167948, -0.006), (-0.088, 0.0, -0.006), (-0.117694234, 0.023410839, 0.012), (-0.12, 0.0, 0.012), (-0.113771093, 0.022630477, 0.012), (-0.116, 0.0, 0.012), (-0.082385964, 0.016387587, -0.006), (-0.084, 0.0, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M16>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_16" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.088, 0.0, -0.006), (-0.086309105, -0.017167948, -0.006), (-0.12, 0.0, 0.012), (-0.117694234, -0.023410839, 0.012), (-0.116, 0.0, 0.012), (-0.113771093, -0.022630477, 0.012), (-0.084, 0.0, -0.006), (-0.082385964, -0.016387587, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M17>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_17" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.086309105, -0.017167948, -0.006), (-0.081301399, -0.033676142, -0.006), (-0.117694234, -0.023410839, 0.012), (-0.110865544, -0.045922012, 0.012), (-0.113771093, -0.022630477, 0.012), (-0.107170026, -0.044391278, 0.012), (-0.082385964, -0.016387587, -0.006), (-0.077605881, -0.032145408, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M18>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_18" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.081301399, -0.033676142, -0.006), (-0.073169326, -0.048890181, -0.006), (-0.110865544, -0.045922012, 0.012), (-0.099776353, -0.066668428, 0.012), (-0.107170026, -0.044391278, 0.012), (-0.096450475, -0.064446147, 0.012), (-0.077605881, -0.032145408, -0.006), (-0.069843447, -0.0466679, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M19>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_19" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.073169326, -0.048890181, -0.006), (-0.062225397, -0.062225397, -0.006), (-0.099776353, -0.066668428, 0.012), (-0.084852814, -0.084852814, 0.012), (-0.096450475, -0.064446147, 0.012), (-0.082024387, -0.082024387, 0.012), (-0.069843447, -0.0466679, -0.006), (-0.05939697, -0.05939697, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M20>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_20" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.062225397, -0.062225397, -0.006), (-0.048890181, -0.073169326, -0.006), (-0.084852814, -0.084852814, 0.012), (-0.066668428, -0.099776353, 0.012), (-0.082024387, -0.082024387, 0.012), (-0.064446147, -0.096450475, 0.012), (-0.05939697, -0.05939697, -0.006), (-0.0466679, -0.069843447, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M21>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_21" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.048890181, -0.073169326, -0.006), (-0.033676142, -0.081301399, -0.006), (-0.066668428, -0.099776353, 0.012), (-0.045922012, -0.110865544, 0.012), (-0.064446147, -0.096450475, 0.012), (-0.044391278, -0.107170026, 0.012), (-0.0466679, -0.069843447, -0.006), (-0.032145408, -0.077605881, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M22>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_22" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.033676142, -0.081301399, -0.006), (-0.017167948, -0.086309105, -0.006), (-0.045922012, -0.110865544, 0.012), (-0.023410839, -0.117694234, 0.012), (-0.044391278, -0.107170026, 0.012), (-0.022630477, -0.113771093, 0.012), (-0.032145408, -0.077605881, -0.006), (-0.016387587, -0.082385964, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M23>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_23" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.017167948, -0.086309105, -0.006), (-0.0, -0.088, -0.006), (-0.023410839, -0.117694234, 0.012), (-0.0, -0.12, 0.012), (-0.022630477, -0.113771093, 0.012), (-0.0, -0.116, 0.012), (-0.016387587, -0.082385964, -0.006), (-0.0, -0.084, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M24>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_24" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(-0.0, -0.088, -0.006), (0.017167948, -0.086309105, -0.006), (-0.0, -0.12, 0.012), (0.023410839, -0.117694234, 0.012), (-0.0, -0.116, 0.012), (0.022630477, -0.113771093, 0.012), (-0.0, -0.084, -0.006), (0.016387587, -0.082385964, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M25>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_25" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.017167948, -0.086309105, -0.006), (0.033676142, -0.081301399, -0.006), (0.023410839, -0.117694234, 0.012), (0.045922012, -0.110865544, 0.012), (0.022630477, -0.113771093, 0.012), (0.044391278, -0.107170026, 0.012), (0.016387587, -0.082385964, -0.006), (0.032145408, -0.077605881, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M26>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_26" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.033676142, -0.081301399, -0.006), (0.048890181, -0.073169326, -0.006), (0.045922012, -0.110865544, 0.012), (0.066668428, -0.099776353, 0.012), (0.044391278, -0.107170026, 0.012), (0.064446147, -0.096450475, 0.012), (0.032145408, -0.077605881, -0.006), (0.0466679, -0.069843447, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M27>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_27" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.048890181, -0.073169326, -0.006), (0.062225397, -0.062225397, -0.006), (0.066668428, -0.099776353, 0.012), (0.084852814, -0.084852814, 0.012), (0.064446147, -0.096450475, 0.012), (0.082024387, -0.082024387, 0.012), (0.0466679, -0.069843447, -0.006), (0.05939697, -0.05939697, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M28>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_28" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.062225397, -0.062225397, -0.006), (0.073169326, -0.048890181, -0.006), (0.084852814, -0.084852814, 0.012), (0.099776353, -0.066668428, 0.012), (0.082024387, -0.082024387, 0.012), (0.096450475, -0.064446147, 0.012), (0.05939697, -0.05939697, -0.006), (0.069843447, -0.0466679, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M29>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_29" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.073169326, -0.048890181, -0.006), (0.081301399, -0.033676142, -0.006), (0.099776353, -0.066668428, 0.012), (0.110865544, -0.045922012, 0.012), (0.096450475, -0.064446147, 0.012), (0.107170026, -0.044391278, 0.012), (0.069843447, -0.0466679, -0.006), (0.077605881, -0.032145408, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M30>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_30" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.081301399, -0.033676142, -0.006), (0.086309105, -0.017167948, -0.006), (0.110865544, -0.045922012, 0.012), (0.117694234, -0.023410839, 0.012), (0.107170026, -0.044391278, 0.012), (0.113771093, -0.022630477, 0.012), (0.077605881, -0.032145408, -0.006), (0.082385964, -0.016387587, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M31>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+    def Mesh "Rim_31" (prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]) {
+        uniform token subdivisionScheme = "none"
+        point3f[] points = [(0.086309105, -0.017167948, -0.006), (0.088, -0.0, -0.006), (0.117694234, -0.023410839, 0.012), (0.12, -0.0, 0.012), (0.113771093, -0.022630477, 0.012), (0.116, -0.0, 0.012), (0.082385964, -0.016387587, -0.006), (0.084, -0.0, -0.006)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6, 6, 7, 1, 0, 0, 2, 4, 6, 1, 7, 5, 3]
+        rel material:binding = </Asset/Materials/M32>
+        token visibility = "invisible"
+        bool physics:collisionEnabled = true
+        token physics:approximation = "convexHull"
+        rel material:binding:physics = </Asset/Materials/Physics>
+    }
+}

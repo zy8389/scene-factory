@@ -11,6 +11,7 @@ imply physical task success.
 | Batch datasets, validation and reproduction | none | PASS |
 | Layered quality reports, dataset audit and exact-layout selection | none | offline layout evidence only; physics/task not verified |
 | Stratified candidate collections, quota validation and reproduction | none | offline layout selection; physics/task not verified |
+| Configuration-grouped splits, curated export and offline preview | none | layout candidates only; source-independent package validation |
 | Articulation metadata, symbolic planner and dry-run executor | none | PASS |
 | Executor conformance | none | PASS |
 | MJCF export and portable scene bundles | none | PASS |
@@ -21,7 +22,8 @@ imply physical task success.
 | Real articulated execution (P1-4) | Isaac Sim, official articulated asset and robot control | binding validation passed; physical acceptance not run |
 | Isaac Lab | Isaac Lab | not started |
 | Blender manifest + GLB/primitive scene preparation | none | PASS; render requires separate Blender installation |
-| Blender .blend / PNG rendering | Blender executable | not run on reference machine (not installed) |
+| Blender .blend generation, case launcher and web download | Blender executable | verified with Blender 5.2.2 LTS on 2026-10-03 |
+| Blender PNG rendering | Blender executable | verified with Blender 5.2.2 LTS on 2026-10-03; separate optional render |
 | Fresh Isaac USD export on the reference workstation | local Isaac pxr via ASCII Junction | PASS: USD Stage creation and fresh export verified on 2026-10-01 |
 | Real robot | robot-specific hardware and integration | not run |
 
@@ -31,8 +33,11 @@ simulator. `SceneFactoryEnv` selects `MujocoBackend` by default, so calling
 `reset()` on that default environment requires the extra. Applications that
 only need the portable contract can pass `DryRunBackend` explicitly.
 
-Core CI skips simulator-only tests when the MuJoCo extra is absent; a separate
-CI job installs and exercises the extra. Scene ZIPs with USD require OpenUSD
+Core CI runs on Ubuntu and Windows with Python 3.12 and skips simulator-only
+tests when their optional runtimes are absent. A separate Ubuntu CI job installs
+and exercises the MuJoCo extra. Real Isaac Franka/RGB-D acceptance requires its
+own simulator environment and is not part of these hosted CI jobs.
+Scene ZIPs with USD require OpenUSD
 to localize dependencies into an embedded USDZ; MJCF/GLB-only bundles do not.
 Windows Isaac bootstrap temporarily preserves the ASCII environment alias
 only for paths within that environment. Its `realpath` hook is restored after
@@ -42,6 +47,14 @@ LLM, Isaac Sim, USD and Gymnasium workflows remain optional integrations with
 their own environment requirements. The bundled Three.js modules and local GLB
 files are visual resources; current MuJoCo collision geometry remains derived
 from registered primitive bounds.
+
+Visual placement uses the same centered pose as collision proxies: mesh bottoms
+are anchored at `-bbox_z / 2`. Furniture with top or cooktop support surfaces uses
+`fit_bbox` scaling so visible dimensions match the registered support geometry;
+ordinary props retain uniform containment. The web and Blender case transforms
+share this policy. The kitchen counter depth is 0.86 m, enclosing its 0.78 m
+support surface; older kitchen layouts using the 0.62 m depth need regeneration
+for the corrected geometry. These visual checks do not certify physical contacts.
 ## Robot support matrix
 
 | Robot body | SceneFactory runtime | Validation |

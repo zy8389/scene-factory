@@ -17,6 +17,10 @@ _ISSUE_CATEGORIES = {
     "outside_support_surface": "support",
     "floating_or_sunk": "support",
     "layout_validation_failed": "layout",
+    "outside_storage_interior": "support",
+    "invalid_inside_relation": "support",
+    "blocked_clearance": "clearance",
+    "invalid_around_distance": "relation",
 }
 
 

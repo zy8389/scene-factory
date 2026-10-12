@@ -121,7 +121,7 @@ class IntentRelation:
         target = _strict_string(raw["target"], "intent relation.target")
         if not subject or not target:
             raise ValueError("intent relation requires subject and target")
-        if predicate not in {"on", "near", "partly_occluded_by"}:
+        if predicate not in {"on", "inside", "around", "near", "partly_occluded_by"}:
             raise ValueError(f"unsupported intent relation: {predicate}")
         return cls(subject=subject, predicate=predicate, target=target)
 
@@ -314,7 +314,7 @@ def scene_intent_schema(
                         },
                         "predicate": {
                             "type": "string",
-                            "enum": ["on", "near", "partly_occluded_by"],
+                            "enum": ["on", "inside", "around", "near", "partly_occluded_by"],
                         },
                         "target": {
                             "type": "string",

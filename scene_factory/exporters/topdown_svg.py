@@ -37,6 +37,13 @@ class TopDownSvgExporter:
             f'width="{room_width:.2f}" height="{room_height:.2f}"/>',
         ]
 
+        for zone in scene.clearance_zones:
+            zx=origin_x+(zone.center[0]+room_x/2-zone.size[0]/2)*scale
+            zy=origin_y+(room_y/2-zone.center[1]-zone.size[1]/2)*scale
+            lines.append(f'<rect x="{zx:.2f}" y="{zy:.2f}" width="{zone.size[0]*scale:.2f}" '
+                         f'height="{zone.size[1]*scale:.2f}" fill="#77b7a5" fill-opacity=".25">'
+                         f'<title>{html.escape(zone.name)}</title></rect>')
+
         for item in sorted(scene.objects, key=lambda obj: (obj.dynamic, obj.pose.position[2])):
             asset = self.registry.get(item.asset_id)
             x = origin_x + (item.pose.position[0] + room_x / 2.0) * scale

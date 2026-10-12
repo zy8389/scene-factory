@@ -88,6 +88,23 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("llm-status", help="Show natural-language parser configuration")
     subparsers.add_parser("llm-test", help="Test the configured LLM with one structured request")
 
+    from .priority import DEFAULT_TASK, MOTION_STATES, TASK_URGENCIES
+
+    priority = subparsers.add_parser("priority", help="Build a table-edge scenario and ask AI about task priority")
+    priority_commands = priority.add_subparsers(dest="priority_command", required=True)
+    priority_build = priority_commands.add_parser("build", help="Build a structured cup-risk scenario")
+    priority_build.add_argument("--output", type=Path, required=True)
+    priority_build.add_argument("--seed", type=int, default=42)
+    priority_build.add_argument("--clearance-m", type=float, default=0.005)
+    priority_build.add_argument("--motion-state", choices=MOTION_STATES, default="toward_edge")
+    priority_build.add_argument("--current-task", default=DEFAULT_TASK)
+    priority_build.add_argument("--urgency", choices=TASK_URGENCIES, default="routine")
+    priority_build.add_argument("--unsafe-to-pause", action="store_true")
+    priority_build.add_argument("--pause-consequence", default="")
+    priority_ask = priority_commands.add_parser("ask", help="Ask the configured LLM for an advisory decision")
+    priority_ask.add_argument("scenario", type=Path)
+    priority_ask.add_argument("--output", type=Path)
+
     intent = subparsers.add_parser("intent", help="Validate and inspect external SceneIntent JSON")
     intent_commands = intent.add_subparsers(dest="intent_command", required=True)
     intent_validate = intent_commands.add_parser("validate", help="Validate an external SceneIntent")
@@ -313,6 +330,23 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0 if report["core_ready"] else 1
     try:
+        if args.command == "priority":
+            from .priority import ask_priority, load_priority_scenario, write_priority_scenario
+
+            if args.priority_command == "build":
+                files = write_priority_scenario(
+                    SceneFactory(), args.output, seed=args.seed, clearance_m=args.clearance_m,
+                    motion_state=args.motion_state, current_task=args.current_task,
+                    urgency=args.urgency, safe_to_pause=not args.unsafe_to_pause,
+                    pause_consequence=args.pause_consequence,
+                )
+                print(json.dumps({"result": "passed", "files": files}, ensure_ascii=False, indent=2))
+            else:
+                decision = ask_priority(load_priority_scenario(args.scenario))
+                output = args.output or args.scenario.with_name("priority_decision.json")
+                write_json_atomic(output, decision)
+                print(json.dumps(decision, ensure_ascii=False, indent=2))
+            return 0
         if args.command == "asset":
             if args.asset_command == "normalize":
                 report = AssetNormalizer().normalize(

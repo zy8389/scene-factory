@@ -19,10 +19,11 @@ from datetime import datetime, timezone
 from pathlib import Path, PureWindowsPath
 from typing import Any, Mapping
 
-from .dataset import DatasetError, write_json_atomic
+from .dataset import DatasetError, canonical_json, sha256_file, write_json_atomic
 from .paths import project_root
 from .runtime_batch import run_runtime_batch, validate_runtime_batch
 from .sampling import SAMPLING_PLAN_SCHEMA_VERSION, build_sampling_collection
+from .scene_runtime import inspect_scene_runtime, prepare_scene_runtime_collection
 
 
 _SCHEMA = "scene_factory.web_runtime_job.v1"
@@ -32,6 +33,8 @@ _CASE_ID = re.compile(r"[0-9a-f]{20}-(?:lift|place)\Z")
 _PROFILES = [{"id": "tracking", "label": "优化控制器"},
              {"id": "baseline", "label": "原始控制器"}]
 _FRANKA = "Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
+_SOURCE_FILES = ("layout.json", "scene_intent.json", "scene_spec.json", "validation.json")
+_SOURCE_FILE_LIMIT = 8 * 1024 * 1024
 
 
 def _absolute(path: str | Path) -> Path:
@@ -223,6 +226,10 @@ class WebRuntimeManager:
                     continue
                 if type(record.get("limit_layouts")) is not int or not 1 <= record["limit_layouts"] <= 20:
                     continue
+                if record.get("kind", "sampling") not in {"sampling", "scene"}:
+                    continue
+                if record.get("kind") == "scene" and record["limit_layouts"] != 1:
+                    continue
                 job = _Job(record, directory / "runtime", path)
                 self._jobs[directory.name] = job
                 if record.get("status") in _ACTIVE:
@@ -295,6 +302,77 @@ class WebRuntimeManager:
             # Snapshot before releasing the lock keeps the POST response queued.
             return self._snapshot(job)
 
+    def create_scene(self, source_dir: str | Path, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """Queue the exact generated layout captured now, rather than resampling."""
+        if not isinstance(payload, Mapping) or set(payload) - {"scene_id", "profile", "label"}:
+            raise ValueError("当前场景运行参数只支持 scene_id、profile 和 label")
+        scene_id, profile = payload.get("scene_id"), payload.get("profile", "tracking")
+        if not isinstance(scene_id, str) or not scene_id or len(scene_id) > 160:
+            raise ValueError("请选择已生成的场景")
+        if not isinstance(profile, str) or profile not in {"tracking", "baseline"}:
+            raise ValueError("请选择 tracking 或 baseline 控制器")
+        label = payload.get("label", f"当前场景 · {scene_id}")
+        if not isinstance(label, str) or not 1 <= len(label.strip()) <= 120:
+            raise ValueError("运行名称须为 1 至 120 个字符")
+
+        # Read fixed local artifact names only. The HTTP layer resolves source_dir
+        # inside the generated-scene root; client paths never enter this method.
+        source_root = _absolute(source_dir)
+        frozen: dict[str, bytes] = {}
+        for name in _SOURCE_FILES:
+            path = source_root / name
+            if name != "layout.json" and not path.exists():
+                continue
+            path = _safe_relative(source_root, name)
+            if path.stat().st_size > _SOURCE_FILE_LIMIT:
+                raise ValueError("场景源文件超过 8 MiB，不能进入运行队列")
+            data = path.read_bytes()
+            if len(data) > _SOURCE_FILE_LIMIT:
+                raise ValueError("场景源文件超过 8 MiB，不能进入运行队列")
+            frozen[name] = data
+        try:
+            layout = json.loads(frozen["layout.json"].decode("utf-8-sig"))
+        except (ValueError, UnicodeError, KeyError) as exc:
+            raise ValueError("当前场景的 layout.json 无法读取") from exc
+        if not isinstance(layout, dict) or layout.get("scene_id") != scene_id:
+            raise ValueError("layout.json 中的 scene_id 与请求不一致")
+
+        with self._lock:
+            config = self.config()
+            if not config["available"]:
+                raise ValueError(config["message"])
+            identifier = "job-" + uuid.uuid4().hex
+            directory = self.root / "jobs" / identifier
+            if not directory.resolve().is_relative_to(self.root.resolve()):
+                raise ValueError("运行目录不安全")
+            frozen_dir = directory / "source"
+            frozen_dir.mkdir(parents=True, exist_ok=False)
+            for name, data in frozen.items():
+                (frozen_dir / name).write_bytes(data)
+            eligibility = inspect_scene_runtime(self.factory, frozen_dir)
+            if eligibility.get("eligible") is not True:
+                # Leave the rejected source snapshot as diagnostic evidence; it
+                # has no job.json, registration, or queue entry.
+                raise ValueError("当前场景暂不能执行：" + "；".join(eligibility.get("reasons", [])))
+            layout_hash = hashlib.sha256(frozen["layout.json"]).hexdigest()
+            intent_hash = hashlib.sha256(frozen["scene_intent.json"]).hexdigest() if "scene_intent.json" in frozen else None
+            if (eligibility.get("source_scene_id") != scene_id
+                    or eligibility.get("source_layout_sha256") != layout_hash
+                    or eligibility.get("source_intent_sha256") != intent_hash):
+                raise ValueError("场景源文件在提交校验期间发生变化")
+            record = self._new_record(identifier, label.strip(), profile, 1,
+                                      datetime.now(timezone.utc).isoformat())
+            record.update(kind="scene", source_scene_id=scene_id,
+                          source_layout_sha256=layout_hash, source_intent_sha256=intent_hash,
+                          source_files_sha256={name: hashlib.sha256(data).hexdigest()
+                                               for name, data in frozen.items()},
+                          source_plan=copy.deepcopy(eligibility.get("plan", {})))
+            job = _Job(record, directory / "runtime", directory / "job.json")
+            self._jobs[identifier] = job
+            self._save(job)
+            self._queue.put(identifier)
+            return self._snapshot(job)
+
     def _job(self, identifier: str) -> _Job:
         if not isinstance(identifier, str) or not _JOB_ID.fullmatch(identifier) or identifier not in self._jobs:
             raise ValueError("运行任务不存在")
@@ -321,11 +399,90 @@ class WebRuntimeManager:
                 entries.append((path.relative_to(root).as_posix(), stat.st_size, stat.st_mtime_ns))
         return tuple(entries)
 
+    def _job_signature(self, job: _Job) -> tuple:
+        runtime = self._signature(job.runtime_root)
+        if job.record.get("kind") != "scene":
+            return runtime
+        return runtime, self._signature(job.runtime_root.parent / "source")
+
+    @staticmethod
+    def _source_layout(job: _Job) -> dict[str, Any]:
+        source_root = job.runtime_root.parent / "source"
+        hashes = job.record.get("source_files_sha256")
+        if (not isinstance(hashes, dict) or "layout.json" not in hashes
+                or set(hashes) - set(_SOURCE_FILES)):
+            raise DatasetError("当前场景运行缺少冻结源文件记录")
+        for name, expected in hashes.items():
+            if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+                raise DatasetError("当前场景源文件哈希记录无效")
+            path = _safe_relative(source_root, name)
+            if sha256_file(path) != expected:
+                raise DatasetError("当前场景冻结源文件已改变：" + name)
+        if (hashes["layout.json"] != job.record.get("source_layout_sha256")
+                or hashes.get("scene_intent.json") != job.record.get("source_intent_sha256")):
+            raise DatasetError("当前场景来源记录与冻结文件不一致")
+        layout = _read_json(_safe_relative(source_root, "layout.json"))
+        if not isinstance(layout, dict) or layout.get("scene_id") != job.record.get("source_scene_id"):
+            raise DatasetError("当前场景来源标识不一致")
+        return layout
+
+    def _validate_scene_layouts(self, job: _Job) -> None:
+        """Reject valid robot evidence produced for a different source layout."""
+        source = self._source_layout(job)
+        plan = job.record.get("source_plan", {})
+        added = plan.get("added_objects", []) if isinstance(plan, dict) else None
+        source_objects = source.get("objects")
+        if not isinstance(added, list) or not isinstance(source_objects, list):
+            raise DatasetError("当前场景物体来源记录无效")
+        if any(not isinstance(item, dict) or not isinstance(item.get("object_id"), str)
+               for item in source_objects + added):
+            raise DatasetError("当前场景物体来源标识无效")
+        expected_objects = {item["object_id"]: item for item in source_objects + added}
+        if len(expected_objects) != len(source_objects) + len(added):
+            raise DatasetError("当前场景物体来源标识重复")
+        provenance = {
+            "schema_version": "scene_factory.scene_runtime_source.v1",
+            "source_scene_id": job.record["source_scene_id"],
+            "source_layout_sha256": job.record["source_layout_sha256"],
+            "source_intent_sha256": job.record["source_intent_sha256"],
+            "source_objects_sha256": hashlib.sha256(canonical_json(source_objects)).hexdigest(),
+            "source_layout": source, "plan": plan, "profile": job.record["profile"],
+        }
+        manifest = self._manifest(job)
+        cases = manifest.get("cases", [])
+        if len(cases) != 2:
+            raise DatasetError("当前场景必须恰好包含提起和放置两项任务")
+        for case in cases:
+            if not isinstance(case, dict):
+                raise DatasetError("当前场景运行案例记录无效")
+            case_id = case.get("case_id")
+            if not isinstance(case_id, str) or not _CASE_ID.fullmatch(case_id):
+                raise DatasetError("当前场景运行案例标识无效")
+            actual = _read_json(_safe_relative(job.runtime_root, f"cases/{case_id}/layout.json"))
+            if not isinstance(actual, dict):
+                raise DatasetError("当前场景运行布局记录无效")
+            task = actual.get("task", {})
+            if not isinstance(task, dict) or task.get("scene_runtime_source") != provenance:
+                raise DatasetError("运行任务未绑定提交时冻结的场景来源")
+            objects = actual.get("objects", [])
+            if (not isinstance(objects, list) or len(objects) != len(expected_objects)
+                    or any(not isinstance(item, dict) or not isinstance(item.get("object_id"), str)
+                           for item in objects)
+                    or {item["object_id"]: item for item in objects} != expected_objects
+                    or actual.get("room_type") != source.get("room_type")
+                    or actual.get("room_dimensions_m") != source.get("room_dimensions_m")
+                    or actual.get("seed") != source.get("seed")):
+                raise DatasetError("运行布局与原场景不一致，物体或房间已改变")
+
     def _validate(self, job: _Job) -> None:
         try:
-            before = self._signature(job.runtime_root)
+            before = self._job_signature(job)
+            if job.record.get("kind") == "scene":
+                self._source_layout(job)
             result = validate_runtime_batch(job.runtime_root)
-            after = self._signature(job.runtime_root)
+            if result.get("valid") is True and job.record.get("kind") == "scene":
+                self._validate_scene_layouts(job)
+            after = self._job_signature(job)
             if before != after:
                 result = {"valid": False, "errors": ["校验期间运行证据发生变化"]}
         except (OSError, ValueError, RuntimeError, TypeError, KeyError) as exc:
@@ -350,7 +507,7 @@ class WebRuntimeManager:
         if check:
             with self._validation_lock:
                 try:
-                    changed = job.signature != self._signature(job.runtime_root)
+                    changed = job.signature != self._job_signature(job)
                 except OSError:
                     changed = True
                 if changed:
@@ -456,10 +613,23 @@ class WebRuntimeManager:
                             self._validate(job)
                         continue
                     collection = job.metadata_path.parent / "collection"
-                    generated = build_sampling_collection(_sampling_plan(job.record["profile"]), collection,
-                                                          factory=self.factory)
-                    if not generated.valid:
-                        raise DatasetError("布局集合生成失败：" + repr(generated.to_dict().get("errors", [])))
+                    if job.record.get("kind") == "scene":
+                        self._source_layout(job)
+                        generated = prepare_scene_runtime_collection(
+                            self.factory, job.metadata_path.parent / "source", collection,
+                            profile=job.record["profile"],
+                        )
+                        if (generated.get("source_scene_id") != job.record["source_scene_id"]
+                                or generated.get("source_layout_sha256") != job.record["source_layout_sha256"]
+                                or generated.get("source_intent_sha256") != job.record["source_intent_sha256"]
+                                or generated.get("task_count") != 2):
+                            raise DatasetError("运行集合未绑定提交时冻结的场景来源")
+                        self._source_layout(job)
+                    else:
+                        generated = build_sampling_collection(_sampling_plan(job.record["profile"]), collection,
+                                                              factory=self.factory)
+                        if not generated.valid:
+                            raise DatasetError("布局集合生成失败：" + repr(generated.to_dict().get("errors", [])))
                     self._set_status(job, "running")
                     run_runtime_batch(collection, job.runtime_root, isaac_python=self.isaac_python,
                                       limit_layouts=job.record["limit_layouts"],

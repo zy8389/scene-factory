@@ -761,6 +761,24 @@ class ObjectRequest:
 
 
 @dataclass(frozen=True)
+class ClearanceZone:
+    """An explicitly reserved floor corridor, in world coordinates."""
+
+    name: str
+    center: Vec2
+    size: Vec2
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> "ClearanceZone":
+        name = _contract_text(raw["name"], "clearance.name")
+        center = _tuple2(raw["center"], "clearance.center")
+        size = _tuple2(raw["size"], "clearance.size")
+        if not all(math.isfinite(v) for v in (*center, *size)) or min(size) <= 0:
+            raise ValueError("clearance zone requires finite coordinates and positive size")
+        return cls(name, center, size)
+
+
+@dataclass(frozen=True)
 class SceneRecipe:
     name: str
     room_type: str
@@ -770,6 +788,7 @@ class SceneRecipe:
     keywords: tuple[str, ...]
     objects: tuple[ObjectRequest, ...]
     task: dict[str, Any] = field(default_factory=dict)
+    clearance_zones: tuple[ClearanceZone, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "SceneRecipe":
@@ -782,6 +801,7 @@ class SceneRecipe:
             keywords=tuple(str(item).lower() for item in raw.get("keywords", [])),
             objects=tuple(ObjectRequest.from_dict(item) for item in raw["objects"]),
             task=dict(raw.get("task", {})),
+            clearance_zones=tuple(ClearanceZone.from_dict(zone) for zone in raw.get("clearance_zones", [])),
         )
         ids = [item.object_id for item in recipe.objects]
         if len(ids) != len(set(ids)):
@@ -817,6 +837,7 @@ class CompiledScene:
     description: str
     objects: tuple[PlacedObject, ...]
     task: dict[str, Any]
+    clearance_zones: tuple[ClearanceZone, ...] = ()
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "CompiledScene":
@@ -853,6 +874,7 @@ class CompiledScene:
             description=str(raw.get("description", "")),
             objects=objects,
             task=dict(raw.get("task", {})),
+            clearance_zones=tuple(ClearanceZone.from_dict(zone) for zone in raw.get("clearance_zones", [])),
         )
 
     def to_dict(self) -> dict[str, Any]:

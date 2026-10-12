@@ -6,6 +6,7 @@ import mimetypes
 import os
 import subprocess
 import threading
+from dataclasses import asdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -13,6 +14,7 @@ from typing import Any
 from urllib.parse import quote, unquote, urlsplit
 
 from .factory import SceneFactory
+from .bundle import _visual_transform_for_asset
 from .intent import SceneIntent
 from .models import CompiledScene
 from .isaac_runtime import find_isaac_python, isaac_process_environment
@@ -32,6 +34,7 @@ class SceneWebApplication:
         self.static_root = default_web_dir().resolve()
         self.asset_root = (project_root() / "data" / "assets" / "source").resolve()
         self.visual_assets = self._discover_visual_assets()
+        self._blender_case_locks: dict[str, threading.Lock] = {}
         self._runtime_manager = None
         self._runtime_lock = threading.Lock()
         self._runtime_root = runtime_root or os.environ.get("SCENE_FACTORY_WEB_RUNTIME") or self.output_root / "_runtime"
@@ -71,6 +74,50 @@ class SceneWebApplication:
     def close(self) -> None:
         if self._runtime_manager is not None:
             self._runtime_manager.close()
+
+    def _runtime_scene_directory(self, payload: dict[str, Any]) -> Path:
+        scene_id = payload.get("scene_id")
+        if (not isinstance(scene_id, str) or not scene_id or scene_id != scene_id.strip()
+                or scene_id in {".", ".."} or any(char in scene_id for char in "/\\:\x00")):
+            raise ValueError("请选择网页中已生成的场景")
+        directory = self.output_root / scene_id
+        if directory.is_symlink() or not directory.resolve().is_relative_to(self.output_root):
+            raise ValueError("场景路径不安全")
+        layout = directory / "layout.json"
+        if (layout.is_symlink() or not layout.resolve().is_relative_to(directory.resolve())
+                or not layout.is_file()):
+            raise ValueError("当前场景没有可运行的布局记录，请先生成场景")
+        if layout.stat().st_size > 2 * 1024 * 1024:
+            raise ValueError("当前场景布局记录过大")
+        source = json.loads(layout.read_text(encoding="utf-8-sig"))
+        if not isinstance(source, dict) or source.get("scene_id") != scene_id:
+            raise ValueError("场景编号与保存的布局不一致")
+        return directory
+
+    def runtime_scene_check(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from .scene_runtime import inspect_scene_runtime
+
+        if set(payload) - {"scene_id", "profile"}:
+            raise ValueError("场景执行检查只支持 scene_id 和 profile")
+        profile = payload.get("profile", "tracking")
+        if profile not in {"tracking", "baseline"}:
+            raise ValueError("请选择 tracking 或 baseline 控制器")
+        directory = self._runtime_scene_directory(payload)
+        result = inspect_scene_runtime(self.factory, directory)
+        plan = result.get("plan") or {}
+        config = self.runtime.config()
+        return {
+            **result, "scene_id": payload["scene_id"], "profile": profile,
+            "task_count": 2 if result.get("eligible") else 0,
+            "robot_base_position_m": plan.get("robot_base_position_m"),
+            "target_position_m": plan.get("target_position_m"),
+            "runtime_available": config["available"], "runtime_message": config["message"],
+        }
+
+    def create_runtime_job(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if "scene_id" in payload:
+            return self.runtime.create_scene(self._runtime_scene_directory(payload), payload)
+        return self.runtime.create(payload)
 
     def recipe_catalog(self) -> list[dict[str, Any]]:
         return [
@@ -132,6 +179,44 @@ class SceneWebApplication:
             "valid_count": sum(bool(item["validation"]["valid"]) for item in items),
             "items": items,
         }
+
+    def generate_priority(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from .dataset import write_json_atomic
+        from .priority import DEFAULT_TASK, build_priority_scenario
+
+        result, scenario = build_priority_scenario(
+            self.factory, seed=payload.get("seed", 42),
+            clearance_m=payload.get("clearance_m", 0.005),
+            motion_state=payload.get("motion_state", "toward_edge"),
+            current_task=payload.get("current_task", DEFAULT_TASK),
+            urgency=payload.get("urgency", "routine"),
+            safe_to_pause=payload.get("safe_to_pause", True),
+            pause_consequence=payload.get("pause_consequence", ""),
+        )
+        directory = self.output_root / result.scene.scene_id
+        files = self.factory.write_result(result, directory, export_mjcf=True)
+        path = directory / "priority_scenario.json"
+        write_json_atomic(path, scenario)
+        files["priority_scenario"] = str(path)
+        item = self._result_payload(result, files)
+        item["priority_scenario"] = scenario
+        return {"items": [item], "count": 1, "valid_count": 1}
+
+    def ask_priority(self, payload: dict[str, Any]) -> dict[str, Any]:
+        from .dataset import write_json_atomic
+        from .priority import ask_priority, load_priority_scenario
+
+        scene_id = payload.get("scene_id")
+        if not isinstance(scene_id, str) or not scene_id:
+            raise ValueError("scene_id is required")
+        directory = (self.output_root / scene_id).resolve()
+        if not directory.is_relative_to(self.output_root):
+            raise ValueError("invalid scene_id")
+        scenario = load_priority_scenario(directory / "priority_scenario.json", factory=self.factory)
+        decision = ask_priority(scenario)
+        output = directory / "priority_decision.json"
+        write_json_atomic(output, decision)
+        return {"decision": decision, "files": self._file_urls(scene_id, {"priority_decision": str(output)})}
 
     def revise(self, payload: dict[str, Any]) -> dict[str, Any]:
         source_scene_id = str(payload.get("scene_id", "")).strip()
@@ -208,7 +293,12 @@ class SceneWebApplication:
             raise ValueError("layout.json 中的 scene_id 与请求不一致")
         from .exporters.blender import BlenderExporter
 
-        files = BlenderExporter(self.factory.registry).export(scene, scene_dir)
+        render_blend = payload.get("render_blend", False)
+        if not isinstance(render_blend, bool):
+            raise ValueError("render_blend must be boolean")
+        lock = self._blender_case_locks.setdefault(scene_id, threading.Lock())
+        with lock:
+            files = BlenderExporter(self.factory.registry).export(scene, scene_dir, render_blend=render_blend)
         return {"scene_id": scene_id, "files": self._file_urls(scene_id, files)}
 
     @staticmethod
@@ -220,6 +310,8 @@ class SceneWebApplication:
 
     def _result_payload(self, result: Any, files: dict[str, str]) -> dict[str, Any]:
         file_urls = self._file_urls(result.scene.scene_id, files)
+        assets = {item.asset_id: self._asset_payload(item.asset_id) for item in result.scene.objects}
+        proxies = [item for item in result.scene.objects if not assets[item.asset_id]["visual_url"]]
         revision = None
         if result.revision_of is not None:
             revision = {
@@ -228,9 +320,11 @@ class SceneWebApplication:
             }
         return {
             "scene": result.scene.to_dict(),
-            "assets": {
-                item.asset_id: self._asset_payload(item.asset_id)
-                for item in result.scene.objects
+            "assets": assets,
+            "appearance": {
+                "modeled_count": len(result.scene.objects) - len(proxies),
+                "proxy_count": len(proxies),
+                "proxy_categories": sorted({item.category for item in proxies}),
             },
             "validation": result.validation.to_dict(),
             "quality": result.quality,
@@ -257,8 +351,26 @@ class SceneWebApplication:
             "bbox_m": list(record.bbox_m),
             "source_type": record.source_type,
             "visual_url": visual["url"] if visual else None,
-            "visual_transform": visual["transform"] if visual else None,
+            "visual_transform": _visual_transform_for_asset(visual["transform"], record) if visual else None,
             "license": record.license,
+            "support_surfaces": [asdict(surface) for surface in record.support_surfaces],
+            "interior_regions": [asdict(region) for region in record.interior_regions],
+            # Keep the manipulation contract alongside the visual and physical
+            # metadata so the web planner can make the same graspability
+            # decision as the offline task compiler.
+            "grasp_region": record.grasp_region,
+            "manipulation": {
+                "graspable": bool(record.grasp_region),
+                "validated": bool(record.grasp_region) and record.status == "ready",
+                "allowed_actions": list(
+                    record.grasp_region.get("allowed_actions", [])
+                    if isinstance(record.grasp_region, dict)
+                    else []
+                ),
+            },
+            "physics": {"mass_kg": record.mass_kg,"static_friction": record.static_friction,
+                        "dynamic_friction": record.dynamic_friction,"rigid_body": record.rigid_body,
+                        "collision_status": record.collision_status},
         }
 
     def _discover_visual_assets(self) -> dict[str, dict[str, Any]]:
@@ -450,7 +562,10 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             "/api/open-isaac",
             "/api/export-blender",
             "/api/llm/test",
+            "/api/priority/generate",
+            "/api/priority/ask",
             "/api/runtime/jobs",
+            "/api/runtime/scene-check",
         }:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
@@ -462,9 +577,15 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 raise ValueError("请求必须是 JSON 对象")
             if path == "/api/runtime/jobs":
-                result = self.app.runtime.create(payload)
+                result = self.app.create_runtime_job(payload)
+            elif path == "/api/runtime/scene-check":
+                result = self.app.runtime_scene_check(payload)
             elif path == "/api/generate":
                 result = self.app.generate(payload)
+            elif path == "/api/priority/generate":
+                result = self.app.generate_priority(payload)
+            elif path == "/api/priority/ask":
+                result = self.app.ask_priority(payload)
             elif path == "/api/revise":
                 result = self.app.revise(payload)
             elif path == "/api/open-isaac":
