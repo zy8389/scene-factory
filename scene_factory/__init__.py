@@ -42,6 +42,7 @@ from .external import (
 )
 from .registry import AssetLoader, AssetMetadata, AssetRegistry
 from .scene_ir import IREntity, IRRelation, IRConstraint, IRTask, SceneIR
+from .task_contracts import TaskAction, TaskGraph
 from .backends import MujocoBackend
 from .exporters import MujocoMjcfExporter
 from .trajectory import (
@@ -117,6 +118,8 @@ __all__ = [
     "IRConstraint",
     "IRTask",
     "SceneIR",
+    "TaskAction",
+    "TaskGraph",
     "ArticulationJoint",
     "AssetNormalizer",
     "AssetValidator",
