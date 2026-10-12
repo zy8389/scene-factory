@@ -137,6 +137,11 @@ class SceneWebApplication:
             for record in self.factory.registry.list(statuses=("ready", "validated"))
         ]
 
+    def domain_catalog(self) -> list[dict[str, Any]]:
+        from .domains import domain_catalog
+
+        return domain_catalog()
+
     def generate(self, payload: dict[str, Any]) -> dict[str, Any]:
         prompt = str(payload.get("prompt", "")).strip()
         if len(prompt) < 2:
@@ -515,6 +520,9 @@ class SceneFactoryHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/recipes":
                 self._send_json(HTTPStatus.OK, {"recipes": self.app.recipe_catalog()})
+                return
+            if path == "/api/domains":
+                self._send_json(HTTPStatus.OK, {"domains": self.app.domain_catalog()})
                 return
             if path == "/api/assets":
                 self._send_json(HTTPStatus.OK, {"assets": self.app.asset_catalog()})

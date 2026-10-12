@@ -112,6 +112,7 @@ def _check_resources(failures: list[str]) -> None:
         "recipes/kitchen_franka_mug_pick_place.json",
         "recipes/kitchen_franka_bowl_pick_place.json",
         "recipes/kitchen_franka_box_pick_place.json",
+        "recipes/warehouse_retrieval.json",
         "schemas/executor_capabilities.schema.json",
         "schemas/executor_conformance.schema.json",
     )

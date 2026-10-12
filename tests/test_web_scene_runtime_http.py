@@ -102,7 +102,7 @@ def test_scene_job_uses_server_resolved_source_and_retains_fixed_batch_route(sce
     assert result["job_id"] == "fixed-job"
 
 
-@pytest.mark.parametrize("scene_id", ["../outside", "..\\outside", "F:/outside", "..", "", 123, " padded "])
+@pytest.mark.parametrize("scene_id", ["../outside", "..\\outside", "drive:/outside", "..", "", 123, " padded "])
 def test_scene_routes_refuse_outside_paths(scene_server, scene_id):
     _, manager, _, request = scene_server
     for route in ["/api/runtime/scene-check", "/api/runtime/jobs"]:

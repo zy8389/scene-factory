@@ -1,0 +1,23 @@
+{
+  "name": "warehouse_retrieval",
+  "room_type": "warehouse",
+  "room_dimensions_m": [8.0, 6.0, 4.0],
+  "event": "warehouse_retrieval",
+  "description": "仓库中两排货架之间留出搬运通道，机器人从货架取出蓝色箱子并送到出货区。",
+  "keywords": ["warehouse", "storage", "shelf", "box", "retrieval", "仓库", "货架", "出货"],
+  "objects": [
+    {"object_id": "shelf_left", "category": "storage_shelf", "asset_id": "kd_shelf_01", "dynamic": false, "fixed_pose": {"position": [-1.6, 0.0, 0.8], "yaw_deg": 0}},
+    {"object_id": "shelf_right", "category": "storage_shelf", "asset_id": "kd_shelf_01", "dynamic": false, "fixed_pose": {"position": [1.6, 0.0, 0.8], "yaw_deg": 0}},
+    {"object_id": "box_1", "category": "box", "asset_id": "kd_box_01", "support": "shelf_left:shelf_1", "dynamic": true, "fixed_pose": {"position": [-1.6, 0.0, 0.606], "yaw_deg": 0}}
+  ],
+  "task": {
+    "instruction": "机器人从左侧货架取出箱子，沿中间通道送到出货区。",
+    "target_object": "box_1",
+    "asset_id": "kd_box_01",
+    "robot": "mobile_manipulator",
+    "actions": ["navigate", "grasp", "retrieve", "place"],
+    "navigation_corridor": {"center_y": 0.0, "width_m": 2.0},
+    "goal_region": {"center": [0.0, 2.2, 0.2], "size": [1.5, 1.0, 0.4]},
+    "success": {"predicate": "retrieve_and_place", "subject": "box_1", "goal_region": "shipping_zone"}
+  }
+}

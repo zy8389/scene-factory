@@ -43,6 +43,7 @@ WHEEL_REQUIRED_FILES = (
     "recipes/kitchen_franka_mug_pick_place.json",
     "recipes/kitchen_franka_bowl_pick_place.json",
     "recipes/kitchen_franka_box_pick_place.json",
+    "recipes/warehouse_retrieval.json",
     "recipes/living_room_recent_snacking.json",
     "recipes/living_room_returned_home.json",
     "schemas/asset_record.schema.json",
